@@ -3,43 +3,45 @@ class ScoringService {
      * Calculates a dynamic opportunity score (0-100) for Leads Pro AI v2.0
      */
     static calculateScore(lead) {
+        if (!lead) return 0;
+
         // Core Negative Scoring: Clients with extremely low rating or known franchises
-        if (lead.rating && lead.rating < 3.0) return 0;
+        if (lead?.rating && lead.rating < 3.0) return 0;
 
         const franchiseKeywords = ['mcdonald', 'starbucks', 'burger king', 'subway', 'pizza hut', 'domino', 'kfc', 'walmart', 'carrefour'];
-        if (franchiseKeywords.some(kw => lead.name.toLowerCase().includes(kw))) return 0;
+        if (franchiseKeywords.some(kw => lead?.name?.toLowerCase().includes(kw))) return 0;
 
         // PENALTY_ZOMBIE (-100): Inactive businesses
-        if (lead.is_zombie) return 0;
+        if (lead?.is_zombie) return 0;
 
         let score = 0;
 
         // 1. BONUS_ANALOG (+80): Successful businesses without web
-        const isSuccessfulAnalog = !lead.website && lead.userRatingsTotal > 50 && lead.rating > 4.2;
+        const isSuccessfulAnalog = !lead?.website && (lead?.userRatingsTotal || 0) > 50 && (lead?.rating || 0) > 4.2;
         if (isSuccessfulAnalog) {
             score += 80;
         }
 
         // 2. BONUS_INEFFICIENCY (+40): Good business + Poor Technology (Wix/GoDaddy)
-        const hasInefficientTech = lead.tech_stack && (lead.tech_stack.includes('Wix') || lead.tech_stack.includes('GoDaddy'));
-        const isGoodBusiness = lead.rating > 4.0 || lead.is_advertising;
+        const hasInefficientTech = lead?.tech_stack && (lead.tech_stack.includes('Wix') || lead.tech_stack.includes('GoDaddy'));
+        const isGoodBusiness = lead?.rating > 4.0 || lead?.is_advertising;
 
         if (hasInefficientTech && isGoodBusiness) {
             score += 40;
         }
 
         // 3. Performance Bonus: TTFB Issues
-        if (lead.performance_metrics && lead.performance_metrics.performance_issue) {
+        if (lead?.performance_metrics?.performance_issue) {
             score += 15;
         }
 
         // 4. Advertising intent: Boost priority
-        if (lead.is_advertising) {
+        if (lead?.is_advertising) {
             score += 30;
         }
 
         // General Authority points
-        if (lead.userRatingsTotal > 100) score += 10;
+        if (lead?.userRatingsTotal > 100) score += 10;
 
         // Final normalization
         return Math.min(Math.max(score, 0), 100);
@@ -49,18 +51,19 @@ class ScoringService {
      * Generates a refined sales angle combining Tech Profiling and Reviews
      */
     static generateRefinedAngle(lead, reviews) {
+        if (!lead) return "Análisis de oportunidad estándar";
         let angle = "";
 
-        const hasBadTech = lead.tech_stack && (lead.tech_stack.includes('Wix') || lead.tech_stack.includes('GoDaddy'));
-        const hasPerfIssue = lead.performance_metrics && lead.performance_metrics.performance_issue;
+        const hasBadTech = lead?.tech_stack && (lead.tech_stack.includes('Wix') || lead.tech_stack.includes('GoDaddy'));
+        const hasPerfIssue = lead?.performance_metrics?.performance_issue;
 
         // Review analysis for specific friction
         const reviewText = reviews ? reviews.join(' ').toLowerCase() : "";
         const frictionDetected = reviewText.includes('teléfono') || reviewText.includes('atiende') || reviewText.includes('espera');
 
-        if (lead.is_advertising && hasBadTech) {
-            angle = `Cliente con alta inversión publicitaria pero web de bajo rendimiento (${lead.tech_stack.join(', ')}). Riesgo de pérdida de presupuesto.`;
-        } else if (!lead.website && lead.userRatingsTotal > 50) {
+        if (lead?.is_advertising && hasBadTech) {
+            angle = `Cliente con alta inversión publicitaria pero web de bajo rendimiento (${lead?.tech_stack?.join(', ') || 'N/A'}). Riesgo de pérdida de presupuesto.`;
+        } else if (!lead?.website && (lead?.userRatingsTotal || 0) > 50) {
             angle = "Negocio exitoso operando en 'modo analógico'. Urgencia de digitalización profesional para escalar.";
         } else if (hasPerfIssue) {
             angle = `Web lenta detectada (TTFB >1.5s). Oportunidad de mejora de conversión mediante optimización técnica.`;
@@ -77,7 +80,7 @@ class ScoringService {
      * Categorizes the opportunity level
      */
     static getOpportunityLevel(score, lead) {
-        if (lead.is_advertising || score >= 90) return 'Critical';
+        if (lead?.is_advertising || score >= 90) return 'Critical';
         if (score >= 70) return 'High';
         if (score >= 40) return 'Medium';
         return 'Low';

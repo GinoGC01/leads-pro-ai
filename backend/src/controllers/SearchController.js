@@ -3,6 +3,9 @@ const SearchHistory = require('../models/SearchHistory');
 const GooglePlacesService = require('../services/GooglePlacesService');
 const EmailScraperService = require('../services/EmailScraperService');
 const ScoringService = require('../services/ScoringService');
+const ragConfig = require('../config/rag.config');
+const AIService = require('../services/AIService');
+const SupabaseService = require('../services/SupabaseService');
 const TechProfiler = require('../services/TechProfiler');
 
 /**
@@ -156,11 +159,20 @@ class SearchController {
                         leadData.enrichmentStatus = 'not_found';
                     }
 
-                    // Scoring & NLP
-                    leadData.leadOpportunityScore = ScoringService.calculateScore(leadData);
-                    leadData.opportunityLevel = ScoringService.getOpportunityLevel(leadData.leadOpportunityScore, leadData.sales_angle);
-                    leadData.sales_angle = ScoringService.generateRefinedAngle(leadData, leadData.reviews);
-                    leadData.isHighTicket = leadData.opportunityLevel === 'Critical';
+                    // Scoring & NLP (Bulletproof Implementation)
+                    try {
+                        console.log(`[INGESTION] Iniciando scoring para: ${leadData.name}`);
+                        leadData.leadOpportunityScore = ScoringService.calculateScore(leadData) || 0;
+                        leadData.opportunityLevel = ScoringService.getOpportunityLevel(leadData.leadOpportunityScore, leadData) || 'Low';
+                        leadData.sales_angle = ScoringService.generateRefinedAngle(leadData, leadData.reviews) || 'Análisis estándar';
+                        leadData.isHighTicket = leadData.opportunityLevel === 'Critical';
+                    } catch (scoringErr) {
+                        console.error(`[CRITICAL] Error en scoring para ${leadData.name}:`, scoringErr.message);
+                        // Fallback values to avoid losing the lead
+                        leadData.leadOpportunityScore = 0;
+                        leadData.opportunityLevel = 'Low';
+                        leadData.sales_angle = 'Error en procesador de inteligencia';
+                    }
 
                     if (leadData.email) {
                         await pushStatus(`📧 Email encontrado para ${details.name}: ${leadData.email}`, 'success');
@@ -170,6 +182,31 @@ class SearchController {
                     }
 
                     const created = await Lead.create(leadData);
+
+                    // Background RAG Sync (Fire and Forget)
+                    (async () => {
+                        try {
+                            const semanticContent = ragConfig.ingestion.buildSemanticContent(created);
+                            const embedding = await AIService.generateEmbedding(semanticContent);
+
+                            await SupabaseService.upsertLeadVector({
+                                lead_id: created._id.toString(),
+                                name: created.name,
+                                metadata: {
+                                    rating: created.rating,
+                                    ttfb: created.performance_metrics?.ttfb,
+                                    is_zombie: created.is_zombie,
+                                    opportunity_score: created.leadOpportunityScore,
+                                    location: location,
+                                    category: keyword
+                                },
+                                content: semanticContent
+                            }, embedding);
+                        } catch (ragErr) {
+                            console.error(`[RAG-Sync] Error for ${created.name}:`, ragErr.message);
+                        }
+                    })();
+
                     return created;
                 } catch (err) {
                     console.error(`[SearchController] Error lead:`, err.message);
@@ -254,7 +291,7 @@ class SearchController {
     }
 
     /**
-     * Get aggregate statistics for the dashboard
+     * Get aggregate statistics for the dashboard (Data Intelligence v2.0)
      */
     static async getGlobalStats(req, res) {
         try {
@@ -262,25 +299,60 @@ class SearchController {
             const totalLeads = await Lead.countDocuments();
             const leadsWithWeb = await Lead.countDocuments({ website: { $ne: null, $exists: true } });
             const leadsWithEmail = await Lead.countDocuments({ email: { $ne: null, $exists: true } });
+            const highTicketLeads = await Lead.countDocuments({ isHighTicket: true });
 
             // Calculate Avg Score across all leads
             const scoreAggregate = await Lead.aggregate([
                 { $group: { _id: null, avgScore: { $avg: "$leadOpportunityScore" } } }
             ]);
 
+            // Billing Estimation Engine (Based on Official Google Cloud SKUs)
+            // Neary/Text Search: $32/1000, Details (Contact): $3/1000, Details (Atmosphere): $5/1000
+            const billingMetrics = {
+                discoveryCost: (histories.length * 0.032), // Estimación base por búsqueda
+                detailsCost: (totalLeads * 0.008), // Contact ($0.003) + Atmosphere ($0.005)
+                enrichmentCost: (leadsWithWeb * 0.007), // Tech Profiling + Scraping
+                totalEstimated: histories.reduce((sum, h) => sum + (h.totalCost || 0), 0)
+            };
+
+            // Category Analysis (Top 5 keywords)
+            const categories = await SearchHistory.aggregate([
+                { $group: { _id: "$keyword", count: { $sum: "$resultsCount" } } },
+                { $sort: { count: -1 } },
+                { $limit: 5 }
+            ]);
+
+            // Efficiency Metrics
+            const efficiency = {
+                costPerLead: totalLeads > 0 ? billingMetrics.totalEstimated / totalLeads : 0,
+                costPerEmail: leadsWithEmail > 0 ? billingMetrics.totalEstimated / leadsWithEmail : 0,
+                roiPotential: highTicketLeads * 500 // Arbitrary $500 potential value per Critical lead
+            };
+
             const stats = {
-                totalSearches: histories.length,
-                totalInvested: histories.reduce((sum, h) => sum + (h.totalCost || 0), 0),
-                totalLeadsDatabase: totalLeads,
-                totalHighTicket: await Lead.countDocuments({ isHighTicket: true }),
-                uniqueLocations: [...new Set(histories.map(h => h.location))].length,
-                emailCoverage: totalLeads > 0 ? (leadsWithEmail / totalLeads) * 100 : 0,
-                webCoverage: totalLeads > 0 ? (leadsWithWeb / totalLeads) * 100 : 0,
-                avgScore: scoreAggregate[0]?.avgScore || 0
+                summary: {
+                    totalSearches: histories.length,
+                    totalInvested: billingMetrics.totalEstimated,
+                    totalLeads: totalLeads,
+                    totalHighTicket: highTicketLeads,
+                    uniqueLocations: [...new Set(histories.map(h => h.location))].length,
+                    avgScore: scoreAggregate[0]?.avgScore || 0
+                },
+                coverage: {
+                    email: totalLeads > 0 ? (leadsWithEmail / totalLeads) * 100 : 0,
+                    web: totalLeads > 0 ? (leadsWithWeb / totalLeads) * 100 : 0
+                },
+                billing: billingMetrics,
+                categories: categories.map(c => ({ name: c._id, count: c.count })),
+                efficiency,
+                projection: {
+                    monthlyEstimated: (billingMetrics.totalEstimated / Math.max(1, histories.length)) * 30
+                }
             };
 
             res.status(200).json(stats);
         } catch (error) {
+            console.error('[Stats] Error:', error);
             res.status(500).json({ success: false, message: error.message });
         }
     }

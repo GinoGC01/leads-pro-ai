@@ -11,6 +11,7 @@ export const getLeadsBySearch = (searchId) => api.get(`/history/${searchId}/lead
 export const getGlobalStats = () => api.get('/stats');
 export const updateLeadStatus = (id, status, note) => api.patch(`/leads/${id}/status`, { status, note });
 export const deleteHistory = (searchId) => api.delete(`/history/${searchId}`);
+export const askAi = (query, history) => api.post('/ai/chat', { query, history });
 export const exportUrl = (searchId, format) => `http://localhost:5000/api/export/${searchId}/${format}`;
 
 export default api;

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const SearchController = require('../controllers/SearchController');
 const ExportController = require('../controllers/ExportController');
+const AIController = require('../controllers/AIController');
 
 // Search Routes
 router.use((req, res, next) => {
@@ -16,6 +17,9 @@ router.get('/history/:id', SearchController.getHistoryById);
 router.get('/history', SearchController.getHistory);
 router.get('/history/:searchId/leads', SearchController.getLeadsBySearch);
 router.patch('/leads/:id/status', SearchController.updateLeadStatus);
+
+// AI Routes
+router.post('/ai/chat', AIController.chat);
 
 // Export Routes
 router.get('/export/:searchId/json', ExportController.exportJson);

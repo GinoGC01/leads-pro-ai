@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import SearchForm from './components/SearchForm';
 import Metrics from './components/Metrics';
 import LeadsTable from './components/LeadsTable';
+import AIChat from './components/AIChat';
 import { searchLeads, getHistory, getHistoryItem, getLeadsBySearch, getGlobalStats, exportUrl, deleteHistory } from './services/api';
-import { Download, History, Database, Star, Phone, Search, Trash2, DollarSign, BarChart3, MapPin, ExternalLink } from 'lucide-react';
+import { Download, History, Database, Star, Phone, Search, Trash2, DollarSign, BarChart3, MapPin, ExternalLink, Sparkles, X as CloseIcon } from 'lucide-react';
 
 const Dashboard = () => {
     const [leads, setLeads] = useState([]);
@@ -12,6 +13,7 @@ const Dashboard = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [history, setHistory] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isChatOpen, setIsChatOpen] = useState(false);
     const [currentSearchId, setCurrentSearchId] = useState(null);
     const [totalCost, setTotalCost] = useState(0);
 
@@ -66,11 +68,30 @@ const Dashboard = () => {
                         const { data: leadsData } = await getLeadsBySearch(currentSearchId);
                         setLeads(leadsData);
                         setStats({
-                            total: historyItem.resultsCount,
-                            withWeb: historyItem.leadsWithWeb,
-                            withEmail: historyItem.leadsWithEmail,
-                            avgRating: historyItem.averageRating,
-                            totalCost: historyItem.totalCost
+                            summary: {
+                                totalLeads: historyItem.resultsCount,
+                                totalSearches: 1,
+                                totalInvested: historyItem.totalCost,
+                                totalHighTicket: leadsData.filter(l => l.opportunityLevel === 'Critical').length,
+                                avgScore: leadsData.reduce((acc, l) => acc + (l.leadOpportunityScore || 0), 0) / (leadsData.length || 1)
+                            },
+                            coverage: {
+                                email: (historyItem.leadsWithEmail / (historyItem.resultsCount || 1)) * 100,
+                                web: (historyItem.leadsWithWeb / (historyItem.resultsCount || 1)) * 100
+                            },
+                            billing: {
+                                totalEstimated: historyItem.totalCost,
+                                discoveryCost: 0.032,
+                                detailsCost: historyItem.resultsCount * 0.008,
+                                enrichmentCost: historyItem.leadsWithWeb * 0.007
+                            },
+                            efficiency: {
+                                costPerLead: historyItem.totalCost / (historyItem.resultsCount || 1),
+                                roiPotential: leadsData.filter(l => l.opportunityLevel === 'Critical').length * 500
+                            },
+                            projection: {
+                                monthlyEstimated: historyItem.totalCost * 30
+                            }
                         });
 
                         setIsLoading(false);
@@ -146,12 +167,32 @@ const Dashboard = () => {
             ]);
 
             const historyItem = historyRes.data;
+            const leadsData = leadsRes.data;
             setStats({
-                total: historyItem.resultsCount,
-                withWeb: historyItem.leadsWithWeb,
-                withEmail: historyItem.leadsWithEmail,
-                avgRating: historyItem.averageRating,
-                totalCost: historyItem.totalCost
+                summary: {
+                    totalLeads: historyItem.resultsCount,
+                    totalSearches: 1,
+                    totalInvested: historyItem.totalCost,
+                    totalHighTicket: leadsData.filter(l => l.isHighTicket).length,
+                    avgScore: leadsData.reduce((acc, l) => acc + (l.leadOpportunityScore || 0), 0) / (leadsData.length || 1)
+                },
+                coverage: {
+                    email: (historyItem.leadsWithEmail / (historyItem.resultsCount || 1)) * 100,
+                    web: (historyItem.leadsWithWeb / (historyItem.resultsCount || 1)) * 100
+                },
+                billing: {
+                    totalEstimated: historyItem.totalCost,
+                    discoveryCost: 0.032,
+                    detailsCost: historyItem.resultsCount * 0.008,
+                    enrichmentCost: historyItem.leadsWithWeb * 0.007
+                },
+                efficiency: {
+                    costPerLead: historyItem.totalCost / (historyItem.resultsCount || 1),
+                    roiPotential: leadsData.filter(l => l.isHighTicket).length * 500
+                },
+                projection: {
+                    monthlyEstimated: historyItem.totalCost * 30
+                }
             });
             setTotalCost(historyItem.totalCost || 0);
             setLogs(historyItem.logs || []);
@@ -241,61 +282,108 @@ const Dashboard = () => {
                     <SearchForm onSearch={handleSearch} isLoading={isLoading} />
                 </section>
 
-                {/* Dashboard Content */}
-                {stats && <Metrics stats={stats} />}
+                {/* Dashboard Metrics (Global by default, local when searching) */}
+                <div className="mb-8">
+                    {(stats || globalStats) && <Metrics stats={stats || globalStats} />}
+                </div>
 
-                {/* Progress Logs Console */}
-                {(isLoading || logs.length > 0) && (
-                    <div className="max-w-5xl mx-auto mb-8 bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden font-mono text-xs">
-                        <div className="bg-slate-800 px-4 py-2 border-b border-slate-700 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="flex gap-1">
-                                    <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-inner opacity-60"></div>
-                                    <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-inner opacity-60"></div>
-                                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-inner opacity-60"></div>
-                                </div>
-                                <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Consola de Avance</span>
-                            </div>
-
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded text-[10px] font-bold text-amber-500">
-                                    <DollarSign className="w-3 h-3" />
-                                    <span>COSTO ESTIMADO: ${totalCost.toFixed(3)}</span>
-                                </div>
-                                {isLoading && (
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                                        <span className="text-emerald-500 text-[10px] font-bold">PROCESANDO...</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        <div className="p-4 max-h-80 overflow-y-auto flex flex-col gap-1 scrollbar-hide bg-slate-900/50">
-                            {logs.map((log, i) => (
-                                <div key={i} className={`flex gap-3 items-start ${log.type === 'error' ? 'text-red-400' :
-                                    log.type === 'success' ? 'text-emerald-400' :
-                                        'text-slate-300'
-                                    }`}>
-                                    <span className="text-slate-600 shrink-0 font-light">
-                                        [{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}]
-                                    </span>
-                                    <span className="break-all leading-relaxed">{log.message}</span>
-                                </div>
-                            ))}
-                            {isLoading && (
-                                <div className="flex gap-3 text-indigo-400 animate-pulse mt-1">
-                                    <span className="text-slate-600 shrink-0">[{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}]</span>
-                                    <span className="font-bold">_</span>
-                                </div>
-                            )}
-                            <div ref={logEndRef} />
-                        </div>
-                    </div>
-                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     {/* Main Results */}
                     <div className="lg:col-span-3">
+                        {/* Top Intelligence & Progress Area */}
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+                            {/* Data Intelligence Visual Insights */}
+                            {globalStats?.categories && (
+                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div>
+                                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                                                <BarChart3 className="w-5 h-5 text-indigo-600" />
+                                                Market Category Leadership
+                                            </h3>
+                                            <p className="text-[11px] text-slate-400 font-medium">Distribución de leads por nicho detectado</p>
+                                        </div>
+                                        {!isLoading && (
+                                            <div className="flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
+                                                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                                                <span className="text-[10px] font-black text-indigo-700 uppercase">AI Active</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-4 flex-1">
+                                        {globalStats.categories.map((cat, idx) => (
+                                            <div key={idx} className="group cursor-default">
+                                                <div className="flex justify-between items-end mb-1.5 px-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-black text-slate-300 w-4">0{idx + 1}</span>
+                                                        <span className="text-xs font-bold text-slate-700 group-hover:text-indigo-600 transition-colors uppercase">{cat.name}</span>
+                                                    </div>
+                                                    <span className="text-[11px] font-mono text-slate-500 font-bold">{cat.count}</span>
+                                                </div>
+                                                <div className="h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100 p-[1px]">
+                                                    <div
+                                                        className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-full transition-all duration-1000 group-hover:from-indigo-600 group-hover:to-indigo-500 shadow-sm"
+                                                        style={{ width: `${(cat.count / globalStats.summary.totalLeads) * 100}%` }}
+                                                    ></div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Progress Logs Console */}
+                            {(isLoading || logs.length > 0) && (
+                                <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden font-mono text-[10px] flex flex-col h-[320px]">
+                                    <div className="bg-slate-800 px-4 py-3 border-b border-slate-700 flex items-center justify-between shrink-0">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex gap-1">
+                                                <div className="w-2 h-2 rounded-full bg-red-500 opacity-60"></div>
+                                                <div className="w-2 h-2 rounded-full bg-amber-500 opacity-60"></div>
+                                                <div className="w-2 h-2 rounded-full bg-emerald-500 opacity-60"></div>
+                                            </div>
+                                            <span className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Live Console</span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            {isLoading && (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                                                    <span className="text-emerald-500 text-[9px] font-bold">LIVE</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="p-4 overflow-y-auto flex flex-col gap-1.5 minimal-scrollbar bg-slate-900/50 flex-1">
+                                        {logs.map((log, i) => (
+                                            <div key={i} className={`flex gap-3 items-start ${log.type === 'error' ? 'text-red-400' :
+                                                log.type === 'success' ? 'text-emerald-400' :
+                                                    'text-slate-300'
+                                                }`}>
+                                                <span className="text-slate-600 shrink-0 font-light text-[9px]">
+                                                    {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                </span>
+                                                <span className="break-all leading-tight">{log.message}</span>
+                                            </div>
+                                        ))}
+                                        {isLoading && (
+                                            <div className="flex gap-3 text-indigo-400 animate-pulse mt-1">
+                                                <span className="text-slate-600 shrink-0 text-[9px]">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                                                <span className="font-bold">_</span>
+                                            </div>
+                                        )}
+                                        <div ref={logEndRef} />
+                                    </div>
+                                    <div className="bg-slate-800/50 px-4 py-2 border-t border-white/5 shrink-0 flex justify-between items-center text-[9px] font-bold text-slate-500">
+                                        <span>SYSTEM STATUS: {isLoading ? 'PROCESSING' : 'IDLE'}</span>
+                                        <span className="text-amber-500 uppercase">Est. Cost: ${totalCost.toFixed(3)}</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         {leads.some(l => l.isHighTicket) && (
                             <div className="mb-8 p-6 bg-indigo-900 rounded-2xl text-white shadow-xl shadow-indigo-200">
                                 <div className="flex items-center gap-2 mb-4">
@@ -360,7 +448,7 @@ const Dashboard = () => {
                                                     <div className="text-[10px] font-black text-indigo-300/60 uppercase tracking-widest mb-1">Inversión Estimada</div>
                                                     <div className="text-3xl font-black tracking-tighter flex items-center gap-2">
                                                         <span className="text-white/40 text-xl font-light">≈</span>
-                                                        ${globalStats.totalInvested.toFixed(2)}
+                                                        ${(globalStats.summary?.totalInvested || 0).toFixed(2)}
                                                         <span className="text-xs font-medium text-indigo-400/80 ml-1">USD</span>
                                                     </div>
                                                 </div>
@@ -380,11 +468,11 @@ const Dashboard = () => {
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="bg-white/5 p-3 rounded-xl border border-white/5">
                                                 <div className="text-[9px] font-black text-indigo-300/50 uppercase tracking-widest mb-1">Base Leads</div>
-                                                <div className="text-lg font-black text-white">{globalStats.totalLeadsDatabase.toLocaleString()}</div>
+                                                <div className="text-lg font-black text-white">{(globalStats.summary?.totalLeads || 0).toLocaleString()}</div>
                                             </div>
                                             <div className="bg-white/5 p-3 rounded-xl border border-white/5">
                                                 <div className="text-[9px] font-black text-indigo-300/50 uppercase tracking-widest mb-1">Avg Score</div>
-                                                <div className="text-lg font-black text-indigo-400">{(globalStats.avgScore || 0).toFixed(1)}</div>
+                                                <div className="text-lg font-black text-indigo-400">{(globalStats.summary?.avgScore || 0).toFixed(1)}</div>
                                             </div>
                                         </div>
 
@@ -393,19 +481,19 @@ const Dashboard = () => {
                                             <div className="space-y-1.5">
                                                 <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-indigo-300/70">
                                                     <span>Cobertura Email</span>
-                                                    <span>{(globalStats.emailCoverage || 0).toFixed(0)}%</span>
+                                                    <span>{(globalStats.coverage?.email || 0).toFixed(0)}%</span>
                                                 </div>
                                                 <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
-                                                    <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${globalStats.emailCoverage || 0}%` }}></div>
+                                                    <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${globalStats.coverage?.email || 0}%` }}></div>
                                                 </div>
                                             </div>
                                             <div className="space-y-1.5">
                                                 <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-indigo-300/70">
                                                     <span>Cobertura Web</span>
-                                                    <span>{(globalStats.webCoverage || 0).toFixed(0)}%</span>
+                                                    <span>{(globalStats.coverage?.web || 0).toFixed(0)}%</span>
                                                 </div>
                                                 <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
-                                                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${globalStats.webCoverage || 0}%` }}></div>
+                                                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${globalStats.coverage?.web || 0}%` }}></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -414,11 +502,11 @@ const Dashboard = () => {
                                         <div className="flex flex-col gap-2 pt-2 text-[10px] font-bold text-indigo-300/60 uppercase tracking-wider">
                                             <div className="flex items-center gap-2">
                                                 <MapPin className="w-3 h-3" />
-                                                <span>{globalStats.uniqueLocations} sectores explorados</span>
+                                                <span>{globalStats.summary?.uniqueLocations || 0} sectores explorados</span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <Star className="w-3 h-3" />
-                                                <span>{globalStats.totalHighTicket} High Ticket Detectados</span>
+                                                <span>{globalStats.summary?.totalHighTicket || 0} High Ticket Detectados</span>
                                             </div>
                                         </div>
                                     </div>
@@ -487,6 +575,26 @@ const Dashboard = () => {
                     </div>
                 </div>
             </main>
+
+            {/* Floating AI Chat Button */}
+            <button
+                onClick={() => setIsChatOpen(!isChatOpen)}
+                className="fixed bottom-6 right-6 p-4 bg-indigo-600 text-white rounded-full shadow-2xl hover:bg-indigo-700 transition-all z-50 group hover:scale-110 active:scale-95 flex items-center justify-center border-4 border-white/20 backdrop-blur-sm"
+            >
+                {isChatOpen ? <CloseIcon className="w-6 h-6" /> : <Sparkles className="w-6 h-6 animate-pulse" />}
+                {!isChatOpen && (
+                    <span className="absolute right-full mr-4 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-900/90 backdrop-blur-md text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap shadow-2xl translate-x-4 group-hover:translate-x-0 border border-white/10">
+                        ✨ Preguntar al Estratega IA
+                    </span>
+                )}
+            </button>
+
+            {/* AI Chat Window Container */}
+            {isChatOpen && (
+                <div className="fixed bottom-24 right-6 z-50 pointer-events-none">
+                    <AIChat onClose={() => setIsChatOpen(false)} />
+                </div>
+            )}
         </div>
     );
 };
