@@ -1,60 +1,53 @@
-# Informe Técnico de Ingeniería: Leads Pro AI v2.0
+# 💎 Leads Pro AI: Reporte Maestro de Ingeniería
+## El Futuro de la Prospección Inteligente (v2.5)
 
-## 1. Visión General
-Leads Pro AI v2.0 es una plataforma avanzada de generación y enriquecimiento de prospectos (Lead Generation) diseñada específicamente para agencias de marketing y ventas B2B. El sistema automatiza el descubrimiento de negocios, analiza su presencia digital y asigna una puntuación de oportunidad basada en indicadores técnicos y de rendimiento.
-
----
-
-## 2. Arquitectura del Sistema
-El sistema sigue una arquitectura desacoplada centrada en servicios (SOA):
-
-### Backend (Node.js + Express)
-- **Motor Asíncrono:** Utiliza procesamiento en segundo plano para evitar bloqueos del hilo principal durante el scraping intensivo.
-- **Base de Datos (MongoDB):** Almacena leads, historial de búsquedas y métricas globales de inversión.
-- **Servicios Especializados:** Lógica encapsulada para búsqueda de lugares, scraping web, perfilado técnico y scoring.
-
-### Frontend (React + Vite)
-- **Dashboard Glassmorphic:** Interfaz moderna con transparencia y gradientes.
-- **Polling en Tiempo Real:** Sistema de consulta de logs de progreso para visualizar el estado de la búsqueda en vivo.
-- **Visualización Analítica:** Desglose detallado de costos, cobertura de datos y calidad de leads.
+Este documento detalla la arquitectura técnica, las innovaciones y el corazón algorítmico del sistema **Leads Pro AI**. Un ecosistema diseñado no solo para encontrar negocios, sino para transformarlos en oportunidades de venta con precisión táctica.
 
 ---
 
-## 3. Flujo de Prospección (Workflow)
-1.  **Fase de Descubrimiento:** Conexión con Google Places API para localizar negocios por palabra clave y sector.
-2.  **Fase de Enriquecimiento Profundo:**
-    *   **Scraping Web:** Rastreo del sitio oficial para extraer correos electrónicos, teléfonos y redes sociales.
-    *   **Tech Profiling:** Detección de constructores web (WordPress, Wix, etc.) y medición del **TTFB** (Time to First Byte).
-3.  **Fase de Auditoría de Places:** Extracción de reseñas, rating y detección de inversión en anuncios (Ads).
-4.  **Fase de Scoring:** Cálculo matemático de la oportunidad (0-100) y categorización de prioridad.
+## 🌪️ El Motor Central: Vortex Intelligence Engine (VIE)
+El alma del proyecto es el **Vortex Intelligence Engine (VIE)**, un motor de enriquecimiento asíncrono que procesa cada lead de forma profunda.
+
+### Innovaciones v2.5:
+1.  **Bimodal Context Retrieval**: El sistema ya no depende solo de la base de datos vectorial. AI Controller ahora fusiona determinísticamente las métricas de **MongoDB** (Scores, Performance, SEO Audit) con el contenido semántico de **Supabase (Scraping)**, eliminando alucinaciones y asegurando que la IA siempre tenga datos, incluso si el scraping es parcial.
+2.  **Tactical Persistence Logic**: Cada ángulo de venta, email o estrategia generada por la IA se guarda automáticamente en el CRM del prospecto. Esto crea una memoria corporativa que reduce el consumo de tokens y permite re-abrir leads con su contexto táctico intacto.
 
 ---
 
-## 4. Innovaciones Técnicas y Fixes Críticos
-
-### A. Persistencia de Contexto en Paginación (Google Places)
-Uno de los retos técnicos más complejos resueltos en esta versión fue el error de `INVALID_REQUEST` en búsquedas masivas.
-- **El Problema:** Google invalidaba los tokens de paginación tras el primer lote de 20 resultados.
-- **La Solución:** Implementación de **Persistencia de Parámetros**. Descubrimos mediante diagnóstico profundo que ciertas regiones requieren el `query` inicial + `region` + `location` presente junto al `pagetoken`. El sistema ahora inyecta este contexto en cada salto de página, garantizando el acceso a los 60 resultados máximos permitidos.
-
-### B. Motor TechProfiler
-Identifica el "stack" tecnológico del lead:
-- **Ineficiencia Detectada:** Si un negocio tiene WordPress pero un TTFB > 2s, el sistema lo marca como oportunidad de optimización.
-- **Fuga de Inversión:** Detecta leads con **Ads activos** cuya web es deficiente (ej. Wix/GoDaddy lento), indicando que están desperdiciando dinero en publicidad y son candidatos perfectos para una nueva web.
-
-### C. Scoring Dinámico v2.0
-Fórmula: `Score = (Social_Bonus) + (Inefficiency_Multiplier) - (Zombie_Penalty)`
-- **Bonus Analógico (+80):** leads con buen rating pero sin web (oportunidad máxima).
-- **Penalty Zombie (-100):** Negocios sin reseñas en 12 meses, evitándote perder tiempo con empresas muertas.
+## 🛠️ Stack Tecnológico de Elite
+*   **Backend**: Node.js & Express (Arquitectura modular con Inyección de Dependencias).
+*   **Database**: 
+    *   **MongoDB**: Almacenamiento primario y motor de persistencia táctica.
+    *   **Redis**: Gestión de colas BullMQ para procesos ` Ghost-Mode`.
+    *   **Supabase (pgvector)**: Memoria semántica de largo plazo.
+*   **Frontend**: React (Vite) + Tailwind CSS.
+    *   **Sidebar-Centric Design**: Interfaz optimizada para pantallas densas con tooltips heurísticos de auto-ajuste (anti-clipping).
 
 ---
 
-## 5. Gestión y Analíticas
-- **Historial Filtrable:** Permite buscar entre cientos de proyecciones pasadas por palabra, fecha, lugar o costo.
-- **Control de Inversión:** Rastreo automático del costo por búsqueda (promedio $0.98 USD por búsqueda de 20 leads detallados).
-- **CRM Lite integrado:** Seguimiento del estado del lead (Contactado, Interesado, Cerrado) directamente desde la tabla de resultados.
+## 📊 Inteligencia Financiera y Operativa
+
+### 1. Sistema de Reconciliación de Facturación por SKU (v2.1)
+Hemos abandonado las estimaciones estáticas por una contabilidad de grado bancario:
+*   **Rastreo por SKU**: Diferenciación exacta entre llamadas `Text Search` ($0.032) y `Place Details` ($0.025).
+*   **Free-Tier Awareness**: El sistema descuenta automáticamente los umbrales gratuitos reales de Google Cloud (5,000 búsquedas y 1,000 detalles mensuales).
+*   **Dashboard de Ahorro Real**: Visualización del ROI basada en los USD ahorrados gracias a la cuota gratuita de Google.
+
+### 2. Opportunity Scoring (Heurística de Cierre)
+Algoritmo de 4 capas que califica prospectos de 0 a 100:
+*   **Bonus "Modo Analógico"**: Máxima puntuación para negocios exitosos sin presencia web.
+*   **Detección de Ineficiencia**: Penalización por stacks obsoletos (Wix/GoDaddy) frente a negocios rentables.
+*   **Detección Ad-Intent**: Identificación automática de negocios que ya invierten en publicidad.
 
 ---
 
-**Fecha de Última Actualización:** 25 de Febrero de 2026
-**Departamento de Ingeniería - Leads Pro AI Team**
+## 🛡️ Defensa y Resiliencia
+*   **Heuristic Tooltip System**: Sistema de explicaciones internas que guía al usuario sobre los scores de IA, optimizado para no ocultarse nunca en la interfaz.
+*   **Nuclear Defense Logic**: Protección contra inconsistencias de datos de terceras APIs, garantizando el flujo continuo de la aplicación.
+
+---
+
+## 🎯 Conclusión
+**Leads Pro AI** ha evolucionado de un simple scraper a una plataforma de **Mercancía Inteligente**. Con la integración de la persistencia táctica y la reconciliación financiera real, el sistema no solo entrega leads, sino un control total sobre el negocio del usuario.
+
+**Ingeniería desarrollada por Antigravity.** ✨💎

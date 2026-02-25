@@ -1,5 +1,6 @@
 const axios = require('axios');
 const dotenv = require('dotenv');
+const ApiUsage = require('../models/ApiUsage');
 
 dotenv.config();
 
@@ -99,6 +100,14 @@ class GooglePlacesService {
 
                     if (data.status === 'OK' || data.status === 'ZERO_RESULTS') {
                         dataIsValid = true;
+                        // Track SKU Usage (Text Search)
+                        try {
+                            const usage = await ApiUsage.getCurrentMonth();
+                            usage.textSearchCount += 1;
+                            await usage.save();
+                        } catch (usageErr) {
+                            console.error('[Billing] Error tracking Text Search SKU:', usageErr.message);
+                        }
                         break; // Salimos del bucle de reintentos, tenemos datos útiles.
                     } else if (data.status === 'INVALID_REQUEST') {
                         if (isPagination && attempt < retries) {
@@ -186,6 +195,15 @@ class GooglePlacesService {
 
             if (data.status !== 'OK') {
                 throw new Error(`Google API Details Error: ${data.status}`);
+            }
+
+            // Track SKU Usage (Place Details)
+            try {
+                const usage = await ApiUsage.getCurrentMonth();
+                usage.placeDetailsCount += 1;
+                await usage.save();
+            } catch (usageErr) {
+                console.error('[Billing] Error tracking Place Details SKU:', usageErr.message);
             }
 
             return data.result;

@@ -11,7 +11,7 @@ const STATUS_OPTIONS = [
     { label: 'Cerrado Perdido', color: 'bg-red-100 text-red-600' }
 ];
 
-const LeadsTable = ({ leads }) => {
+const LeadsTable = ({ leads, onRowClick }) => {
     const [localLeads, setLocalLeads] = useState(leads || []);
     const [sortConfig, setSortConfig] = useState({ key: 'leadOpportunityScore', direction: 'desc' });
     const [filters, setFilters] = useState({
@@ -121,8 +121,8 @@ const LeadsTable = ({ leads }) => {
                     <button
                         onClick={() => toggleFilter('onlyWordPress')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${filters.onlyWordPress
-                                ? 'bg-blue-600 text-white border-blue-700 shadow-sm'
-                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                            ? 'bg-blue-600 text-white border-blue-700 shadow-sm'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                             }`}
                     >
                         WordPress ({counts.wordpress})
@@ -130,8 +130,8 @@ const LeadsTable = ({ leads }) => {
                     <button
                         onClick={() => toggleFilter('onlyWithEmail')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${filters.onlyWithEmail
-                                ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
-                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                            ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                             }`}
                     >
                         Con Email ({counts.withEmail})
@@ -139,8 +139,8 @@ const LeadsTable = ({ leads }) => {
                     <button
                         onClick={() => toggleFilter('onlyHighTicket')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${filters.onlyHighTicket
-                                ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm'
-                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                            ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                             }`}
                     >
                         High Ticket ({counts.highTicket})
@@ -148,8 +148,8 @@ const LeadsTable = ({ leads }) => {
                     <button
                         onClick={() => toggleFilter('onlyAds')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${filters.onlyAds
-                                ? 'bg-red-600 text-white border-red-700 shadow-sm'
-                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                            ? 'bg-red-600 text-white border-red-700 shadow-sm'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                             }`}
                     >
                         Anunciando ({counts.ads})
@@ -157,8 +157,8 @@ const LeadsTable = ({ leads }) => {
                     <button
                         onClick={() => toggleFilter('excludeZombies')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${filters.excludeZombies
-                                ? 'bg-slate-800 text-white border-slate-900 shadow-sm'
-                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                            ? 'bg-slate-800 text-white border-slate-900 shadow-sm'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                             }`}
                     >
                         Ocultar Zombies ({counts.zombies})
@@ -240,7 +240,11 @@ const LeadsTable = ({ leads }) => {
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                         {filteredAndSortedLeads.map((lead) => (
-                            <tr key={lead.placeId} className={`hover:bg-slate-50 transition-colors ${lead.opportunityLevel === 'Critical' ? 'bg-indigo-50/50' : lead.is_zombie ? 'opacity-50 grayscale' : ''}`}>
+                            <tr
+                                key={lead.placeId}
+                                onClick={() => onRowClick && onRowClick(lead)}
+                                className={`group cursor-pointer hover:bg-slate-50 transition-colors ${lead.opportunityLevel === 'Critical' ? 'bg-indigo-50/50' : lead.is_zombie ? 'opacity-50 grayscale' : ''}`}
+                            >
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-2">
                                         <div className="font-semibold text-slate-900">{lead.name}</div>

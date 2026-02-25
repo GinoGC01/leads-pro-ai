@@ -3,6 +3,8 @@ import SearchForm from './components/SearchForm';
 import Metrics from './components/Metrics';
 import LeadsTable from './components/LeadsTable';
 import AIChat from './components/AIChat';
+import LeadDetailsPanel from './components/LeadDetailsPanel';
+import DataIntelligence from './components/DataIntelligence';
 import { searchLeads, getHistory, getHistoryItem, getLeadsBySearch, getGlobalStats, exportUrl, deleteHistory } from './services/api';
 import { Download, History, Database, Star, Phone, Search, Trash2, DollarSign, BarChart3, MapPin, ExternalLink, Sparkles, X as CloseIcon } from 'lucide-react';
 
@@ -16,6 +18,7 @@ const Dashboard = () => {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [currentSearchId, setCurrentSearchId] = useState(null);
     const [totalCost, setTotalCost] = useState(0);
+    const [selectedLead, setSelectedLead] = useState(null);
 
     useEffect(() => {
         fetchHistory();
@@ -414,7 +417,7 @@ const Dashboard = () => {
                             {leads.length > 0 && <span className="text-sm font-normal text-slate-500">({leads.length} encontrados)</span>}
                         </h2>
                         {leads.length > 0 ? (
-                            <LeadsTable leads={leads} />
+                            <LeadsTable leads={leads} onRowClick={(lead) => setSelectedLead(lead)} />
                         ) : (
                             <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center text-slate-500">
                                 Inicia una búsqueda para ver los resultados aquí.
@@ -424,93 +427,14 @@ const Dashboard = () => {
 
                     {/* Sidebar / History */}
                     <div className="lg:col-span-1 space-y-8">
-                        {/* Global System Stats */}
-                        {globalStats && (
-                            <section className="bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 rounded-2xl p-6 text-white shadow-2xl border border-white/10 relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -mr-16 -mt-16 rounded-full group-hover:bg-indigo-500/20 transition-all duration-700"></div>
-
-                                <div className="relative z-10">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <h3 className="text-sm font-black uppercase tracking-[0.2em] text-indigo-300 flex items-center gap-2">
-                                            <BarChart3 className="w-4 h-4" />
-                                            Data Intelligence
-                                        </h3>
-                                        <div className="flex gap-1.5 capitalize text-[10px] font-bold px-2 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">
-                                            Live Cloud
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-5">
-                                        {/* Cost Section */}
-                                        <div className="bg-white/5 border border-white/5 p-4 rounded-2xl backdrop-blur-sm">
-                                            <div className="flex justify-between items-end">
-                                                <div>
-                                                    <div className="text-[10px] font-black text-indigo-300/60 uppercase tracking-widest mb-1">Inversión Estimada</div>
-                                                    <div className="text-3xl font-black tracking-tighter flex items-center gap-2">
-                                                        <span className="text-white/40 text-xl font-light">≈</span>
-                                                        ${(globalStats.summary?.totalInvested || 0).toFixed(2)}
-                                                        <span className="text-xs font-medium text-indigo-400/80 ml-1">USD</span>
-                                                    </div>
-                                                </div>
-                                                <a
-                                                    href="https://console.cloud.google.com/billing"
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-200 text-[10px] font-bold rounded-lg transition-all border border-indigo-500/30 mb-1"
-                                                >
-                                                    <ExternalLink className="w-3 h-3" />
-                                                    Billing Real
-                                                </a>
-                                            </div>
-                                        </div>
-
-                                        {/* Main Grid */}
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                                                <div className="text-[9px] font-black text-indigo-300/50 uppercase tracking-widest mb-1">Base Leads</div>
-                                                <div className="text-lg font-black text-white">{(globalStats.summary?.totalLeads || 0).toLocaleString()}</div>
-                                            </div>
-                                            <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                                                <div className="text-[9px] font-black text-indigo-300/50 uppercase tracking-widest mb-1">Avg Score</div>
-                                                <div className="text-lg font-black text-indigo-400">{(globalStats.summary?.avgScore || 0).toFixed(1)}</div>
-                                            </div>
-                                        </div>
-
-                                        {/* Coverage Stats */}
-                                        <div className="space-y-3 px-1">
-                                            <div className="space-y-1.5">
-                                                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-indigo-300/70">
-                                                    <span>Cobertura Email</span>
-                                                    <span>{(globalStats.coverage?.email || 0).toFixed(0)}%</span>
-                                                </div>
-                                                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
-                                                    <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${globalStats.coverage?.email || 0}%` }}></div>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-indigo-300/70">
-                                                    <span>Cobertura Web</span>
-                                                    <span>{(globalStats.coverage?.web || 0).toFixed(0)}%</span>
-                                                </div>
-                                                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
-                                                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${globalStats.coverage?.web || 0}%` }}></div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Extra Details */}
-                                        <div className="flex flex-col gap-2 pt-2 text-[10px] font-bold text-indigo-300/60 uppercase tracking-wider">
-                                            <div className="flex items-center gap-2">
-                                                <MapPin className="w-3 h-3" />
-                                                <span>{globalStats.summary?.uniqueLocations || 0} sectores explorados</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Star className="w-3 h-3" />
-                                                <span>{globalStats.summary?.totalHighTicket || 0} High Ticket Detectados</span>
-                                            </div>
-                                        </div>
-                                    </div>
+                        {/* Data Intelligence Reconciliation */}
+                        {globalStats?.billing && (
+                            <section className="px-1">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Database className="w-4 h-4 text-indigo-600" />
+                                    <h2 className="text-sm font-bold text-slate-900 uppercase tracking-widest">Inteligencia Cloud</h2>
                                 </div>
+                                <DataIntelligence billing={globalStats.billing} />
                             </section>
                         )}
 
@@ -594,6 +518,18 @@ const Dashboard = () => {
                 <div className="fixed bottom-24 right-6 z-50 pointer-events-none">
                     <AIChat onClose={() => setIsChatOpen(false)} />
                 </div>
+            )}
+            {/* Lead Details Drawer */}
+            {selectedLead && (
+                <LeadDetailsPanel
+                    key={selectedLead._id}
+                    lead={selectedLead}
+                    onClose={() => setSelectedLead(null)}
+                    onLeadUpdate={(updatedLead) => {
+                        setLeads(prev => prev.map(l => l._id === updatedLead._id ? updatedLead : l));
+                        setSelectedLead(updatedLead);
+                    }}
+                />
             )}
         </div>
     );

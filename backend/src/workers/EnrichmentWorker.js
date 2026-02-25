@@ -1,0 +1,108 @@
+const { Worker } = require('bullmq');
+const { connection } = require('../services/QueueService');
+const ScraperService = require('../services/ScraperService');
+const ParserService = require('../services/ParserService');
+const ProfilerService = require('../services/ProfilerService');
+const AIService = require('../services/AIService');
+const SupabaseService = require('../services/SupabaseService');
+const ragConfig = require('../config/rag.config');
+const Lead = require('../models/Lead');
+
+/**
+ * Worker para procesar leads asíncronamente (Pipeline de 4 Fases).
+ * Concurrencia limitada para evitar bloqueos de IP/WAF.
+ */
+// Phase 0: Vortex Intelligence Engine (VIE) - Orchestration
+const enrichmentWorker = new Worker('enrichmentQueue', async (job) => {
+    const { leadId, website, name } = job.data;
+    console.log(`[VIE] 🚀 Vortex Intelligence Engine processing lead: ${name} (${website})`);
+
+    const lead = await Lead.findById(leadId);
+    if (!lead || !website) {
+        console.log(`[EnrichmentWorker] Saltando: Lead no encontrado o sin website.`);
+        return;
+    }
+
+    try {
+        // FASE 1: Extracción Cruda (WAF Evasion)
+        console.log(`[EnrichmentWorker] [FASE 1] Extrayendo HTML para ${name}...`);
+        const rawHtml = await ScraperService.getRawHtml(website);
+        console.log(`[EnrichmentWorker] [FASE 1] Éxito: ${rawHtml.length} bytes.`);
+
+        // FASE 2: Purificación Semántica y Auditoría SEO
+        console.log(`[EnrichmentWorker] [FASE 2] Analizando contenido y SEO...`);
+        const { seoAudit, markdown } = ParserService.parse(rawHtml);
+        console.log(`[EnrichmentWorker] [FASE 2] SEO Audit y Markdown finalizados.`);
+
+        // FASE 3: Perfilado Empírico (Tech + Performance)
+        console.log(`[EnrichmentWorker] [FASE 3] Detectando tecnologías y rendimiento...`);
+        const techStack = ProfilerService.detectTechFromHtml(rawHtml);
+        const perfMetrics = await ProfilerService.getPerformanceMetrics(website);
+        console.log(`[EnrichmentWorker] [FASE 3] Perfilado completado (${techStack.length} techs).`);
+
+        // FASE 4: Consolidación y Vectorización Híbrida
+        console.log(`[EnrichmentWorker] [FASE 4] Consolidando datos y sincronizando vectores...`);
+
+        // 4.1 Actualizar MongoDB
+        lead.tech_stack = techStack;
+        lead.performance_metrics = {
+            ...lead.performance_metrics,
+            performanceScore: perfMetrics.performanceScore,
+            ttfb: perfMetrics.ttfb,
+            lcp: perfMetrics.lcp,
+            performance_issue: perfMetrics.performanceScore < 50
+        };
+        lead.seo_audit = seoAudit;
+        lead.markdown_content = markdown;
+        lead.enrichmentStatus = 'completed';
+        lead.enrichmentError = null;
+        await lead.save();
+
+        // 4.2 Sincronización Vectorial (pgvector)
+        const semanticContent = ragConfig.ingestion.buildSemanticContent(lead);
+        const embedding = await AIService.generateEmbedding(semanticContent);
+
+        await SupabaseService.upsertLeadVector({
+            lead_id: lead._id.toString(),
+            name: lead.name,
+            metadata: {
+                rating: lead.rating,
+                ttfb: lead.performance_metrics?.ttfb,
+                score: lead.leadOpportunityScore,
+                is_zombie: lead.is_zombie,
+                tech: techStack.slice(0, 5),
+                performance: perfMetrics.performanceScore
+            },
+            content: semanticContent
+        }, embedding);
+
+        console.log(`[EnrichmentWorker] ✅ Enriquecimiento total finalizado para ${name}.`);
+
+    } catch (error) {
+        console.error(`[EnrichmentWorker] ❌ Error crítico en lead ${name}:`, error.message);
+
+        // Actualizar estado a fallido en MongoDB
+        if (lead) {
+            lead.enrichmentStatus = 'failed';
+            lead.enrichmentError = error.message;
+            await lead.save();
+        }
+
+        throw error; // Permite re-intento de BullMQ
+    }
+}, {
+    connection,
+    concurrency: 3
+});
+
+enrichmentWorker.on('completed', (job) => {
+    console.log(`[EnrichmentWorker] Trabajo completado exitosamente: ${job.data.name}`);
+});
+
+enrichmentWorker.on('failed', (job, err) => {
+    console.error(`[EnrichmentWorker] Trabajo fallido definitivamente: ${job?.data?.name}. Error: ${err.message}`);
+});
+
+console.log('[EnrichmentWorker] Asynchronous Engine Operational (3 slots).');
+
+module.exports = enrichmentWorker;

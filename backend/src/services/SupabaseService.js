@@ -60,6 +60,25 @@ class SupabaseService {
             return [];
         }
     }
+
+    /**
+     * Fetch specific lead content by ID
+     */
+    static async getLeadContent(leadId) {
+        try {
+            const { data, error } = await supabase
+                .from('business_leads')
+                .select('name, content')
+                .eq('lead_id', leadId)
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (err) {
+            console.error('[Supabase] Get Lead Content Error:', err.message);
+            return null;
+        }
+    }
 }
 
 module.exports = SupabaseService;

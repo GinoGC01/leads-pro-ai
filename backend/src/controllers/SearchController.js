@@ -1,12 +1,12 @@
 const Lead = require('../models/Lead');
 const SearchHistory = require('../models/SearchHistory');
+const ApiUsage = require('../models/ApiUsage');
 const GooglePlacesService = require('../services/GooglePlacesService');
-const EmailScraperService = require('../services/EmailScraperService');
 const ScoringService = require('../services/ScoringService');
+const QueueService = require('../services/QueueService');
 const ragConfig = require('../config/rag.config');
 const AIService = require('../services/AIService');
 const SupabaseService = require('../services/SupabaseService');
-const TechProfiler = require('../services/TechProfiler');
 
 /**
  * Controller for Lead Generation logic
@@ -134,30 +134,7 @@ class SearchController {
                         is_advertising: !!(place.ad_placed || place.is_promoted)
                     };
 
-                    // Concurrent Tech Profiling & Email Scraping
-                    const enrichmentPromises = [];
-                    if (leadData.website) {
-                        totalCost += 0.007; // 0.002 Profiling + 0.005 Scraping
-                        enrichmentPromises.push(TechProfiler.profileWebsite(leadData.website));
-                        enrichmentPromises.push(EmailScraperService.findEmail(leadData.website));
-                    }
-
-                    const [techResults, emailResult] = await Promise.allSettled(enrichmentPromises);
-
-                    if (techResults?.status === 'fulfilled' && techResults.value) {
-                        leadData.tech_stack = techResults.value.tech_stack;
-                        leadData.performance_metrics = {
-                            ttfb: techResults.value.ttfb,
-                            performance_issue: techResults.value.performance_issue
-                        };
-                    }
-
-                    if (emailResult?.status === 'fulfilled' && emailResult.value) {
-                        leadData.email = emailResult.value;
-                        leadData.enrichmentStatus = 'completed';
-                    } else {
-                        leadData.enrichmentStatus = 'not_found';
-                    }
+                    leadData.enrichmentStatus = 'unprocessed';
 
                     // Scoring & NLP (Bulletproof Implementation)
                     try {
@@ -168,44 +145,17 @@ class SearchController {
                         leadData.isHighTicket = leadData.opportunityLevel === 'Critical';
                     } catch (scoringErr) {
                         console.error(`[CRITICAL] Error en scoring para ${leadData.name}:`, scoringErr.message);
-                        // Fallback values to avoid losing the lead
                         leadData.leadOpportunityScore = 0;
                         leadData.opportunityLevel = 'Low';
                         leadData.sales_angle = 'Error en procesador de inteligencia';
                     }
 
-                    if (leadData.email) {
-                        await pushStatus(`📧 Email encontrado para ${details.name}: ${leadData.email}`, 'success');
-                    }
-                    if (leadData.tech_stack.length > 0) {
-                        await pushStatus(`🛠️ Tecnologías detectadas en ${details.name}: ${leadData.tech_stack.join(', ')}`, 'info');
-                    }
-
                     const created = await Lead.create(leadData);
 
-                    // Background RAG Sync (Fire and Forget)
-                    (async () => {
-                        try {
-                            const semanticContent = ragConfig.ingestion.buildSemanticContent(created);
-                            const embedding = await AIService.generateEmbedding(semanticContent);
-
-                            await SupabaseService.upsertLeadVector({
-                                lead_id: created._id.toString(),
-                                name: created.name,
-                                metadata: {
-                                    rating: created.rating,
-                                    ttfb: created.performance_metrics?.ttfb,
-                                    is_zombie: created.is_zombie,
-                                    opportunity_score: created.leadOpportunityScore,
-                                    location: location,
-                                    category: keyword
-                                },
-                                content: semanticContent
-                            }, embedding);
-                        } catch (ragErr) {
-                            console.error(`[RAG-Sync] Error for ${created.name}:`, ragErr.message);
-                        }
-                    })();
+                    // NOTA: El enriquecimiento (FASE 0-4) ahora es manual vía VortexController
+                    // if (leadData.website) {
+                    //     await QueueService.addLeadToEnrichment(created);
+                    // }
 
                     return created;
                 } catch (err) {
@@ -306,13 +256,28 @@ class SearchController {
                 { $group: { _id: null, avgScore: { $avg: "$leadOpportunityScore" } } }
             ]);
 
-            // Billing Estimation Engine (Based on Official Google Cloud SKUs)
-            // Neary/Text Search: $32/1000, Details (Contact): $3/1000, Details (Atmosphere): $5/1000
+            // Billing Reconciliation Engine (SKU-based Free Tiers)
+            const currentUsage = await ApiUsage.getCurrentMonth();
+
+            const TEXT_SEARCH_FREE_TIER = 5000;
+            const DETAILS_FREE_TIER = 1000;
+            const TEXT_SEARCH_PRICE = 0.032;
+            const DETAILS_PRICE = 0.025;
+
+            const billableTextSearch = Math.max(0, currentUsage.textSearchCount - TEXT_SEARCH_FREE_TIER);
+            const billableDetails = Math.max(0, currentUsage.placeDetailsCount - DETAILS_FREE_TIER);
+
+            const realBillableCost = (billableTextSearch * TEXT_SEARCH_PRICE) + (billableDetails * DETAILS_PRICE);
+            const theoreticalSavings = (currentUsage.textSearchCount * TEXT_SEARCH_PRICE) + (currentUsage.placeDetailsCount * DETAILS_PRICE) - realBillableCost;
+
             const billingMetrics = {
-                discoveryCost: (histories.length * 0.032), // Estimación base por búsqueda
-                detailsCost: (totalLeads * 0.008), // Contact ($0.003) + Atmosphere ($0.005)
-                enrichmentCost: (leadsWithWeb * 0.007), // Tech Profiling + Scraping
-                totalEstimated: histories.reduce((sum, h) => sum + (h.totalCost || 0), 0)
+                textSearchUsage: currentUsage.textSearchCount,
+                detailsUsage: currentUsage.placeDetailsCount,
+                textSearchLimit: TEXT_SEARCH_FREE_TIER,
+                detailsLimit: DETAILS_FREE_TIER,
+                realBillableCost,
+                theoreticalSavings,
+                totalEstimatedSnapshot: histories.reduce((sum, h) => sum + (h.totalCost || 0), 0)
             };
 
             // Category Analysis (Top 5 keywords)
@@ -324,15 +289,15 @@ class SearchController {
 
             // Efficiency Metrics
             const efficiency = {
-                costPerLead: totalLeads > 0 ? billingMetrics.totalEstimated / totalLeads : 0,
-                costPerEmail: leadsWithEmail > 0 ? billingMetrics.totalEstimated / leadsWithEmail : 0,
+                costPerLead: totalLeads > 0 ? billingMetrics.realBillableCost / totalLeads : 0,
+                costPerEmail: leadsWithEmail > 0 ? billingMetrics.realBillableCost / leadsWithEmail : 0,
                 roiPotential: highTicketLeads * 500 // Arbitrary $500 potential value per Critical lead
             };
 
             const stats = {
                 summary: {
                     totalSearches: histories.length,
-                    totalInvested: billingMetrics.totalEstimated,
+                    totalInvested: billingMetrics.realBillableCost,
                     totalLeads: totalLeads,
                     totalHighTicket: highTicketLeads,
                     uniqueLocations: [...new Set(histories.map(h => h.location))].length,
@@ -413,6 +378,18 @@ class SearchController {
             res.status(200).json({ success: true, message: 'Búsqueda y leads asociados eliminados con éxito' });
         } catch (error) {
             console.error(`[SearchController] Error deleting search:`, error);
+            res.status(500).json({ success: false, message: error.message });
+        }
+    }
+    /**
+     * Get a single lead by ID
+     */
+    static async getLeadById(req, res) {
+        try {
+            const lead = await Lead.findById(req.params.id);
+            if (!lead) return res.status(404).json({ success: false, message: 'Lead no encontrado' });
+            res.status(200).json(lead);
+        } catch (error) {
             res.status(500).json({ success: false, message: error.message });
         }
     }

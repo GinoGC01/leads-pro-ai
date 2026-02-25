@@ -46,7 +46,7 @@ const Metrics = ({ stats }) => {
                 <MetricCard
                     icon={Activity}
                     label="Email Coverage"
-                    value={`${coverage.email.toFixed(1)}%`}
+                    value={`${(coverage?.email || 0).toFixed(1)}%`}
                     color="text-blue-600 bg-blue-50"
                     description="Enriquecidos"
                     trend={`Propulsado por AI`}
@@ -54,7 +54,7 @@ const Metrics = ({ stats }) => {
                 <MetricCard
                     icon={ShieldCheck}
                     label="High Ticket"
-                    value={summary.totalHighTicket}
+                    value={summary.totalHighTicket || 0}
                     color="text-purple-600 bg-purple-50"
                     description="Critical"
                     trend={`Score > 90`}
@@ -62,7 +62,7 @@ const Metrics = ({ stats }) => {
                 <MetricCard
                     icon={Star}
                     label="Avg Lead Quality"
-                    value={summary.avgScore.toFixed(0)}
+                    value={(summary.avgScore || 0).toFixed(0)}
                     color="text-amber-600 bg-amber-50"
                     description="Calidad AI"
                     trend="Escala 0-100"
@@ -78,35 +78,11 @@ const Metrics = ({ stats }) => {
                 <MetricCard
                     icon={DollarSign}
                     label="API Investment"
-                    value={`$${summary.totalInvested.toFixed(2)}`}
+                    value={`$${(summary.totalInvested || 0).toFixed(2)}`}
                     color="text-rose-600 bg-rose-50"
-                    description="Google Cloud"
-                    trend={`Proj: $${projection.monthlyEstimated.toFixed(0)}/mo`}
+                    description="Real Billing"
+                    trend={`Propulsado por Free Tier`}
                 />
-            </div>
-
-            {/* Billing Insight Bar (Optional extra wow factor) */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
-                <div className="absolute top-0 left-0 w-1 h-full bg-indigo-600"></div>
-                <div className="flex flex-col">
-                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                        <PieChart className="w-4 h-4 text-indigo-600" />
-                        Billing Intelligence Breakdown
-                    </h4>
-                    <p className="text-[11px] text-slate-400 font-medium">Análisis en tiempo real de costes por SKU de Google Places API v2.0</p>
-                </div>
-
-                <div className="flex-1 flex gap-2 h-3 mx-4">
-                    <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${(billing.discoveryCost / billing.totalEstimated) * 100}%` }} title="Discovery Cost"></div>
-                    <div className="h-full bg-blue-400 rounded-full" style={{ width: `${(billing.detailsCost / billing.totalEstimated) * 100}%` }} title="Contact Data Cost"></div>
-                    <div className="h-full bg-slate-200 rounded-full" style={{ width: `${(billing.enrichmentCost / billing.totalEstimated) * 100}%` }} title="AI Enrichment Cost"></div>
-                </div>
-
-                <div className="flex items-center gap-6 text-[10px] font-bold uppercase tracking-tight text-slate-500 whitespace-nowrap">
-                    <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-indigo-500"></span> Discovery</div>
-                    <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-400"></span> Contact</div>
-                    <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-200"></span> Enrichment</div>
-                </div>
             </div>
         </div>
     );

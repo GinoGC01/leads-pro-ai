@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
+    "clean:queue": "node scripts/flush-redis.js",
     "test-google": "node src/utils/testGoogleApi.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -16,17 +17,24 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.97.0",
     "axios": "^1.13.5",
+    "bullmq": "^5.70.1",
     "cheerio": "^1.2.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "exceljs": "^4.4.0",
     "express": "^5.2.1",
+    "got-scraping": "^4.2.1",
     "helmet": "^8.1.0",
+    "ioredis": "^5.9.3",
     "json2csv": "^6.0.0-alpha.2",
     "mongoose": "^9.2.2",
     "morgan": "^1.10.1",
     "openai": "^6.25.0",
     "puppeteer": "^24.37.5",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "turndown": "^7.2.2",
+    "wappalyzer": "^7.0.3",
     "zod": "^4.3.6"
   }
 }

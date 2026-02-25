@@ -1,7 +1,12 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 :root {
   background-color: #f8fafc;
+}
+
+button {
+  cursor: pointer;
 }
 
 /* Minimalist Scrollbar Utility */

@@ -9,6 +9,9 @@ const PORT = process.env.PORT || 5000;
 // Connect to Database
 connectDB();
 
+// Phase 0: Start Asynchronous Enrichment Engine Worker
+require('./workers/EnrichmentWorker');
+
 // Start Server
 const server = app.listen(PORT, () => {
     console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);

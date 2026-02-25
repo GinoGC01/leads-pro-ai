@@ -26,8 +26,12 @@ const LeadSchema = new mongoose.Schema({
     },
     enrichmentStatus: {
         type: String,
-        enum: ['pending', 'completed', 'failed', 'not_found'],
-        default: 'pending'
+        enum: ['unprocessed', 'pending', 'completed', 'failed', 'not_found'],
+        default: 'unprocessed'
+    },
+    enrichmentError: {
+        type: String,
+        default: null
     },
     leadOpportunityScore: {
         type: Number,
@@ -52,8 +56,18 @@ const LeadSchema = new mongoose.Schema({
     tech_stack: [String],
     performance_metrics: {
         ttfb: Number,
+        performanceScore: Number,
+        lcp: String,
         performance_issue: Boolean
     },
+    seo_audit: {
+        hasTitle: Boolean,
+        hasMetaDescription: Boolean,
+        h1Count: Number,
+        titleText: String,
+        metaDescription: String
+    },
+    markdown_content: String,
     is_zombie: {
         type: Boolean,
         default: false
@@ -73,6 +87,10 @@ const LeadSchema = new mongoose.Schema({
     searchId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'SearchHistory'
+    },
+    tactical_response: {
+        type: String,
+        default: null
     },
     createdAt: {
         type: Date,
