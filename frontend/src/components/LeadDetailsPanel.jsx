@@ -262,43 +262,81 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                                 </h4>
 
                                 <div className="grid grid-cols-1 gap-2">
-                                    <button
-                                        onClick={() => handleTacticalAction("Analiza las métricas de rendimiento, SEO y stack tecnológico de este lead. Dame una estrategia de 3 viñetas sobre cuál es su mayor debilidad técnica y cómo usarla como ángulo de venta.", "Estrategia")}
-                                        className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-slate-50 transition-all group"
-                                    >
-                                        <span className="text-xs font-bold text-slate-700">Estrategia de Abordaje</span>
-                                        <MessageSquare className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500" />
-                                    </button>
-
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <Tooltip text="Email asimétrico y profesional con asunto intrigante." position="bottom">
+                                    {lead.website ? (
+                                        <>
                                             <button
-                                                onClick={() => handleTacticalAction("Actúas como un closer B2B de élite. Redacta un correo en frío de máximo 3 párrafos cortos para este lead. INCLUYE una línea de 'Asunto:' intrigante. Usa el fallo más crítico de su web (Lighthouse, SEO o lentitud) en la primera línea para demostrar investigación. Tono directo, asimétrico y profesional. Nada de saludos robóticos.", "Email")}
-                                                className="w-full flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-slate-50 transition-all group"
+                                                onClick={() => handleTacticalAction("Analiza las métricas de rendimiento, SEO y stack tecnológico de este lead. Dame una estrategia de 3 viñetas sobre cuál es su mayor debilidad técnica y cómo usarla como ángulo de venta.", "Estrategia")}
+                                                className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-slate-50 transition-all group"
                                             >
-                                                <span className="text-[10px] font-bold text-slate-700">Vía Email</span>
-                                                <Globe className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500" />
+                                                <span className="text-xs font-bold text-slate-700">Estrategia de Abordaje Técnico</span>
+                                                <MessageSquare className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500" />
                                             </button>
-                                        </Tooltip>
 
-                                        <Tooltip text="Mensaje corto (50 palabras) con tono ágil y emojis." position="bottom">
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <Tooltip text="Email asimétrico y profesional con asunto intrigante." position="bottom">
+                                                    <button
+                                                        onClick={() => handleTacticalAction("Actúas como un closer B2B de élite. Redacta un correo en frío de máximo 3 párrafos cortos para este lead. INCLUYE una línea de 'Asunto:' intrigante. Usa el fallo más crítico de su web (Lighthouse, SEO o lentitud) en la primera línea para demostrar investigación. Tono directo, asimétrico y profesional.", "Email")}
+                                                        className="w-full flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-slate-50 transition-all group"
+                                                    >
+                                                        <span className="text-[10px] font-bold text-slate-700">Vía Email</span>
+                                                        <Globe className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500" />
+                                                    </button>
+                                                </Tooltip>
+
+                                                <Tooltip text="Mensaje corto (50 palabras) con tono ágil y emojis." position="bottom">
+                                                    <button
+                                                        onClick={() => handleTacticalAction("Actúas como un closer B2B de élite. Redacta un mensaje de WhatsApp en frío para este lead. REGLAS ESTRICTAS: NO incluyes 'Asunto'. Longitud MÁXIMA de 40 a 50 palabras. Tono ágil y profesional. Haz referencia a una métrica técnica de su web.", "WhatsApp")}
+                                                        className="w-full flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-slate-50 transition-all group"
+                                                    >
+                                                        <span className="text-[10px] font-bold text-slate-700">Vía WhatsApp</span>
+                                                        <Phone className="w-3.5 h-3.5 text-slate-300 group-hover:text-emerald-500" />
+                                                    </button>
+                                                </Tooltip>
+                                            </div>
+
                                             <button
-                                                onClick={() => handleTacticalAction("Actúas como un closer B2B de élite. Redacta un mensaje de WhatsApp en frío para este lead. REGLAS ESTRICTAS: NO incluyes 'Asunto'. Longitud MÁXIMA de 40 a 50 palabras. Usa un tono conversacional, ágil y ligeramente informal. Usa máximo 1 o 2 emojis estratégicos. Haz referencia a una métrica técnica de su web en una sola oración y termina con una pregunta corta para buscar respuesta rápida.", "WhatsApp")}
-                                                className="w-full flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-slate-50 transition-all group"
+                                                onClick={() => handleTacticalAction("Lee el contenido Markdown extraído de su web. Dime qué tipo de clientes están buscando atraer y cómo podemos posicionar nuestro servicio como el vehículo para llegar a ese cliente ideal.", "Análisis de Copy")}
+                                                className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-slate-50 transition-all group"
                                             >
-                                                <span className="text-[10px] font-bold text-slate-700">Vía WhatsApp</span>
-                                                <Phone className="w-3.5 h-3.5 text-slate-300 group-hover:text-emerald-500" />
+                                                <span className="text-xs font-bold text-slate-700">Analizar Copy (Markdown)</span>
+                                                <Sparkles className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500" />
                                             </button>
-                                        </Tooltip>
-                                    </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Tooltip text="Guion de 60s enfocado en reputación offline y pérdida de demanda." position="bottom">
+                                                <button
+                                                    onClick={() => handleTacticalAction(`Eres un Closer B2B de Mariosweb. Este prospecto NO tiene sitio web. Tiene un rating de ${lead.rating} con ${lead.userRatingsTotal} reseñas. Escribe un guion de llamada en frío (Cold Call) de menos de 60 segundos. EL ÁNGULO: Felicítalos por su excelente reputación offline (sus reseñas), pero hazles notar que están perdiendo clientes de alto valor frente a competidores peores porque no aparecen en las búsquedas de Google. El objetivo de la llamada es agendar una reunión de 10 minutos, no vender la web por teléfono. Usa tono de socio estratégico.`, "Script de Llamada")}
+                                                    className="flex items-center justify-between p-3 bg-indigo-600 border border-indigo-700 rounded-xl hover:bg-indigo-700 transition-all group shadow-sm text-white"
+                                                >
+                                                    <span className="text-xs font-bold">Generar Script de Llamada</span>
+                                                    <Phone className="w-3.5 h-3.5 text-indigo-200 group-hover:text-white" />
+                                                </button>
+                                            </Tooltip>
 
-                                    <button
-                                        onClick={() => handleTacticalAction("Lee el contenido Markdown extraído de su web. Dime qué tipo de clientes están buscando atraer y cómo podemos posicionar nuestro servicio de [Desarrollo Web / Marketing] como el vehículo para llegar a ese cliente ideal.", "Análisis de Copy")}
-                                        className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-slate-50 transition-all group"
-                                    >
-                                        <span className="text-xs font-bold text-slate-700">Analizar Copy (Markdown)</span>
-                                        <Sparkles className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500" />
-                                    </button>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <Tooltip text="Mensaje corto de alta fricción sobre el costo de oportunidad." position="bottom">
+                                                    <button
+                                                        onClick={() => handleTacticalAction(`Eres un Closer B2B. El prospecto NO tiene web. Redacta un mensaje de WhatsApp corto (máximo 40 palabras). Tono informal pero respetuoso. Usa la técnica del 'Costo de Oportunidad': diles que viste sus excelentes reseñas en Google Maps, pero que están ocultos para los clientes que buscan en internet. Termina con una pregunta abierta de baja fricción. Cero jerga técnica.`, "WhatsApp FOMO")}
+                                                        className="w-full flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-slate-50 transition-all group"
+                                                    >
+                                                        <span className="text-[10px] font-bold text-slate-700">WhatsApp FOMO</span>
+                                                        <Phone className="w-3.5 h-3.5 text-slate-300 group-hover:text-emerald-500" />
+                                                    </button>
+                                                </Tooltip>
+
+                                                <Tooltip text="Análisis de dolores operativos para negocios offline." position="bottom">
+                                                    <button
+                                                        onClick={() => handleTacticalAction(`Analiza el sector de este lead (${lead.category || 'Servicio'}). Como no tienen web, dime 3 dolores operativos que este tipo de negocio sufre (ej. agendamiento manual, clientes preguntando siempre lo mismo por teléfono) y cómo una web construida por Mariosweb solucionaría esos dolores específicos.`, "Estrategia Local")}
+                                                        className="w-full flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-slate-50 transition-all group"
+                                                    >
+                                                        <span className="text-[10px] font-bold text-slate-700">Estrategia Local</span>
+                                                        <MessageSquare className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500" />
+                                                    </button>
+                                                </Tooltip>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 

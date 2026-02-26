@@ -45,7 +45,17 @@ REGLAS DE ORO:
 3. TONO: Directo, asimétrico, experto y orientado al cierre.
 
 [DATOS EMPÍRICOS DEL PROSPECTO]
-${contextPrompt}
+${retrievedLeads.map(l => {
+                const isNoWeb = !l.website;
+                if (isNoWeb) {
+                    return `[ESTADO DIGITAL DEL LEAD]: INEXISTENTE. El lead no posee dominio web registrado. Solo cuenta con su presencia básica en Google Maps.
+Su reputación es de ${l.rating || 'N/A'} estrellas basada en ${l.userRatingsTotal || 0} opiniones.
+Nombre: ${l.name}
+Categoría: ${l.category || 'General'}
+Dirección: ${l.address || 'No proporcionada'}`;
+                }
+                return `LEAD [ID: ${l.lead_id}]: ${l.name} | Contexto Semántico: ${l.content}`;
+            }).join('\n')}
 `;
 
             // Construct messages array with system prompt, history, and current context-aware prompt

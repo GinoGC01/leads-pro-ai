@@ -1,5 +1,5 @@
 # 💎 Leads Pro AI: Reporte Maestro de Ingeniería
-## El Futuro de la Prospección Inteligente (v3.1 - Data Hygiene)
+## El Futuro de la Prospección Inteligente (v3.2 - No-Web Pivot)
 
 Este documento detalla la arquitectura técnica, las innovaciones y el corazón algorítmico del sistema **Leads Pro AI**. Un ecosistema diseñado no solo para encontrar negocios, sino para transformarlos en oportunidades de venta con precisión táctica y alineación corporativa total.
 
@@ -21,6 +21,21 @@ El alma del proyecto es el **Vortex Intelligence Engine (VIE)**, un motor de enr
 Implementación de un sistema de borrado sincronizado para evitar "vectores fantasma":
 *   **Dual-Database Sync**: Cuando eliminas un lead, el sistema destruye primero su registro en **Supabase (pgvector)** y luego en **MongoDB**.
 *   **Massive Action UI**: Nueva interfaz de selección masiva con barra de acciones flotante y modal de confirmación destructiva profesional.
+
+---
+
+## 📵 Estrategia de Conversión No-Web (v3.2)
+
+### 1. RAG Strategy Override
+Cuando un lead no posee sitio web, el sistema cambia automáticamente su motor RAG:
+*   **Enfoque en Reputación**: La IA ignora auditorías técnicas (Lighthouse) y se centra en el **Rating y Reseñas** de Google Places.
+*   **Costo de Oportunidad**: Se prioriza vender la captura de "clientes perdidos" que buscan el negocio y no lo encuentran.
+
+### 2. Botones Tácticos Condicionales
+El Panel de Detalles se adapta Dinámicamente:
+*   **Cold Call Script**: Guion de menos de 60 segundos enfocado en agendar una cita basándose en su reputación offline.
+*   **WhatsApp FOMO**: Mensaje corto de alto impacto emocional sobre la demanda desatendida.
+*   **Estrategia Local**: Análisis de dolores operativos (ej. agendamiento manual) que una web solucionaría.
 
 ---
 
