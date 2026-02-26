@@ -32,8 +32,21 @@ class AIService {
      */
     static async chatWithContext(query, retrievedLeads, history = []) {
         try {
-            const systemPrompt = ragConfig.prompts.system;
-            const contextPrompt = ragConfig.prompts.buildChatContext(query, retrievedLeads);
+            const systemPrompt = `Eres un Closer de Ventas B2B de élite trabajando EXCLUSIVAMENTE para la agencia descrita a continuación.
+
+[CONTEXTO DE TU AGENCIA - TU IDENTIDAD Y OFERTA]
+${ragConfig.agency.raw}
+
+Tu objetivo absoluto es analizar al prospecto y redactar comunicaciones o estrategias para VENDER LOS SERVICIOS de tu agencia. 
+
+REGLAS DE ORO:
+1. NO ALUCINES SERVICIOS: Solo ofrece lo que está en [CONTEXTO DE TU AGENCIA]. Si el lead tiene un problema que no resolvemos, ignora ese problema y enfócate en lo que SÍ vendemos.
+2. ALINEACIÓN ESTRATÉGICA: Usa los datos del prospecto para justificar por qué NUESTRA oferta es la solución lógica.
+3. TONO: Directo, asimétrico, experto y orientado al cierre.
+
+[DATOS EMPÍRICOS DEL PROSPECTO]
+${contextPrompt}
+`;
 
             // Construct messages array with system prompt, history, and current context-aware prompt
             const messages = [
@@ -42,7 +55,7 @@ class AIService {
                     role: m.role,
                     content: m.text || m.content // Handle both frontend and backend formats
                 })),
-                { role: "user", content: contextPrompt }
+                { role: "user", content: query }
             ];
 
             const response = await openai.chat.completions.create({

@@ -40,6 +40,29 @@ class ScoringService {
             score += 30;
         }
 
+        // 5. [NEW] Agency Affinity Bonus (+25)
+        // Checks if the lead's "pains" align with what the agency sells (defined in AGENCY_CONTEXT.md)
+        const ragConfig = require('../config/rag.config');
+        const agencyOffers = ragConfig.agency.raw.toLowerCase();
+
+        const detectAffinity = () => {
+            // SEO Pain -> SEO Offer
+            if (lead?.seo_audit?.missing_meta_desc && (agencyOffers.includes('seo') || agencyOffers.includes('posicionamiento'))) return true;
+            // Perf Pain -> Web Dev/Optimization Offer
+            if (lead?.performance_metrics?.performance_issue && (agencyOffers.includes('web') || agencyOffers.includes('optimización') || agencyOffers.includes('performance'))) return true;
+            // Digital Gap -> Digitalization Offer
+            if (!lead?.website && (agencyOffers.includes('web') || agencyOffers.includes('digitalización'))) return true;
+            // Ad Intent -> Ads Management Offer
+            if (lead?.is_advertising && (agencyOffers.includes('ads') || agencyOffers.includes('publicidad') || agencyOffers.includes('pauta'))) return true;
+
+            return false;
+        };
+
+        if (detectAffinity()) {
+            console.log(`[SCORING] Afinidad de Agencia detectada para ${lead.name} (+25 pts)`);
+            score += 25;
+        }
+
         // General Authority points
         if (lead?.userRatingsTotal > 100) score += 10;
 

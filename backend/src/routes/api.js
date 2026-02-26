@@ -19,6 +19,7 @@ router.get('/history', SearchController.getHistory);
 router.get('/history/:searchId/leads', SearchController.getLeadsBySearch);
 router.get('/leads/:id', SearchController.getLeadById);
 router.patch('/leads/:id/status', SearchController.updateLeadStatus);
+router.delete('/leads', SearchController.bulkDeleteLeads);
 
 // Vortex Intelligence Engine (On-Demand)
 router.post('/vortex/enrich/:leadId', VortexController.enrichLead);

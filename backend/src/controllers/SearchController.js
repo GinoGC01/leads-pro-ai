@@ -355,6 +355,44 @@ class SearchController {
     }
 
     /**
+     * Bulk delete leads from both MongoDB and Supabase
+     */
+    static async bulkDeleteLeads(req, res) {
+        try {
+            const { leadIds } = req.body;
+
+            if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
+                return res.status(400).json({ success: false, message: 'Se requiere un array de leadIds.' });
+            }
+
+            console.log(`[SearchController] Iniciando borrado masivo de ${leadIds.length} leads.`);
+
+            // 1. Delete from Supabase (pgvector)
+            try {
+                const SupabaseService = require('../services/SupabaseService');
+                await SupabaseService.deleteLeadVectors(leadIds);
+                console.log(`[SearchController] Vectores eliminados en Supabase.`);
+            } catch (vdbError) {
+                console.warn(`[SearchController] Advertencia: Error borrando vectores en Supabase:`, vdbError.message);
+                // We continue to ensure Mongo stays in sync if vectors are missing or already gone
+            }
+
+            // 2. Delete from MongoDB
+            const mongoResult = await Lead.deleteMany({ _id: { $in: leadIds } });
+            console.log(`[SearchController] Leads eliminados en MongoDB: ${mongoResult.deletedCount}`);
+
+            res.status(200).json({
+                success: true,
+                message: `${mongoResult.deletedCount} leads eliminados permanentemente.`,
+                deletedCount: mongoResult.deletedCount
+            });
+        } catch (error) {
+            console.error(`[SearchController] Error en bulkDeleteLeads:`, error);
+            res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
+    /**
      * Delete a search and its associated leads
      */
     static async deleteSearch(req, res) {

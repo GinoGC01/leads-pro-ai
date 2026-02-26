@@ -1,16 +1,26 @@
 # 💎 Leads Pro AI: Reporte Maestro de Ingeniería
-## El Futuro de la Prospección Inteligente (v2.5)
+## El Futuro de la Prospección Inteligente (v3.1 - Data Hygiene)
 
-Este documento detalla la arquitectura técnica, las innovaciones y el corazón algorítmico del sistema **Leads Pro AI**. Un ecosistema diseñado no solo para encontrar negocios, sino para transformarlos en oportunidades de venta con precisión táctica.
+Este documento detalla la arquitectura técnica, las innovaciones y el corazón algorítmico del sistema **Leads Pro AI**. Un ecosistema diseñado no solo para encontrar negocios, sino para transformarlos en oportunidades de venta con precisión táctica y alineación corporativa total.
 
 ---
 
 ## 🌪️ El Motor Central: Vortex Intelligence Engine (VIE)
 El alma del proyecto es el **Vortex Intelligence Engine (VIE)**, un motor de enriquecimiento asíncrono que procesa cada lead de forma profunda.
 
-### Innovaciones v2.5:
-1.  **Bimodal Context Retrieval**: El sistema ya no depende solo de la base de datos vectorial. AI Controller ahora fusiona determinísticamente las métricas de **MongoDB** (Scores, Performance, SEO Audit) con el contenido semántico de **Supabase (Scraping)**, eliminando alucinaciones y asegurando que la IA siempre tenga datos, incluso si el scraping es parcial.
-2.  **Tactical Persistence Logic**: Cada ángulo de venta, email o estrategia generada por la IA se guarda automáticamente en el CRM del prospecto. Esto crea una memoria corporativa que reduce el consumo de tokens y permite re-abrir leads con su contexto táctico intacto.
+### Innovaciones v3.0 (Dual-Context RAG):
+1.  **Agency Codex Integration**: Ingestión dinámica de `AGENCY_CONTEXT.md`. El sistema ahora posee "Conciencia de Agencia", entendiendo quién eres y qué vendes antes de analizar a cualquier lead.
+2.  **Relational Opportunity Scoring**: El algoritmo de puntuación ha evolucionado. Un lead ya no es "bueno" de forma genérica; es puntuado por su **Afinidad de Agencia**. Si el lead tiene un problema técnico que tu agencia soluciona específicamente, su score recibe un bono de +25 pts.
+3.  **The Closer's Prompt**: El motor de IA ha sido reconfigurado con un System Prompt de Doble Contexto. La IA tiene estrictamente prohibido ofrecer servicios que no estén en tu códice, garantizando una alineación comercial del 100%.
+
+---
+
+## 🧼 Higiene y Salud de Datos (v3.1)
+
+### 1. Cascading Bulk Deletion Logic
+Implementación de un sistema de borrado sincronizado para evitar "vectores fantasma":
+*   **Dual-Database Sync**: Cuando eliminas un lead, el sistema destruye primero su registro en **Supabase (pgvector)** y luego en **MongoDB**.
+*   **Massive Action UI**: Nueva interfaz de selección masiva con barra de acciones flotante y modal de confirmación destructiva profesional.
 
 ---
 

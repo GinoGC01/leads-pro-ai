@@ -1,9 +1,23 @@
-/**
- * RAG & AI Configuration Matrix
- * Prioritizing deterministic accuracy over generative creativity.
- */
+const fs = require('fs');
+const path = require('path');
+
+let agencyContext = 'No se ha definido el contexto de la agencia.';
+try {
+    const agencyPath = path.join(__dirname, 'AGENCY_CONTEXT.md');
+    if (fs.existsSync(agencyPath)) {
+        agencyContext = fs.readFileSync(agencyPath, 'utf8');
+    }
+} catch (err) {
+    console.error('[RAG Config] Error loading AGENCY_CONTEXT.md:', err.message);
+}
 
 module.exports = {
+    // Agency Context for Dual-Context RAG
+    agency: {
+        raw: agencyContext,
+        // Helper to get a condensed version for prompts if needed
+        condensed: agencyContext.substring(0, 1000)
+    },
     // 1. LLM Operational Parameters (Anti-Hallucination Core)
     llm: {
         model: 'gpt-4o-mini',

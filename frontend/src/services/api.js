@@ -13,6 +13,7 @@ export const updateLeadStatus = (id, status, note) => api.patch(`/leads/${id}/st
 export const getLead = (id) => api.get(`/leads/${id}`);
 export const deleteHistory = (searchId) => api.delete(`/history/${searchId}`);
 export const askAi = (query, history) => api.post('/ai/chat', { query, history });
+export const bulkDeleteLeads = (leadIds) => api.delete('/leads', { data: { leadIds } });
 
 // Vortex Intelligence Engine
 export const enrichLead = (leadId) => api.post(`/vortex/enrich/${leadId}`);

@@ -79,6 +79,27 @@ class SupabaseService {
             return null;
         }
     }
+
+    /**
+     * Delete multiple leads from Supabase by their IDs
+     */
+    static async deleteLeadVectors(leadIds) {
+        try {
+            const { error } = await supabase
+                .from('business_leads')
+                .delete()
+                .in('lead_id', leadIds);
+
+            if (error) {
+                console.error('[Supabase] Bulk Delete Error:', error.message);
+                throw error;
+            }
+            return true;
+        } catch (err) {
+            console.error('[Supabase] Delete Service Error:', err.message);
+            throw err;
+        }
+    }
 }
 
 module.exports = SupabaseService;
