@@ -4,12 +4,12 @@ import { updateLeadStatus, bulkDeleteLeads } from '../services/api';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 
 const STATUS_OPTIONS = [
-    { label: 'Nuevo', color: 'bg-slate-100 text-slate-600' },
-    { label: 'Contactado', color: 'bg-blue-100 text-blue-600' },
-    { label: 'Cita Agendada', color: 'bg-amber-100 text-amber-600' },
-    { label: 'Propuesta Enviada', color: 'bg-purple-100 text-purple-600' },
-    { label: 'Cerrado Ganado', color: 'bg-emerald-100 text-emerald-600' },
-    { label: 'Cerrado Perdido', color: 'bg-red-100 text-red-600' }
+    { label: 'Nuevo', color: 'bg-white/5 text-slate-300 border border-white/10' },
+    { label: 'Contactado', color: 'bg-pastel-blue/10 text-pastel-blue border border-pastel-blue/20' },
+    { label: 'Cita Agendada', color: 'bg-pastel-yellow/10 text-pastel-yellow border border-pastel-yellow/20' },
+    { label: 'Propuesta Enviada', color: 'bg-purple-500/10 text-purple-400 border border-purple-500/20' },
+    { label: 'Cerrado Ganado', color: 'bg-pastel-green/10 text-pastel-green border border-pastel-green/20' },
+    { label: 'Cerrado Perdido', color: 'bg-accent-red/10 text-accent-red border border-accent-red/20' }
 ];
 
 const LeadsTable = ({ leads, onRowClick }) => {
@@ -148,7 +148,7 @@ const LeadsTable = ({ leads, onRowClick }) => {
 
     return (
         <>
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden relative">
+            <div className="bg-app-card rounded-3xl border border-white/5 overflow-hidden relative">
                 {/* Bulk Actions Bar */}
                 {selectedLeads.length > 0 && (
                     <div className="absolute top-0 inset-x-0 z-20 bg-indigo-600 text-white p-4 flex items-center justify-between animate-in slide-in-from-top duration-300">
@@ -173,7 +173,7 @@ const LeadsTable = ({ leads, onRowClick }) => {
                 )}
 
                 {/* Filter Bar */}
-                <div className="bg-slate-50 border-b border-slate-200 p-4 flex flex-col gap-4">
+                <div className="bg-[#1e1e20] border-b border-white/5 p-4 flex flex-col gap-4">
                     <div className="flex flex-wrap gap-2 items-center">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2">Filtros:</span>
                         <button
@@ -231,27 +231,27 @@ const LeadsTable = ({ leads, onRowClick }) => {
                         </div>
                     </div>
 
-                    <div className="flex justify-between items-center text-[11px] font-bold text-slate-400 uppercase tracking-widest border-t border-slate-100 pt-3">
+                    <div className="flex justify-between items-center text-[11px] font-bold text-slate-500 uppercase tracking-widest border-t border-white/5 pt-3">
                         <div>
-                            Mostrando <span className="text-slate-900">{filteredAndSortedLeads.length}</span> de <span className="text-slate-900">{localLeads.length}</span> leads encontrados
+                            Mostrando <span className="text-white">{filteredAndSortedLeads.length}</span> de <span className="text-white">{localLeads.length}</span> leads encontrados
                         </div>
                     </div>
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-left">
                         <thead>
-                            <tr className="bg-slate-50 border-b border-slate-200">
+                            <tr className="border-b border-white/5">
                                 <th className="px-4 py-4 w-10">
                                     <input
                                         type="checkbox"
                                         checked={selectedLeads.length === filteredAndSortedLeads.length && filteredAndSortedLeads.length > 0}
                                         onChange={handleSelectAll}
-                                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                        className="w-4 h-4 rounded border-slate-600 bg-white/5 text-accent-blue focus:ring-accent-blue cursor-pointer"
                                     />
                                 </th>
                                 <th
-                                    className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100 transition-colors"
+                                    className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest cursor-pointer hover:bg-white/5 transition-colors"
                                     onClick={() => requestSort('name')}
                                 >
                                     <div className="flex items-center gap-2">
@@ -283,27 +283,27 @@ const LeadsTable = ({ leads, onRowClick }) => {
                                         Score {getSortIcon('leadOpportunityScore')}
                                     </div>
                                 </th>
-                                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-200">
+                        <tbody className="divide-y divide-white/5">
                             {filteredAndSortedLeads.map((lead) => (
                                 <tr
                                     key={lead._id}
                                     onClick={() => onRowClick && onRowClick(lead)}
-                                    className={`group cursor-pointer hover:bg-slate-50 transition-colors ${selectedLeads.includes(lead._id) ? 'bg-indigo-50' : lead.opportunityLevel === 'Critical' ? 'bg-indigo-50/30' : lead.is_zombie ? 'opacity-50 grayscale' : ''}`}
+                                    className={`group cursor-pointer hover:bg-white/5 transition-colors ${selectedLeads.includes(lead._id) ? 'bg-accent-blue/10' : lead.is_zombie ? 'opacity-50 grayscale' : ''}`}
                                 >
                                     <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                                         <input
                                             type="checkbox"
                                             checked={selectedLeads.includes(lead._id)}
                                             onChange={(e) => handleSelectLead(lead._id, e)}
-                                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                            className="w-4 h-4 rounded border-slate-600 bg-white/5 text-accent-blue focus:ring-accent-blue cursor-pointer"
                                         />
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
-                                            <div className="font-semibold text-slate-900">{lead.name}</div>
+                                            <div className="font-bold text-white tracking-tight">{lead.name}</div>
                                             {lead.is_advertising && (
                                                 <span className="px-2 py-0.5 bg-red-600 text-white text-[9px] font-bold rounded uppercase">Ads</span>
                                             )}
@@ -312,7 +312,7 @@ const LeadsTable = ({ leads, onRowClick }) => {
                                             )}
                                         </div>
                                         <div className="text-sm text-slate-500 mt-0.5">{lead.address}</div>
-                                        {lead.email && <div className="text-xs text-primary-600 font-medium mt-1 uppercase tracking-tight">{lead.email}</div>}
+                                        {lead.email && <div className="text-xs text-accent-blue font-medium mt-1 uppercase tracking-wider">{lead.email}</div>}
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="relative group" onClick={(e) => e.stopPropagation()}>
@@ -347,12 +347,12 @@ const LeadsTable = ({ leads, onRowClick }) => {
                                         )}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="text-sm text-slate-700 max-w-[280px] leading-tight italic font-medium">
+                                        <div className="text-sm text-slate-400 max-w-[280px] leading-tight font-medium">
                                             "{lead.sales_angle}"
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-center">
-                                        <div className={`inline-block px-3 py-1 rounded-full text-xs font-black shadow-sm ${lead.opportunityLevel === 'Critical' ? 'bg-indigo-600 text-white' : lead.opportunityLevel === 'High' ? 'bg-orange-500 text-white' : lead.opportunityLevel === 'Medium' ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                                        <div className={`inline-block px-3 py-1 rounded-full text-xs font-black border border-white/10 ${lead.opportunityLevel === 'Critical' ? 'bg-accent-blue text-white' : lead.opportunityLevel === 'High' ? 'bg-pastel-orange text-[#161616]' : lead.opportunityLevel === 'Medium' ? 'bg-pastel-blue text-[#161616]' : 'bg-white/10 text-slate-300'}`}>
                                             {lead.leadOpportunityScore}
                                         </div>
                                     </td>

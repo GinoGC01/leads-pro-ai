@@ -2,21 +2,31 @@ const fs = require('fs');
 const path = require('path');
 
 let agencyContext = 'No se ha definido el contexto de la agencia.';
-try {
-    const agencyPath = path.join(__dirname, 'AGENCY_CONTEXT.md');
-    if (fs.existsSync(agencyPath)) {
-        agencyContext = fs.readFileSync(agencyPath, 'utf8');
+const agencyPath = path.join(__dirname, 'AGENCY_CONTEXT.md');
+
+function loadAgencyContext() {
+    try {
+        if (fs.existsSync(agencyPath)) {
+            agencyContext = fs.readFileSync(agencyPath, 'utf8');
+        }
+    } catch (err) {
+        console.error('[RAG Config] Error loading AGENCY_CONTEXT.md:', err.message);
     }
-} catch (err) {
-    console.error('[RAG Config] Error loading AGENCY_CONTEXT.md:', err.message);
 }
 
+// Carga inicial al arrancar el servidor
+loadAgencyContext();
+
 module.exports = {
+    // Función para recargar dinámicamente cuando se guarda desde el Frontend Settings
+    reloadAgencyContext: loadAgencyContext,
+
     // Agency Context for Dual-Context RAG
-    agency: {
-        raw: agencyContext,
-        // Helper to get a condensed version for prompts if needed
-        condensed: agencyContext.substring(0, 1000)
+    get agency() {
+        return {
+            raw: agencyContext,
+            condensed: agencyContext.substring(0, 1000)
+        };
     },
     // 1. LLM Operational Parameters (Anti-Hallucination Core)
     llm: {

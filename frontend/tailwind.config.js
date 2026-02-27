@@ -7,19 +7,31 @@ export default {
     theme: {
         extend: {
             colors: {
-                primary: {
-                    50: '#f0f9ff',
-                    100: '#e0f2fe',
-                    200: '#bae6fd',
-                    300: '#7dd3fc',
-                    400: '#38bdf8',
-                    500: '#0ea5e9',
-                    600: '#0284c7',
-                    700: '#0369a1',
-                    800: '#075985',
-                    900: '#0c4a6e',
+                // Background & Cards (Hello Barbara theme)
+                app: {
+                    bg: '#161616', // Deep charcoal background
+                    card: '#252528', // Flat dark grey cards
+                    cardHover: '#2e2e32',
                 },
+                // Split-color pastels
+                pastel: {
+                    blue: '#aab2ff',
+                    orange: '#ffb28a',
+                    yellow: '#ffe38a',
+                    green: '#8afca6',
+                },
+                // Vibrant accents
+                accent: {
+                    blue: '#0d6cf2',
+                    green: '#00e57c',
+                    red: '#ff4d4d',
+                    yellow: '#ffb800',
+                }
             },
+            fontFamily: {
+                sans: ['Inter', 'sans-serif'],
+                mono: ['JetBrains Mono', 'monospace'],
+            }
         },
     },
     plugins: [],

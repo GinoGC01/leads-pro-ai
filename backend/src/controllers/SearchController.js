@@ -77,10 +77,39 @@ class SearchController {
         try {
             // 2. Search for places
             await pushStatus(`📡 Conectando con Google Places API (${countryCode || 'Global'}) para localizar profesionales...`);
-            const places = await GooglePlacesService.searchPlaces(keyword, location, radius, 20, maxResults || 60, countryCode);
+            const rawGoogleResults = await GooglePlacesService.searchPlaces(keyword, location, radius, 20, maxResults || 60, countryCode);
+
+            if (rawGoogleResults.length > 0) {
+                console.log("=== RAW GOOGLE PLACE OBJECT (SAMPLE) ===");
+                console.log(JSON.stringify(rawGoogleResults[0], null, 2));
+                console.log("========================================");
+            }
+
+            // Phase 0: Acquisition Filter (Data Hygiene)
+            const validLeads = rawGoogleResults.filter(place => {
+                // Las APIs nuevas usan camelCase (nationalPhoneNumber) en lugar de snake_case
+                const hasPhone = !!(place.nationalPhoneNumber || place.internationalPhoneNumber || place.formatted_phone_number);
+                const hasWebsite = !!(place.website || place.websiteUri);
+                return hasPhone || hasWebsite;
+            });
+
+            console.log(`[Vortex Ops] Filtro aplicado: Pasaron ${validLeads.length} de ${rawGoogleResults.length} leads.`);
+
+            // Phase 1: Prevention of Empty Database Insertion
+            if (validLeads.length === 0) {
+                await pushStatus(`❌ Se encontraron ${rawGoogleResults.length} negocios, pero ninguno poseía vías de contacto (web o teléfono). Búsqueda descartada.`, 'error');
+                await SearchHistory.findByIdAndUpdate(search._id, {
+                    status: 'failed',
+                    resultsCount: 0,
+                    totalCost: 0.032 // Include base query cost
+                });
+                return; // Abort processing
+            }
+
+            const places = validLeads;
 
             let totalCost = 0.032; // Initial Search Cost
-            await pushStatus(`✅ Google Places devolvió ${places.length} candidatos potenciales.`, 'success');
+            await pushStatus(`✅ Google API devolvió ${rawGoogleResults.length} entidades. Filtro Heurístico aprobó ${places.length} candidatos viables.`, 'success');
             await pushStatus('🔍 Iniciando fase de enriquecimiento profundo (Web Scraping + Tech Profiling)...');
 
             // 3. Process Leads in Parallel
@@ -256,6 +285,59 @@ class SearchController {
                 { $group: { _id: null, avgScore: { $avg: "$leadOpportunityScore" } } }
             ]);
 
+            // Dashboard Charts: Acquisition Velocity (Current Year Monthly Aggregation)
+            const currentYear = new Date().getFullYear();
+            const acquisitionVelocityData = await Lead.aggregate([
+                {
+                    $match: {
+                        createdAt: {
+                            $gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
+                            $lt: new Date(`${currentYear + 1}-01-01T00:00:00.000Z`)
+                        }
+                    }
+                },
+                {
+                    $group: {
+                        _id: { $month: "$createdAt" },
+                        count: { $sum: 1 }
+                    }
+                }
+            ]);
+
+            // Format into an array of 12 numbers for Jan-Dec
+            const monthlyLeads = new Array(12).fill(0);
+            acquisitionVelocityData.forEach(item => {
+                if (item._id >= 1 && item._id <= 12) {
+                    monthlyLeads[item._id - 1] = item.count;
+                }
+            });
+
+            // Dashboard Charts: Pipeline Distribution (Leads by CRM Status)
+            const statusDistributionData = await Lead.aggregate([
+                {
+                    $group: {
+                        _id: "$status",
+                        count: { $sum: 1 }
+                    }
+                }
+            ]);
+
+            // Map native statuses (Spanish enclosed)
+            const statusDistribution = {
+                new: 0,
+                contacted: 0,
+                in_progress: 0,
+                closed: 0
+            };
+            statusDistributionData.forEach(item => {
+                if (item._id === 'Nuevo' || item._id === 'new') statusDistribution.new += item.count;
+                if (item._id === 'Contactado' || item._id === 'contacted') statusDistribution.contacted += item.count;
+                if (item._id === 'Cita Agendada' || item._id === 'Propuesta Enviada' || item._id === 'in_progress') statusDistribution.in_progress += item.count;
+                if (item._id === 'Cerrado Ganado' || item._id === 'Cerrado Perdido' || item._id === 'closed') statusDistribution.closed += item.count;
+            });
+
+            console.log('[DEBUG Stats] currentYear:', new Date().getFullYear(), 'monthlyLeads:', monthlyLeads);
+
             // Billing Reconciliation Engine (SKU-based Free Tiers)
             const currentUsage = await ApiUsage.getCurrentMonth();
 
@@ -302,6 +384,10 @@ class SearchController {
                     totalHighTicket: highTicketLeads,
                     uniqueLocations: [...new Set(histories.map(h => h.location))].length,
                     avgScore: scoreAggregate[0]?.avgScore || 0
+                },
+                charts: {
+                    monthlyAcquisition: monthlyLeads,
+                    pipelineStatus: statusDistribution
                 },
                 coverage: {
                     email: totalLeads > 0 ? (leadsWithEmail / totalLeads) * 100 : 0,

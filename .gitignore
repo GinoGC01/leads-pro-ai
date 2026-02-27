@@ -16,3 +16,6 @@ yarn-error.log*
 dist/
 build/
 .gemini/
+
+# Configuración Sensible de Agencia
+backend/src/config/AGENCY_CONTEXT.md

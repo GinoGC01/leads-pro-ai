@@ -25,138 +25,120 @@ class GooglePlacesService {
 
         try {
             do {
-                let requestUrl = `${BASE_URL}/textsearch/json`;
-                let isPagination = !!nextPageToken;
-
-                // Definir parámetros base (usados tanto en búsqueda inicial como en paginación)
+                const requestUrl = 'https://places.googleapis.com/v1/places:searchText';
                 const baseQuery = (location && !/^-?\d/.test(location)) ? `${keyword} ${location}` : keyword;
 
-                if (isPagination) {
-                    // FIX ROTUNDO: Google, contra su propia documentación oficial en muchos casos, 
-                    // REQUIRES que el 'query' original esté presente junto al 'pagetoken' 
-                    // para evitar INVALID_REQUEST en ciertas regiones o tipos de búsqueda.
-                    const safeParams = new URLSearchParams();
-                    safeParams.append('pagetoken', nextPageToken.trim());
-                    safeParams.append('key', GOOGLE_API_KEY);
+                const requestBody = {
+                    textQuery: baseQuery,
+                    pageSize: 20,
+                    languageCode: 'es'
+                };
 
-                    // Re-inyectamos el contexto inicial
-                    safeParams.append('query', baseQuery);
-                    if (region) safeParams.append('region', region.toLowerCase());
-
-                    const isCoords = /^-?\d+\.?\d*,\s*-?\d+\.?\d*$/.test(location);
-                    if (isCoords) {
-                        safeParams.append('location', location.replace(/\s/g, ''));
-                        const r = parseInt(radius);
-                        if (!isNaN(r)) safeParams.append('radius', r.toString());
-                    }
-
-                    requestUrl = `${requestUrl}?${safeParams.toString()}`;
-                    console.log(`[GooglePlaces] Paginación con persistencia de query. Token: ${nextPageToken.substring(0, 15)}...`);
-                } else {
-                    // Construcción inicial
-                    const safeParams = new URLSearchParams({
-                        query: baseQuery,
-                        key: GOOGLE_API_KEY
-                    });
-
-                    if (region) safeParams.append('region', region.toLowerCase());
-
-                    const isCoords = /^-?\d+\.?\d*,\s*-?\d+\.?\d*$/.test(location);
-                    if (isCoords) {
-                        safeParams.append('location', location.replace(/\s/g, ''));
-                        const r = parseInt(radius);
-                        if (!isNaN(r)) safeParams.append('radius', r.toString());
-                    }
-                    requestUrl = `${requestUrl}?${safeParams.toString()}`;
-                    console.log(`[GooglePlaces] Búsqueda inicial configurada. Query: ${baseQuery}`);
+                if (region) {
+                    requestBody.regionCode = region.toUpperCase();
                 }
+
+                if (nextPageToken) {
+                    requestBody.pageToken = nextPageToken;
+                    console.log(`[GooglePlaces] Paginación API V1. Token: ${nextPageToken.substring(0, 15)}...`);
+                } else {
+                    console.log(`[GooglePlaces] Búsqueda inicial API V1. Query: ${baseQuery}`);
+                }
+
+                const isCoords = /^-?\d+\.?\d*,\s*-?\d+\.?\d*$/.test(location);
+                if (isCoords) {
+                    const [lat, lng] = location.split(',').map(Number);
+                    requestBody.locationBias = {
+                        circle: {
+                            center: { latitude: lat, longitude: lng },
+                            radius: parseInt(radius) || 50000.0
+                        }
+                    };
+                }
+
+                // FASE 1: Inyección del FieldMask Correcto
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'X-Goog-Api-Key': GOOGLE_API_KEY,
+                    'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.types,nextPageToken'
+                };
 
                 let response;
                 let data;
 
-                // Ajuste estadístico de maduración
-                let retries = isPagination ? 3 : 1;
+                let retries = nextPageToken ? 3 : 1;
                 let attempt = 0;
                 let dataIsValid = false;
 
                 while (attempt < retries) {
                     attempt++;
 
-                    if (isPagination) {
-                        // Latencia matemática razonable: 2s, 4s, 6s. 
+                    if (nextPageToken) {
                         const delay = attempt * 2000;
-                        console.log(`[GooglePlaces] Maduración de Token: Intento ${attempt}/${retries} (${delay}ms)...`);
+                        console.log(`[GooglePlaces] Maduración de Token V1: Intento ${attempt}/${retries} (${delay}ms)...`);
                         await new Promise(resolve => setTimeout(resolve, delay));
                     }
 
                     try {
-                        // Ejecución estéril: pasamos la URL absoluta pre-computada. Axios solo ejecuta la red.
-                        response = await axios.get(requestUrl);
+                        response = await axios.post(requestUrl, requestBody, { headers });
                         data = response.data;
                     } catch (err) {
-                        console.error('[GooglePlaces] Fallo de red a nivel TCP/TLS:', err.message);
-                        throw err; // Un error aquí es infraestructural, lo propagamos.
+                        console.error('[GooglePlaces] Fallo de red API V1:', err.response?.data?.error?.message || err.message);
+                        if (nextPageToken && attempt < retries) continue;
+                        throw err;
                     }
 
-                    if (data.status === 'OK' || data.status === 'ZERO_RESULTS') {
-                        dataIsValid = true;
-                        // Track SKU Usage (Text Search)
-                        try {
-                            const usage = await ApiUsage.getCurrentMonth();
-                            usage.textSearchCount += 1;
-                            await usage.save();
-                        } catch (usageErr) {
-                            console.error('[Billing] Error tracking Text Search SKU:', usageErr.message);
-                        }
-                        break; // Salimos del bucle de reintentos, tenemos datos útiles.
-                    } else if (data.status === 'INVALID_REQUEST') {
-                        if (isPagination && attempt < retries) {
-                            console.warn(`[GooglePlaces] INVALID_REQUEST. Esperando replicación del clúster de Google...`);
-                            continue;
-                        }
-
-                        console.error('[GooglePlaces] Colapso de integridad del token o fin de paginación forzada por Google.');
-                        nextPageToken = null; // Forzamos la salida del bucle principal
-                        break;
-                    } else {
-                        console.error(`[GooglePlaces] Error terminal de API: ${data.status}`);
-                        nextPageToken = null;
-                        break;
-                    }
+                    dataIsValid = true;
+                    try {
+                        const usage = await ApiUsage.getCurrentMonth();
+                        usage.textSearchCount += 1;
+                        await usage.save();
+                    } catch (usageErr) { }
+                    break;
                 }
 
-                // Lógica de procesamiento de negocio: solo actuamos si los datos sobrevivieron al escrutinio
-                if (dataIsValid && data && data.status === 'OK') {
-                    const filteredResults = (data.results || []).filter(place =>
-                        this.validateRelevance(keyword, place.types || [], place.name)
+                if (dataIsValid && data) {
+                    // Extract new places array
+                    const places = data.places || [];
+
+                    // Map the new V1 format to a compatible flat object
+                    const mappedResults = places.map(p => ({
+                        place_id: p.id,
+                        name: p.displayName?.text || '',
+                        formatted_address: p.formattedAddress,
+                        nationalPhoneNumber: p.nationalPhoneNumber,
+                        internationalPhoneNumber: p.internationalPhoneNumber,
+                        websiteUri: p.websiteUri,
+                        rating: p.rating,
+                        user_ratings_total: p.userRatingCount,
+                        types: p.types || []
+                    }));
+
+                    const filteredResults = mappedResults.filter(place =>
+                        this.validateRelevance(keyword, place.types, place.name)
                     );
 
                     results = [...results, ...filteredResults];
-
-                    // Solo asignamos un nuevo token si existe, de lo contrario lo anulamos para romper el do-while
-                    nextPageToken = data.next_page_token || null;
-                    console.log(`[GooglePlaces] Leads relevantes en este lote: ${filteredResults.length}. Total acumulado: ${results.length}.`);
-                } else if (dataIsValid && data && data.status === 'ZERO_RESULTS') {
-                    console.log(`[GooglePlaces] ZERO_RESULTS devuelto. Límite del sector alcanzado naturalemente.`);
+                    nextPageToken = data.nextPageToken || null;
+                    console.log(`[GooglePlaces] Leads en lote: ${filteredResults.length}. Total acumulado: ${results.length}.`);
+                } else if (!data || (!data.places && !data.nextPageToken)) {
+                    console.log(`[GooglePlaces] Búsqueda finalizada o ZERO_RESULTS.`);
                     nextPageToken = null;
                 }
 
                 if (results.length >= maxResults) {
-                    console.log(`[GooglePlaces] Límite de ${maxResults} resultados alcanzado. Terminando búsqueda.`);
+                    console.log(`[GooglePlaces] Límite de ${maxResults} resultados alcanzado.`);
                     break;
                 }
 
             } while (nextPageToken && results.length < maxResults);
 
-            // Retornamos cortando exactamente en maxResults para evitar desbordamientos
             return results.slice(0, maxResults);
 
         } catch (error) {
-            console.error('[GooglePlaces] Error crítico en searchPlaces:', error.message);
-            // Principio de preservación: Si el sistema colapsa pero ya habíamos recolectado datos,
-            // devolvemos los datos en lugar de estrellar el pipeline entero.
+            console.error('[GooglePlaces] Error crítico API V1:', error.message);
             if (results.length > 0) {
-                console.warn(`[GooglePlaces] Retornando ${results.length} leads parciales tras el colapso.`);
+                console.warn(`[GooglePlaces] Salvando ${results.length} leads parciales.`);
                 return results.slice(0, maxResults);
             }
             throw error;

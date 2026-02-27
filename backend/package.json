@@ -7,6 +7,7 @@
     "start": "node src/server.js",
     "dev": "node src/server.js",
     "clean:queue": "node scripts/flush-redis.js",
+    "reset:db": "node scripts/factory-reset.js",
     "test-google": "node src/utils/testGoogleApi.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

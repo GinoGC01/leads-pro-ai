@@ -1,12 +1,23 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-:root {
-  background-color: #f8fafc;
-}
-
 button {
   cursor: pointer;
+}
+
+:root {
+  background-color: #161616;
+}
+
+body {
+  background-color: #161616;
+  color: #e2e8f0;
+  /* slate-200 */
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
 /* Minimalist Scrollbar Utility */

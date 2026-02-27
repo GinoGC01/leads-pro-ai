@@ -88,7 +88,16 @@ const enrichmentWorker = new Worker('enrichmentQueue', async (job) => {
             await lead.save();
         }
 
-        throw error; // Permite re-intento de BullMQ
+        // Si el error es de DNS (la página no existe) o TimeOut severo, no tiene sentido reintentar en 5 segundos.
+        // Cortamos el ciclo de BullMQ para evitar el "loop".
+        if (error.message.includes('ENOTFOUND') ||
+            error.message.includes('ERR_NAME_NOT_RESOLVED') ||
+            error.message.includes('ERR_CONNECTION_REFUSED')) {
+            console.error(`[EnrichmentWorker] 🛑 Abortando reintentos para ${name} por fallo de DNS/Red definitivo.`);
+            return; // Resolvemos el job silenciosamente para BullMQ, pero queda 'failed' en MongoDB.
+        }
+
+        throw error; // Permite re-intento de BullMQ solo para fallos temporales (WAF, timeouts 520, etc).
     }
 }, {
     connection,

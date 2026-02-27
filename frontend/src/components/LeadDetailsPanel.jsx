@@ -1,35 +1,84 @@
-import React, { useState, useEffect } from 'react';
-import { Sparkles, Globe, MapPin, Phone, MessageSquare, AlertCircle, Loader2, CheckCircle2, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Sparkles, Globe, MapPin, Phone, MessageSquare, AlertCircle, Loader2, CheckCircle2, X, Star, ExternalLink, Zap } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import axios from 'axios';
 import Tooltip from './Tooltip';
+import AlertService from '../services/AlertService';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
 });
 
+const getFriendlyErrorMessage = (errorString) => {
+    if (!errorString) return 'Ocurrió un error técnico inesperado al analizar la infraestructura de este prospecto.';
+    const lowerError = errorString.toLowerCase();
+
+    if (lowerError.includes('enotfound') || lowerError.includes('err_name_not_resolved')) {
+        return 'Dominio inaccesible. El sitio web oficial del prospecto ya no existe, caducó o el enlace está roto.';
+    }
+    if (lowerError.includes('waf') || lowerError.includes('cloudflare') || lowerError.includes('403') || lowerError.includes('520')) {
+        return 'Acceso denegado (Firewall Activo). El sitio web bloqueó la conexión entrante de nuestro analizador para proteger su código fuente.';
+    }
+    if (lowerError.includes('timeout') || lowerError.includes('err_connection_timed_out') || lowerError.includes('navigation timeout')) {
+        return 'Tiempo de espera agotado. El servidor del prospecto es extremadamente lento y no logró responder la petición a tiempo.';
+    }
+    if (lowerError.includes('err_connection_refused')) {
+        return 'Conexión rechazada. El servidor web del prospecto se encuentra inactivo actualmente o rechazó la solicitud TCP.';
+    }
+
+    return 'Fallo de extracción: El proveedor de hosting o la tecnología del sitio impidieron la recolección asíncrona de datos.';
+};
+
 const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
     const [lead, setLead] = useState(initialLead);
+    const [activeTab, setActiveTab] = useState('inteligencia');
     const [isActivating, setIsActivating] = useState(false);
     const [error, setError] = useState(null);
     const [aiResponse, setAiResponse] = useState(lead.tactical_response || '');
     const [isAiLoading, setIsAiLoading] = useState(false);
+    const vortexToastIdRef = useRef(null);
 
     const handleTacticalAction = async (prompt, label) => {
         setIsAiLoading(true);
         setAiResponse('');
-        setError(null);
-        try {
-            const { data } = await api.post('/ai/chat', {
-                query: prompt,
-                leadId: lead._id
-            });
+        // Usando AlertService.promise para UX asimétrica
+
+        const aiRequest = api.post('/ai/chat', {
+            query: prompt,
+            leadId: lead._id
+        });
+
+        AlertService.promise(
+            aiRequest,
+            {
+                loading: `Generando ${label}...`,
+                success: `¡${label} estratégico generado!`,
+                error: `Error al generar ${label}`
+            }
+        ).then(({ data }) => {
             setAiResponse(data.answer);
-        } catch (err) {
-            setError(`Error al generar ${label}`);
-        } finally {
+        }).finally(() => {
             setIsAiLoading(false);
-        }
+        });
+    };
+
+    const handleStatusUpdate = async (newStatus) => {
+        const note = window.prompt(`Actualizando a '${newStatus}'. ¿Alguna nota?`);
+        if (note === null) return; // User cancelled the prompt
+
+        const updateRequest = api.patch(`/leads/${lead._id}/status`, { status: newStatus, note });
+
+        AlertService.promise(
+            updateRequest,
+            {
+                loading: 'Actualizando CRM...',
+                success: 'Estado del prospecto actualizado',
+                error: 'Error al actualizar el CRM'
+            }
+        ).then(({ data }) => {
+            setLead(data);
+            if (onLeadUpdate) onLeadUpdate(data);
+        });
     };
 
     // Polling for status if it's pending
@@ -40,14 +89,26 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                 try {
                     const { data } = await api.get(`/vortex/status/${lead._id}`);
                     if (data.status === 'completed') {
-                        // Refresh full lead data
                         const { data: updatedLead } = await api.get(`/leads/${lead._id}`);
                         setLead(updatedLead);
                         if (onLeadUpdate) onLeadUpdate(updatedLead);
                         clearInterval(interval);
+
+                        // Terminar el Toast explícitamente si existe
+                        if (vortexToastIdRef.current) {
+                            AlertService.successUpdate(vortexToastIdRef.current, '¡Auditoría Técnica Completada!');
+                            vortexToastIdRef.current = null;
+                        } else {
+                            AlertService.success('Vortex Audit completado en 2do plano');
+                        }
                     } else if (data.status === 'failed') {
-                        setLead(prev => ({ ...prev, enrichmentStatus: 'failed' }));
+                        setLead(prev => ({ ...prev, enrichmentStatus: 'failed', enrichmentError: data.error }));
                         clearInterval(interval);
+
+                        if (vortexToastIdRef.current) {
+                            AlertService.errorUpdate(vortexToastIdRef.current, 'Vortex Audit falló o fue bloqueado.');
+                            vortexToastIdRef.current = null;
+                        }
                     }
                 } catch (err) {
                     console.error("Polling error:", err);
@@ -60,11 +121,20 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
     const handleActivateVortex = async () => {
         setIsActivating(true);
         setError(null);
+
+        // Creamos el loader persistente y capturamos su ID
+        const tid = AlertService.loading('Infiltrando Vortex Engine. Analizando Infraestructura...');
+        vortexToastIdRef.current = tid;
+
         try {
-            const { data } = await api.post(`/vortex/enrich/${lead._id}`);
+            await api.post(`/vortex/enrich/${lead._id}`);
+            // El API responde OK. El backend está procesando en 2do plano.
+            // No cambiamos el toast todavía, dejamos que el useEffect (Polling) lo cierre.
             setLead(prev => ({ ...prev, enrichmentStatus: 'pending' }));
             if (onLeadUpdate) onLeadUpdate({ ...lead, enrichmentStatus: 'pending' });
         } catch (err) {
+            AlertService.errorUpdate(tid, 'Fallo al iniciar protocolo Vortex.');
+            vortexToastIdRef.current = null;
             setError(err.response?.data?.message || 'Error al activar Vortex');
         } finally {
             setIsActivating(false);
@@ -73,324 +143,403 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
 
     if (!lead) return null;
 
-    const isUnprocessed = lead.enrichmentStatus === 'unprocessed';
     const isProcessing = lead.enrichmentStatus === 'pending';
     const isCompleted = lead.enrichmentStatus === 'completed';
     const isFailed = lead.enrichmentStatus === 'failed';
 
-    return (
-        <div className="fixed inset-y-0 right-0 w-[450px] bg-white shadow-2xl z-[60] flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-300">
-            {/* Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <div>
-                    <h2 className="text-xl font-black text-slate-900 tracking-tight leading-none mb-1">{lead.name}</h2>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{lead.opportunityLevel} Priority Lead</p>
-                </div>
-                <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                    <X className="w-5 h-5 text-slate-400" />
-                </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-24">
-                {/* Basic Info */}
-                <section className="space-y-3">
-                    <div className="flex items-start gap-3">
-                        <MapPin className="w-4 h-4 text-slate-400 mt-0.5" />
-                        <span className="text-sm text-slate-600">{lead.address}</span>
+    const renderInteligencia = () => {
+        if (!lead.website) {
+            return (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="bg-slate-100 p-4 rounded-xl border border-slate-200 text-center">
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sin Presencia Web Detectada</span>
                     </div>
-                    {lead.website && (
-                        <div className="flex items-center gap-3">
-                            <Globe className="w-4 h-4 text-slate-400" />
-                            <a href={lead.website} target="_blank" rel="noreferrer" className="text-sm text-indigo-600 hover:underline font-medium">
-                                {lead.website.replace('https://', '').replace('http://', '').split('/')[0]}
-                            </a>
-                        </div>
-                    )}
-                    {lead.phoneNumber && (
-                        <div className="flex items-center gap-3">
-                            <Phone className="w-4 h-4 text-slate-400" />
-                            <span className="text-sm text-slate-600 font-mono">{lead.phoneNumber}</span>
-                        </div>
-                    )}
-                </section>
 
-                <section className="relative">
-                    {!isCompleted ? (
-                        <div className={`rounded-2xl p-6 border-2 transition-all duration-500 ${isProcessing ? 'bg-indigo-50 border-indigo-200' : isFailed ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className={`p-2 rounded-xl ${isProcessing ? 'bg-indigo-600 animate-pulse shadow-lg' : isFailed ? 'bg-red-600' : 'bg-slate-200'} text-white`}>
-                                    <Sparkles className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest leading-none mb-1">Vortex Intelligence</h3>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase">
-                                        {isFailed ? 'Error en Escaneo' : 'Escaneo de Vulnerabilidades & Tech'}
-                                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-app-card p-4 rounded-xl border border-white/5 relative overflow-hidden group">
+                            <div className="absolute top-0 inset-x-0 h-[40%] bg-pastel-orange/20 transition-colors group-hover:bg-pastel-orange/30"></div>
+                            <div className="relative z-10 pt-4">
+                                <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Rating Maps</p>
+                                <div className="flex items-center gap-1">
+                                    <span className="text-2xl font-bold text-white tracking-tight">{lead.rating || 'N/A'}</span>
+                                    <Star className="w-4 h-4 text-pastel-orange fill-pastel-orange" />
                                 </div>
                             </div>
+                        </div>
+                        <div className="bg-app-card p-4 rounded-xl border border-white/5 relative overflow-hidden group">
+                            <div className="absolute top-0 inset-x-0 h-[40%] bg-pastel-blue/20 transition-colors group-hover:bg-pastel-blue/30"></div>
+                            <div className="relative z-10 pt-4">
+                                <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Reseñas Totales</p>
+                                <p className="text-2xl font-bold text-white tracking-tight">{lead.userRatingsTotal || 0}</p>
+                            </div>
+                        </div>
+                    </div>
 
-                            {(isUnprocessed || isFailed) && (
-                                <div className="space-y-4">
-                                    {isFailed && (
-                                        <div className="p-3 bg-white/50 rounded-xl border border-red-200">
-                                            <p className="text-[10px] font-black text-red-600 uppercase tracking-tighter mb-1">Motivo del fallo:</p>
-                                            <p className="text-xs text-red-700 font-mono italic break-words leading-tight">
-                                                {lead.enrichmentError || 'Error desconocido durante la extracción'}
-                                            </p>
-                                        </div>
-                                    )}
-                                    <p className="text-xs text-slate-500 leading-relaxed italic">
-                                        {isFailed ? 'Algo salió mal. Verifica que el sitio web sea accesible y vuelve a activar el motor.' : 'Vortex está actualmente inactivo para este prospecto. Actívalo para obtener auditoría SEO, stack tecnológico y sales angles.'}
-                                    </p>
-                                    <button
-                                        onClick={handleActivateVortex}
-                                        disabled={isActivating || !lead.website}
-                                        className={`w-full py-3 ${isFailed ? 'bg-red-600 hover:bg-red-700' : 'bg-indigo-600 hover:bg-indigo-700'} disabled:bg-slate-400 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg transition-all flex items-center justify-center gap-2`}
-                                    >
-                                        {isActivating ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            <Sparkles className="w-4 h-4" />
-                                        )}
-                                        {isFailed ? 'Reintentar Análisis' : 'Activar Vortex Intelligence'}
-                                    </button>
-                                    {!lead.website && (
-                                        <p className="text-[9px] text-red-500 font-bold text-center uppercase">Requiere sitio web para análisis</p>
-                                    )}
-                                </div>
-                            )}
+                    <div className="space-y-3 bg-app-card p-5 rounded-2xl border border-white/5 mt-6">
+                        <h4 className="text-[10px] font-black text-white uppercase tracking-widest mb-2">Información de Google Places</h4>
+                        <div className="flex items-start gap-3">
+                            <MapPin className="w-4 h-4 text-slate-500 mt-0.5" />
+                            <span className="text-xs text-slate-300 leading-relaxed">{lead.address}</span>
+                        </div>
+                        {lead.phoneNumber && (
+                            <div className="flex items-center gap-3">
+                                <Phone className="w-4 h-4 text-slate-500" />
+                                <span className="text-xs text-slate-300 font-mono">{lead.phoneNumber}</span>
+                            </div>
+                        )}
+                        <div className="flex items-center gap-3">
+                            <Globe className="w-4 h-4 text-slate-500" />
+                            <span className="text-xs text-accent-red font-bold italic">No posee URL pública</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
 
-                            {isProcessing && (
-                                <div className="space-y-4 py-4 text-center">
-                                    <div className="flex justify-center">
-                                        <div className="relative">
-                                            <div className="absolute inset-0 bg-indigo-400 blur-xl opacity-20 animate-pulse"></div>
-                                            <Loader2 className="w-12 h-12 text-indigo-600 animate-spin relative" />
-                                        </div>
+        if (!isCompleted) {
+            return (
+                <div className={`rounded-2xl p-6 border-2 transition-all duration-500 ${isProcessing ? 'bg-indigo-50 border-indigo-200' : isFailed ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className={`p-2 rounded-xl ${isProcessing ? 'bg-indigo-600 animate-pulse' : isFailed ? 'bg-red-600' : 'bg-slate-200'} text-white`}>
+                            <Sparkles className="w-5 h-5" />
+                        </div>
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Vortex Audit</h3>
+                    </div>
+                    {(isFailed || lead.enrichmentStatus === 'unprocessed') && (
+                        <div className="space-y-4 mb-4">
+                            {isFailed && (
+                                <div className="p-3 bg-red-100 border border-red-200 rounded-lg text-red-800 text-xs flex gap-2 items-start shadow-sm">
+                                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-600" />
+                                    <div>
+                                        <p className="font-bold text-red-900 mb-0.5 text-[11px] uppercase tracking-wide">Fallo de Análisis Web</p>
+                                        <p className="text-red-800 leading-relaxed font-medium">{getFriendlyErrorMessage(lead.enrichmentError)}</p>
                                     </div>
-                                    <div className="space-y-2">
-                                        <p className="text-xs font-black text-indigo-700 uppercase tracking-tighter">Engaging Deep Scraper...</p>
-                                        <div className="w-full bg-indigo-100 h-1.5 rounded-full overflow-hidden">
-                                            <div className="bg-indigo-600 h-full w-1/3 animate-progress-indeterminate"></div>
-                                        </div>
-                                        <p className="text-[9px] text-slate-400 font-bold italic uppercase">Bypassing WAF & Collecting Metadata...</p>
-                                    </div>
                                 </div>
                             )}
+                            <button
+                                onClick={handleActivateVortex}
+                                disabled={isActivating}
+                                className="w-full py-3 bg-white text-black hover:bg-slate-200 rounded-xl font-black text-[10px] uppercase tracking-[0.1em] transition-all flex justify-center items-center shadow-md active:scale-95"
+                            >
+                                {isActivating ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Run Technical Audit'}
+                            </button>
+                        </div>
+                    )}
+                    {isProcessing && (
+                        <div className="space-y-3 py-4 text-center">
+                            <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mx-auto" />
+                            <p className="text-[10px] font-black text-indigo-700 uppercase">Escaneando Infraestructura...</p>
+                        </div>
+                    )}
+                </div>
+            );
+        }
 
-                            {error && (
-                                <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg flex items-center gap-2">
-                                    <AlertCircle className="w-4 h-4 text-red-500" />
-                                    <span className="text-[10px] text-red-600 font-bold uppercase">{error}</span>
+        return (
+            <div className="space-y-6 animate-in fade-in duration-300">
+                {/* ---------- Tarjeta 1: Core Web Vitals (Rendimiento) ---------- */}
+                <div className="bg-app-card rounded-2xl border border-white/5 overflow-hidden">
+                    <div className="p-4 border-b border-white/5 bg-slate-900/50 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-amber-400" />
+                            <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Rendimiento (Lighthouse)</h4>
+                        </div>
+                        {/* Indicador General (Mini Dona Lógica) */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">Score:</span>
+                            <span className={`px-2 py-0.5 rounded textxs font-black
+                                ${(!lead.performance_metrics?.performanceScore) ? 'bg-slate-800 text-slate-500' :
+                                    lead.performance_metrics.performanceScore >= 80 ? 'bg-emerald-500/20 text-emerald-400' :
+                                        lead.performance_metrics.performanceScore >= 50 ? 'bg-amber-500/20 text-amber-400' :
+                                            'bg-red-500/20 text-red-500'
+                                }
+                            `}>
+                                {lead.performance_metrics?.performanceScore ?? 'N/A'}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="p-4 grid grid-cols-2 gap-4 bg-[#0B0B0C]">
+                        {/* LCP Metric */}
+                        <div className="space-y-1">
+                            <p className="text-[9px] font-black text-slate-500 uppercase">Largest Contentful Paint</p>
+                            <div className="flex items-end gap-2">
+                                <p className="text-xl font-mono font-bold text-slate-200">
+                                    {lead.performance_metrics?.lcp || '---'}
+                                </p>
+                                {lead.performance_metrics?.lcp && parseFloat(lead.performance_metrics.lcp) > 2.5 && (
+                                    <span className="text-[9px] font-bold text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded uppercase mb-1">Lento</span>
+                                )}
+                            </div>
+                        </div>
+                        {/* TTFB Metric */}
+                        <div className="space-y-1 p-4 bg-slate-900/40 rounded-xl border border-white/5">
+                            <p className="text-[9px] font-black text-slate-500 uppercase">Time To First Byte</p>
+                            <p className="text-xl font-mono font-bold text-slate-200">
+                                {lead.performance_metrics?.ttfb !== undefined ? `${lead.performance_metrics.ttfb} ms` : '---'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ---------- Tarjeta 2: Salud SEO (Estructura) ---------- */}
+                <div className="bg-app-card rounded-2xl border border-white/5 overflow-hidden">
+                    <div className="p-4 border-b border-white/5 bg-slate-900/50 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Globe className="w-4 h-4 text-emerald-400" />
+                            <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Estructura SEO</h4>
+                        </div>
+                    </div>
+
+                    <div className="p-4 space-y-3 bg-[#0B0B0C]">
+                        {/* H1 Check */}
+                        <div className="flex items-start justify-between p-3 rounded-lg border border-white/5 bg-white/5">
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-bold text-slate-300">Etiquetas H1</p>
+                                <p className={`text-[9px] italic ${!lead.seo_audit?.h1Count ? 'text-red-400' : 'text-slate-500'}`}>
+                                    {!lead.seo_audit?.h1Count ? 'Falta H1 (Penalización severa en Google)' : `${lead.seo_audit.h1Count} Encontrados`}
+                                </p>
+                            </div>
+                            {lead.seo_audit?.h1Count ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <X className="w-4 h-4 text-red-500" />}
+                        </div>
+
+                        {/* Meta Description Check */}
+                        <div className="flex items-start justify-between p-3 rounded-lg border border-white/5 bg-white/5">
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-bold text-slate-300">Meta Descripción</p>
+                                <p className={`text-[9px] italic ${!lead.seo_audit?.hasMetaDescription ? 'text-amber-400' : 'text-slate-500'}`}>
+                                    {!lead.seo_audit?.hasMetaDescription ? 'Sin descripción configurada para resultados de búsqueda.' : 'Configurada correctamente'}
+                                </p>
+                            </div>
+                            {lead.seo_audit?.hasMetaDescription ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <AlertCircle className="w-4 h-4 text-amber-500" />}
+                        </div>
+
+                        {/* Title Check */}
+                        <div className="flex items-start justify-between p-3 rounded-lg border border-white/5 bg-white/5">
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-bold text-slate-300">Etiqueta Title</p>
+                                <p className="text-[9px] text-slate-500 max-w-[200px] truncate" title={lead.seo_audit?.titleText}>
+                                    {lead.seo_audit?.hasTitle ? lead.seo_audit.titleText : 'No posee título estructurado'}
+                                </p>
+                            </div>
+                            {lead.seo_audit?.hasTitle ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <X className="w-4 h-4 text-red-500" />}
+                        </div>
+                    </div>
+                </div>
+
+                {/* ---------- Tarjeta 3: Tech Stack (Wappalyzer Clásico) ---------- */}
+                <div className="bg-app-card rounded-2xl border border-white/5 overflow-hidden">
+                    <div className="p-4 border-b border-white/5 bg-slate-900/50 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-indigo-400" />
+                            <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Tecnologías Base</h4>
+                        </div>
+                    </div>
+
+                    <div className="p-5 bg-[#0B0B0C]">
+                        {lead.tech_stack && lead.tech_stack.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {lead.tech_stack.map(tech => (
+                                    <span key={tech} className="px-2.5 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-black rounded-lg border border-indigo-500/20 uppercase shadow-sm">
+                                        {tech}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-4 text-center space-y-2">
+                                <div className="p-2 bg-slate-800 rounded-full">
+                                    <AlertCircle className="w-4 h-4 text-slate-500" />
                                 </div>
-                            )}
+                                <p className="text-xs font-bold text-slate-400">Tecnología Oculta / No Detectada</p>
+                                <p className="text-[10px] text-slate-500">El sitio no expone librerías conocidas públicamente.</p>
+                            </div>
+                        )}
+
+                        {/* Advertencias Heurísticas (Ej: Ads / Pixeles) */}
+                        {lead.tech_stack && !lead.tech_stack.some(t => t.toLowerCase().includes('analytics') || t.toLowerCase().includes('tag')) && (
+                            <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2">
+                                <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+                                <p className="text-[10px] text-amber-400/90 leading-relaxed font-medium">
+                                    <span className="font-bold text-amber-500">Oportunidad Ads:</span> No se detectaron píxeles analíticos (Google/Meta). Pobre medición de tráfico evidenciada.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* ---------- Acordeón JSON Raw (Para Debugeo o Data Cruda) ---------- */}
+                <details className="group cursor-pointer">
+                    <summary className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-colors list-none flex items-center gap-2">
+                        <span className="group-open:rotate-90 transition-transform">▶</span> Ver Extracción JSON Raw
+                    </summary>
+                    <div className="mt-3 p-4 bg-black rounded-xl border border-white/10 overflow-x-auto">
+                        <pre className="text-[10px] font-mono text-emerald-400 leading-relaxed">
+                            {JSON.stringify({
+                                performance: lead.performance_metrics,
+                                seo: lead.seo_audit,
+                                tech: lead.tech_stack
+                            }, null, 2)}
+                        </pre>
+                    </div>
+                </details>
+            </div>
+        );
+    };
+
+    const renderEstrategia = () => (
+        <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="grid grid-cols-1 gap-2">
+                {lead.website ? (
+                    <>
+                        <button
+                            onClick={() => handleTacticalAction("Dame una estrategia de 3 viñetas sobre su debilidad técnica.", "Estrategia")}
+                            className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 transition-all text-xs font-bold text-slate-700"
+                        >
+                            Estrategia Técnica <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
+                        </button>
+                        <button
+                            onClick={() => handleTacticalAction("Redacta un correo en frío asimétrico.", "Email")}
+                            className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 transition-all text-[10px] font-bold text-slate-700"
+                        >
+                            Draft Email Profesional <Globe className="w-3.5 h-3.5 text-indigo-500" />
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        <button
+                            onClick={() => handleTacticalAction(`Guion de llamada enfocado en reputación (${lead.rating}) y clientes perdidos.`, "Script")}
+                            className="flex items-center justify-between p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all text-xs font-bold"
+                        >
+                            Script de Llamada Estratégica <Phone className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                            onClick={() => handleTacticalAction("Mensaje de WhatsApp corto sobre el costo de oportunidad de no tener web.", "WhatsApp")}
+                            className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 transition-all text-[10px] font-bold text-slate-700"
+                        >
+                            WhatsApp FOMO <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
+                        </button>
+                    </>
+                )}
+            </div>
+
+            {(isAiLoading || aiResponse) && (
+                <div className="bg-[#0B0B0C] rounded-xl p-5 border border-white/5 overflow-hidden flex-1 mt-6">
+                    <div className="text-[9px] font-black text-white uppercase tracking-[0.2em] mb-4 pb-3 border-b border-white/5 flex items-center justify-between">
+                        <span>Vortex AI Console</span>
+                        <div className="w-2 h-2 rounded-full bg-accent-blue animate-pulse"></div>
+                    </div>
+                    {isAiLoading ? (
+                        <div className="h-40 flex flex-col items-center justify-center text-[10px] text-slate-500 font-mono uppercase gap-4">
+                            <Loader2 className="w-6 h-6 animate-spin text-accent-blue" />
+                            <span>Generando Táctica...</span>
                         </div>
                     ) : (
-                        <div className="space-y-6">
-                            {/* Dashboard de Métricas Empíricas */}
-                            <div className="grid grid-cols-2 gap-4">
-                                {/* Opportunity Score */}
-                                <Tooltip text="Potencial de cierre. >70 indica alta probabilidad de venta." position="bottom">
-                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col justify-between h-[110px] w-full">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Opportunity</p>
-                                            <div className={`w-2 h-2 rounded-full ${lead.leadOpportunityScore > 70 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-amber-500'}`}></div>
-                                        </div>
-                                        <p className={`text-2xl font-black ${lead.leadOpportunityScore > 70 ? 'text-emerald-600' : 'text-slate-800'}`}>
-                                            {lead.leadOpportunityScore}<span className="text-xs ml-0.5 opacity-40">/100</span>
-                                        </p>
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase">{lead.opportunityLevel}</p>
-                                    </div>
-                                </Tooltip>
-
-                                {/* Performance Score */}
-                                <Tooltip text="Puntuación Google Lighthouse. < 50 es crítico (Fuerte ángulo de venta)." position="bottom">
-                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col justify-between h-[110px] w-full">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Performance</p>
-                                            <Tooltip text="TTFB > 600ms indica servidor lento o falta de caché.">
-                                                <Loader2 className={`w-3 h-3 ${lead.performance_metrics?.performance_issue ? 'text-red-500' : 'text-emerald-500'}`} />
-                                            </Tooltip>
-                                        </div>
-                                        <p className={`text-2xl font-black ${lead.performance_metrics?.performance_issue ? 'text-red-500' : 'text-slate-800'}`}>
-                                            {lead.performance_metrics?.performanceScore || 'N/A'}<span className="text-xs ml-0.5 opacity-40">%</span>
-                                        </p>
-                                        <p className="text-[9px] font-mono text-slate-400 uppercase">TTFB: {lead.performance_metrics?.ttfb || '---'}ms</p>
-                                    </div>
-                                </Tooltip>
-
-                                {/* SEO Health */}
-                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 col-span-2">
-                                    <Tooltip text="Meta descripciones y títulos faltantes detectados por Vortex." position="bottom">
-                                        <div className="flex-1 w-full">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Estado SEO</p>
-                                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                <div className="flex-1">
-                                                    <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`h-full rounded-full ${lead.seo_audit?.missing_meta_desc ? 'bg-amber-500 w-2/3' : 'bg-emerald-500 w-full'}`}
-                                                        ></div>
-                                                    </div>
-                                                </div>
-                                                <span className="text-xs font-black text-slate-700">
-                                                    {lead.seo_audit?.missing_meta_desc ? 'MEJORABLE' : 'OPTIMIZADO'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </Tooltip>
-                                </div>
-                            </div>
-
-                            {/* Tech Stack */}
-                            <div className="space-y-2">
-                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tech Stack Detectado</h4>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {lead.tech_stack?.map(tech => (
-                                        <span key={tech} className="px-2 py-1 bg-indigo-50 text-indigo-700 text-[10px] font-black rounded-lg border border-indigo-100 uppercase">
-                                            {tech}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                            {/* Acciones Tácticas (Vortex AI) */}
-                            <div className="space-y-4 pt-4 border-t border-slate-100">
-                                <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] flex items-center gap-2">
-                                    <Sparkles className="w-3 h-3" /> Acciones Tácticas (Vortex AI)
-                                </h4>
-
-                                <div className="grid grid-cols-1 gap-2">
-                                    {lead.website ? (
-                                        <>
-                                            <button
-                                                onClick={() => handleTacticalAction("Analiza las métricas de rendimiento, SEO y stack tecnológico de este lead. Dame una estrategia de 3 viñetas sobre cuál es su mayor debilidad técnica y cómo usarla como ángulo de venta.", "Estrategia")}
-                                                className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-slate-50 transition-all group"
-                                            >
-                                                <span className="text-xs font-bold text-slate-700">Estrategia de Abordaje Técnico</span>
-                                                <MessageSquare className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500" />
-                                            </button>
-
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <Tooltip text="Email asimétrico y profesional con asunto intrigante." position="bottom">
-                                                    <button
-                                                        onClick={() => handleTacticalAction("Actúas como un closer B2B de élite. Redacta un correo en frío de máximo 3 párrafos cortos para este lead. INCLUYE una línea de 'Asunto:' intrigante. Usa el fallo más crítico de su web (Lighthouse, SEO o lentitud) en la primera línea para demostrar investigación. Tono directo, asimétrico y profesional.", "Email")}
-                                                        className="w-full flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-slate-50 transition-all group"
-                                                    >
-                                                        <span className="text-[10px] font-bold text-slate-700">Vía Email</span>
-                                                        <Globe className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500" />
-                                                    </button>
-                                                </Tooltip>
-
-                                                <Tooltip text="Mensaje corto (50 palabras) con tono ágil y emojis." position="bottom">
-                                                    <button
-                                                        onClick={() => handleTacticalAction("Actúas como un closer B2B de élite. Redacta un mensaje de WhatsApp en frío para este lead. REGLAS ESTRICTAS: NO incluyes 'Asunto'. Longitud MÁXIMA de 40 a 50 palabras. Tono ágil y profesional. Haz referencia a una métrica técnica de su web.", "WhatsApp")}
-                                                        className="w-full flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-slate-50 transition-all group"
-                                                    >
-                                                        <span className="text-[10px] font-bold text-slate-700">Vía WhatsApp</span>
-                                                        <Phone className="w-3.5 h-3.5 text-slate-300 group-hover:text-emerald-500" />
-                                                    </button>
-                                                </Tooltip>
-                                            </div>
-
-                                            <button
-                                                onClick={() => handleTacticalAction("Lee el contenido Markdown extraído de su web. Dime qué tipo de clientes están buscando atraer y cómo podemos posicionar nuestro servicio como el vehículo para llegar a ese cliente ideal.", "Análisis de Copy")}
-                                                className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-slate-50 transition-all group"
-                                            >
-                                                <span className="text-xs font-bold text-slate-700">Analizar Copy (Markdown)</span>
-                                                <Sparkles className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500" />
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Tooltip text="Guion de 60s enfocado en reputación offline y pérdida de demanda." position="bottom">
-                                                <button
-                                                    onClick={() => handleTacticalAction(`Eres un Closer B2B de Mariosweb. Este prospecto NO tiene sitio web. Tiene un rating de ${lead.rating} con ${lead.userRatingsTotal} reseñas. Escribe un guion de llamada en frío (Cold Call) de menos de 60 segundos. EL ÁNGULO: Felicítalos por su excelente reputación offline (sus reseñas), pero hazles notar que están perdiendo clientes de alto valor frente a competidores peores porque no aparecen en las búsquedas de Google. El objetivo de la llamada es agendar una reunión de 10 minutos, no vender la web por teléfono. Usa tono de socio estratégico.`, "Script de Llamada")}
-                                                    className="flex items-center justify-between p-3 bg-indigo-600 border border-indigo-700 rounded-xl hover:bg-indigo-700 transition-all group shadow-sm text-white"
-                                                >
-                                                    <span className="text-xs font-bold">Generar Script de Llamada</span>
-                                                    <Phone className="w-3.5 h-3.5 text-indigo-200 group-hover:text-white" />
-                                                </button>
-                                            </Tooltip>
-
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <Tooltip text="Mensaje corto de alta fricción sobre el costo de oportunidad." position="bottom">
-                                                    <button
-                                                        onClick={() => handleTacticalAction(`Eres un Closer B2B. El prospecto NO tiene web. Redacta un mensaje de WhatsApp corto (máximo 40 palabras). Tono informal pero respetuoso. Usa la técnica del 'Costo de Oportunidad': diles que viste sus excelentes reseñas en Google Maps, pero que están ocultos para los clientes que buscan en internet. Termina con una pregunta abierta de baja fricción. Cero jerga técnica.`, "WhatsApp FOMO")}
-                                                        className="w-full flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-slate-50 transition-all group"
-                                                    >
-                                                        <span className="text-[10px] font-bold text-slate-700">WhatsApp FOMO</span>
-                                                        <Phone className="w-3.5 h-3.5 text-slate-300 group-hover:text-emerald-500" />
-                                                    </button>
-                                                </Tooltip>
-
-                                                <Tooltip text="Análisis de dolores operativos para negocios offline." position="bottom">
-                                                    <button
-                                                        onClick={() => handleTacticalAction(`Analiza el sector de este lead (${lead.category || 'Servicio'}). Como no tienen web, dime 3 dolores operativos que este tipo de negocio sufre (ej. agendamiento manual, clientes preguntando siempre lo mismo por teléfono) y cómo una web construida por Mariosweb solucionaría esos dolores específicos.`, "Estrategia Local")}
-                                                        className="w-full flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-slate-50 transition-all group"
-                                                    >
-                                                        <span className="text-[10px] font-bold text-slate-700">Estrategia Local</span>
-                                                        <MessageSquare className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500" />
-                                                    </button>
-                                                </Tooltip>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Ventana de Respuesta AI */}
-                            {(isAiLoading || aiResponse) && (
-                                <div className="mt-6 bg-slate-900 rounded-2xl p-5 shadow-2xl animate-in fade-in zoom-in duration-300 border border-slate-800">
-                                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
-                                            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Consola Táctica</span>
-                                        </div>
-                                        {aiResponse && (
-                                            <button
-                                                onClick={() => navigator.clipboard.writeText(aiResponse)}
-                                                className="text-[9px] font-bold text-slate-500 hover:text-white uppercase transition-colors"
-                                            >
-                                                Copiar
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    {isAiLoading ? (
-                                        <div className="space-y-3 py-4">
-                                            <div className="h-2 w-3/4 bg-slate-800 rounded animate-pulse"></div>
-                                            <div className="h-2 w-full bg-slate-800 rounded animate-pulse"></div>
-                                            <div className="h-2 w-5/6 bg-slate-800 rounded animate-pulse"></div>
-                                            <p className="text-[10px] text-slate-600 font-bold uppercase mt-4 text-center">Generando táctica personalizada...</p>
-                                        </div>
-                                    ) : (
-                                        <div className="prose prose-invert prose-sm max-w-none text-slate-300 leading-relaxed font-medium overflow-y-auto max-h-[400px] pr-2 
-                                            [&::-webkit-scrollbar]:w-1.5 
-                                            [&::-webkit-scrollbar-thumb]:bg-slate-700 
-                                            [&::-webkit-scrollbar-thumb]:rounded-full 
-                                            [&::-webkit-scrollbar-track]:bg-transparent">
-                                            <ReactMarkdown>{aiResponse}</ReactMarkdown>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                        <div className="prose prose-invert prose-xs text-slate-300 max-h-[400px] overflow-y-auto pr-2 minimal-scrollbar font-mono leading-relaxed">
+                            <ReactMarkdown>{aiResponse}</ReactMarkdown>
                         </div>
                     )}
-                </section>
+                </div>
+            )}
+        </div>
+    );
+
+    const renderGestion = () => (
+        <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="p-5 bg-app-card rounded-2xl border border-white/5">
+                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Estado del Lead (CRM)</h4>
+                <div className="grid grid-cols-1 gap-2">
+                    {['Nuevo', 'Contactado', 'Cita Agendada', 'Propuesta Enviada', 'Cerrado Ganado', 'Cerrado Perdido'].map(status => (
+                        <button
+                            key={status}
+                            onClick={() => handleStatusUpdate(status)}
+                            className={`px-4 py-3 rounded-xl text-xs font-bold text-left transition-all border ${lead.status === status ? 'bg-white text-black border-white shadow-md' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/20 hover:bg-white/5'}`}
+                        >
+                            {status.toUpperCase()}
+                        </button>
+                    ))}
+                </div>
             </div>
 
-            {/* Actions footer */}
-            <div className="p-6 border-t border-slate-100 bg-white">
-                <a
-                    href={lead.googleMapsUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full py-4 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-xl"
-                >
-                    Ver en Google Maps
-                </a>
+            <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Historial de Notas</h4>
+                {lead.interactionLogs?.length > 0 ? (
+                    <div className="space-y-3">
+                        {lead.interactionLogs.reverse().map((log, i) => (
+                            <div key={i} className="bg-white p-3 rounded-xl border border-slate-200">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">{new Date(log.timestamp).toLocaleDateString()} - {log.status}</p>
+                                <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{log.note || 'Sin nota.'}</p>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-xs text-slate-400 italic text-center py-4">Sin interacciones registradas.</p>
+                )}
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="fixed inset-0 z-[100] flex justify-end">
+            {/* Dark Overlay (Backdrop) */}
+            <div
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+                onClick={onClose}
+            ></div>
+
+            {/* Slide-over panel */}
+            <div className="relative w-[500px] bg-app-bg shadow-2xl shadow-black/80 flex flex-col border-l border-white/10 animate-in slide-in-from-right duration-300 h-full">
+                {/* Header */}
+                <div className="p-8 border-b border-white/5 bg-[#121212]">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-2xl font-bold text-white tracking-tight truncate max-w-[350px]">{lead.name}</h2>
+                        <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors flex-shrink-0">
+                            <X className="w-5 h-5 text-slate-500 hover:text-white" />
+                        </button>
+                    </div>
+                    <div className="flex gap-2">
+                        <span className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase border ${lead.opportunityLevel === 'Critical' ? 'bg-accent-blue/20 text-accent-blue border-accent-blue/30' : 'bg-white/5 text-slate-400 border-white/10'}`}>{lead.opportunityLevel}</span>
+                        {lead.is_advertising && <span className="px-2.5 py-1 bg-accent-red/20 text-accent-red border border-accent-red/30 text-[10px] font-bold rounded uppercase">Ads Active</span>}
+                    </div>
+                </div>
+
+                {/* Tab Navigation */}
+                <div className="flex border-b border-white/5 bg-app-card">
+                    {['inteligencia', 'estrategia', 'gestion'].map(tab => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-[0.1em] transition-all relative ${activeTab === tab ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            {tab === 'gestion' ? 'Gestión' : tab === 'estrategia' ? 'Estrategia AI' : tab}
+                            {activeTab === tab && <div className="absolute bottom-0 inset-x-0 h-[2px] bg-white animate-in fade-in duration-300" />}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Tab Content */}
+                <div className="flex-1 overflow-y-auto p-6 scroll-smooth">
+                    {error && (
+                        <div className="mb-6 p-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2 text-red-600 text-[10px] font-bold uppercase">
+                            <AlertCircle className="w-4 h-4" /> {error}
+                        </div>
+                    )}
+
+                    {activeTab === 'inteligencia' && renderInteligencia()}
+                    {activeTab === 'estrategia' && renderEstrategia()}
+                    {activeTab === 'gestion' && renderGestion()}
+                </div>
+
+                {/* Footer */}
+                <div className="p-6 border-t border-slate-100 bg-slate-50/50">
+                    <a
+                        href={lead.googleMapsUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full py-4 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-2 hover:bg-black transition-all shadow-xl shadow-slate-200"
+                    >
+                        Ver en Google Maps <ExternalLink className="w-4 h-4" />
+                    </a>
+                </div>
             </div>
         </div>
     );
