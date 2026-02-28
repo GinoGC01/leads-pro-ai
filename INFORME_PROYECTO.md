@@ -1,100 +1,83 @@
-# 💎 Leads Pro AI: Reporte Maestro de Ingeniería
-## El Futuro de la Prospección Inteligente (v4.0 Alpha - Vantablack UI ✨)
+# 🧠 Leads Pro AI: El Ecosistema "Neuro-Simbólico" de Adquisición B2B
 
-Este documento detalla la arquitectura técnica, las innovaciones y el corazón algorítmico del sistema **Leads Pro AI**. Un ecosistema diseñado no solo para encontrar negocios, sino para transformarlos en oportunidades de venta con precisión táctica y alineación corporativa total.
+Leads Pro AI ha evolucionado de un simple scraper de Google Maps a un CRM inteligente con toma de decisiones autónoma. El sistema opera bajo una arquitectura de tres motores entrelazados que buscan, auditan y atacan prospectos de forma asimétrica.
 
----
-
-## 🌪️ El Motor Central: Vortex Intelligence Engine (VIE)
-El alma del proyecto es el **Vortex Intelligence Engine (VIE)**, un motor de enriquecimiento asíncrono que procesa cada lead de forma profunda.
-
-### Innovaciones v3.0 (Dual-Context RAG):
-1.  **Agency Codex Integration**: Ingestión dinámica de `AGENCY_CONTEXT.md`. El sistema ahora posee "Conciencia de Agencia", entendiendo quién eres y qué vendes antes de analizar a cualquier lead.
-2.  **Relational Opportunity Scoring**: El algoritmo de puntuación ha evolucionado. Un lead ya no es "bueno" de forma genérica; es puntuado por su **Afinidad de Agencia**. Si el lead tiene un problema técnico que tu agencia soluciona específicamente, su score recibe un bono de +25 pts.
-3.  **The Closer's Prompt**: El motor de IA ha sido reconfigurado con un System Prompt de Doble Contexto. La IA tiene estrictamente prohibido ofrecer servicios que no estén en tu códice, garantizando una alineación comercial del 100%.
+Este documento explica en profundidad el funcionamiento del núcleo, sus variables, la forma en que procesa las respuestas y su bucle de auto-aprendizaje.
 
 ---
 
-## 🧼 Higiene y Salud de Datos (v3.1)
+## 🏗️ 1. Arquitectura Técnica Global
 
-### 1. Cascading Bulk Deletion Logic
-Implementación de un sistema de borrado sincronizado para evitar "vectores fantasma":
-*   **Dual-Database Sync**: Cuando eliminas un lead, el sistema destruye primero su registro en **Supabase (pgvector)** y luego en **MongoDB**.
-*   **Massive Action UI**: Nueva interfaz de selección masiva con barra de acciones flotante y modal de confirmación destructiva profesional.
-
----
-
-## 📵 Estrategia de Conversión No-Web (v3.2)
-
-### 1. RAG Strategy Override
-Cuando un lead no posee sitio web, el sistema cambia automáticamente su motor RAG:
-*   **Enfoque en Reputación**: La IA ignora auditorías técnicas (Lighthouse) y se centra en el **Rating y Reseñas** de Google Places.
-*   **Costo de Oportunidad**: Se prioriza vender la captura de "clientes perdidos" que buscan el negocio y no lo encuentran.
-
-### 2. Botones Tácticos Condicionales
-El Panel de Detalles se adapta Dinámicamente:
-*   **Cold Call Script**: Guion de menos de 60 segundos enfocado en agendar una cita basándose en su reputación offline.
-*   **WhatsApp FOMO**: Mensaje corto de alto impacto emocional sobre la demanda desatendida.
-*   **Estrategia Local**: Análisis de dolores operativos (ej. agendamiento manual) que una web solucionaría.
+El proyecto está dividido en un stack MERN moderno:
+- **Frontend:** React + Vite, Tailwind CSS, Lucide Icons, enrutamiento condicional. Interfaz tipo "Vantablack" ultraligera.
+- **Backend:** Node.js con Express, ESM Modules.
+- **Base de Datos:** MongoDB (almacenamiento de Leads, Historial de Búsquedas, Sesiones de Chat AI y Configuración de Agencia).
+- **Telecomunicaciones:** `libphonenumber-js` para sanitización matemática de números crudos extraídos de Google Maps.
 
 ---
 
-## 🎨 Fase 4.0: Vantablack Premium UI (Generado por Stitch AI)
+## 🌪️ 2. Motor VORTEX (Auditoría Asíncrona)
 
-Para acompañar el poder algorítmico del motor de RAG, se ha diseñado una interfaz de usuario completamente de élite y vanguardista utilizando el agente **Stitch**.
+**Propósito:** Extraer la radiografía técnica y comercial del prospecto antes de emitir cualquier palabra.
 
-### Elementos de Diseño Fundamentales (Clon Exacto de Referencia):
-*   **Estética "Hello Barbara" Dark Mode**: Backgrounds en *Charcoal mate puro* (#161616). Eliminación absoluta del glassmorphism y efectos neón. Toda la UI es plana, geométrica y de alto contraste oscuro/claro.
-*   **Arquitectura Dual (Desktop & Mobile)**: El diseño se ha pensado desde cero para aprovechar resoluciones *widescreen* (Desktop) con grillas horizontales y paneles "Side-by-side", manteniendo una versión móvil ultra-optimizada.
-*   **Dashboards de Alto Contraste**: Sistema de tarjetas de métricas grandes con bordes `rounded-3xl` muy pronunciados. Uso intencional de **bloques sólidos BLANCOS** para la tarjeta o botón principal, generando un foco visual masivo. Sidebar desprendido y ultra-delgado con iconos en blanco puro.
-*   **Tarjetas "Split-Color" (CRM)**: Innovación UI clonada de la referencia. Las tarjetas de resumen de la base de datos dividen su fondo: el 40% superior es un color sólido pastel (Azul, Naranja, Amarillo, Verde), y el 60% inferior es gris oscuro con el número.
-*   **Data Table Matemática**: Diseño plano sin líneas divisorias verticales, cabeceras mayúsculas diminutas y de bajo contraste, y píldoras de estado oscuras con indicadores de color precisos.
-*   **Paneles de "Capture Database"**: Slide-overs integrados a la perfección con la misma lógica de tarjetas duales, bloques de inteligencia grises y consolas *monospace*.
+**Flujo de Funciones:**
+1. **Adquisición:** Consume la Nueva Google Places API V1 (`X-Goog-FieldMask`) enfocándose estricamente en números nacionales y URIs de sitios web. Pasa por un filtro de higiene (si no tiene ni web ni teléfono, el lead se descarta para no ensuciar la base).
+2. **Raspado Profundo (Firecrawl):** Si el prospecto tiene un sitio web, VORTEX envía un worker en segundo plano que extrae el contenido semántico en formato Markdown para entender a qué se dedica realmente la empresa.
+3. **Métricas Heurísticas (Lighthouse):** Analiza la velocidad (Core Web Vitals: LCP, TTFB), la salud del SEO (H1, Meta Titles) y la pila tecnológica subyacente (Wappalyzer: WordPress, React, Meta Pixels).
 
-### Fase 4.1: Migración Vantablack y Premium Data Vis (Frontend Pipeline)
-La visión generada por Stitch se ha codificado oficialmente en el ecosistema Vite + React, pero se le agregó una capa vectorial avanzada:
-* **Dark Base Absoluta**: Se reescribió la capa global (`index.css`), suprimiendo variables de Tailwind por defecto y forzando `#161616` (bg-app-bg) y texturas de carbón sin glow-effects.
-* **Premium Data Visualizations (Pure CSS/SVG)**: El Dashboard maestro fue inyectado con visuales de alta gama codificadas desde cero. Esto incluye:
-    - *Sparklines* algorítmicos para tendencias de captación en la tarjeta primaria blanca.
-    - Indicadores de estado de servidor (pinging dot) y barras de progreso fluidas para Scrapers activos.
-    - Un **SVG Donut Chart** matemáticamente exacto para la distribución del pipeline CRM y un Bar Chart animado con degradados azules intensos sin usar librerías externas.
-* **Sistema de Tarjetas Split**: Implementación real de contenedores `relative` con subcapas absolutas al 40% superior en colores `pastel.blue/orange` con blending nativo.
-* **Consola Vortex AI Flat**: Se extrajo el estilo "Neon Terminal" del panel de leads, cambiándolo por un diseño minimalista de consola con fondo Dark Slate (`#0B0B0C`) de alto contraste para mostrar las salidas del motor LLM.
+**Integridad UI:** 
+Si el sitio web del prospecto bloquea el ataque de VORTEX (Firewalls, Cloudflare 403, Timeout), el frontend traduce los errores técnicos brutales (ej. `ERR_CONNECTION_REFUSED`) en mensajes humanos y degadados de forma elegante ("Acceso denegado - Firewall Activo").
 
 ---
 
-## 🛠️ Stack Tecnológico de Elite
-*   **Backend**: Node.js & Express (Arquitectura modular con Inyección de Dependencias).
-*   **Database**: 
-    *   **MongoDB**: Almacenamiento primario y motor de persistencia táctica.
-    *   **Redis**: Gestión de colas BullMQ para procesos ` Ghost-Mode`.
-    *   **Supabase (pgvector)**: Memoria semántica de largo plazo.
-*   **Frontend**: React (Vite) + Tailwind CSS.
-    *   **Sidebar-Centric Design**: Interfaz optimizada para pantallas densas con tooltips heurísticos de auto-ajuste (anti-clipping).
+## 🕷️ 3. Motor SPIDER (Motor de Triaje Simbólico)
+
+**Propósito:** Procesar la data cruda de VORTEX mediante reglas lógicas puras (simbólicas) para decidir si el lead vale la pena y qué ángulo de ataque requiere.
+
+**Variables Críticas de SPIDER:**
+- `friction_score` (Nivel de Fricción): SPIDER evalúa si el lead tiene un "Costo Hundido Tech" (`HIGH`) porque acaba de gastar dinero en un React moderno, o si es un "Lienzo en Blanco" (`LOW`) porque no tiene web o usa un constructor arcaico.
+- `spider_codex.js`: El cerebro de reglas. Dependiendo de la industria, SPIDER carga secuencias condicionales. 
+- `cadence_structure`: En lugar de una orden estática, asigna una secuencia de ataque de varios toques (ej. Día 1: Ataque Inicial, Día 3: Seguimiento, Día 7: Ruptura).
+- `historical_confidence` (Confianza Histórica): El porcentaje de éxito de la táctica seleccionada.
+
+**Mecanismo de Aprendizaje (Fase Beta):**
+SPIDER cuenta con un bucle de retroalimentación en la base de datos (MongoDB Aggregation). Cuando el equipo marca ventas ganadas o perdidas en el CRM, SPIDER recalcula la "tasa de victoria" (Win Rate) de la táctica. Si una táctica cae por debajo del 15% de efectividad, el motor automáticamente restaura su `historical_confidence` y emite una alerta ámbar indicando que "el mercado se ha inmunizado a este ángulo".
 
 ---
 
-## 📊 Inteligencia Financiera y Operativa
+## 🍄 4. IA MARIO (Closer Neuro-Simbólico)
 
-### 1. Sistema de Reconciliación de Facturación por SKU (v2.1)
-Hemos abandonado las estimaciones estáticas por una contabilidad de grado bancario:
-*   **Rastreo por SKU**: Diferenciación exacta entre llamadas `Text Search` ($0.032) y `Place Details` ($0.025).
-*   **Free-Tier Awareness**: El sistema descuenta automáticamente los umbrales gratuitos reales de Google Cloud (5,000 búsquedas y 1,000 detalles mensuales).
-*   **Dashboard de Ahorro Real**: Visualización del ROI basada en los USD ahorrados gracias a la cuota gratuita de Google.
+**Propósito:** MARIO es el "Actor de Voz" de la máquina. Toma el frío veredicto estructurado de SPIDER y lo convierte en palabras persuasivas usando redes neuronales (LLM - OpenAI GPT-4o), pero bajo cadenas de titanio.
 
-### 2. Opportunity Scoring (Heurística de Cierre)
-Algoritmo de 4 capas que califica prospectos de 0 a 100:
-*   **Bonus "Modo Analógico"**: Máxima puntuación para negocios exitosos sin presencia web.
-*   **Detección de Ineficiencia**: Penalización por stacks obsoletos (Wix/GoDaddy) frente a negocios rentables.
-*   **Detección Ad-Intent**: Identificación automática de negocios que ya invierten en publicidad.
+**El Framework de Generación (MARIO V5.1):**
+MARIO NO tiene libertad creativa. Está obligado a procesar la "Battlecard" usando formatos exactos:
 
----
-
-## 🛡️ Defensa y Resiliencia
-*   **Heuristic Tooltip System**: Sistema de explicaciones internas que guía al usuario sobre los scores de IA, optimizado para no ocultarse nunca en la interfaz.
-*   **Nuclear Defense Logic**: Protección contra inconsistencias de datos de terceras APIs, garantizando el flujo continuo de la aplicación.
+1. **JSON Estricto:** MARIO siempre devuelve un objeto JSON parseable con 4 llaves:`ataque_inicial`, `reaccion_ignorado`, `reaccion_favorable`, y `reaccion_objecion`. Nunca devuelve bloques de código, garantizando que React pueda separar y renderizar "Action Cards" independientes.
+2. **El "Checklist de Supervivencia":** Inyectado en el System Prompt, le prohíbe cometer errores novatos de ventas:
+   - **Destrucción del Signo '¿':** Jamás inicia preguntas con '¿' para simular escritura rápida de WhatsApp informal.
+   - **Tono Antisuplicante:** Prohibidas las palabras "Me ayudarías", "Espero", "Me encantaría".
+   - **Judo Comercial (Reacciones a Objeciones):** Si el prospecto dice "Ya tengo agencia", MARIO responde tocando el ego, validando a la agencia rival para generar disonancia y retirándose limpiamente, negándose a suplicar atención.
+   - **Anti-Doblaje (LATAM vs NA):** MARIO filtra frases de "español de película" como "lucir fantástico" o "atrapar clientes" cargando perfiles lingüísticos y prohibiciones geográficas.
 
 ---
 
-## 🎯 Conclusión
-**Leads Pro AI** ha evolucionado de un simple scraper a una plataforma de **Mercancía Inteligente**. Con la integración de la persistencia táctica y la reconciliación financiera real, el sistema no solo entrega leads, sino un control total sobre el negocio del usuario.
+## 🔄 5. Flujos de RAG (Retrieval-Augmented Generation)
+
+El sistema soporta dos modos de memoria a largo plazo a través del Chat:
+
+- **Micro-RAG (Enfoque Táctico):** Al abrir el panel lateral de un cliente específico, el chat se inyecta con la ficha biométrica, la radiografía de VORTEX y toda la estrategia aislada de ese lead.
+- **Macro-RAG (Enfoque Estratégico):** En el Dashboard principal (`/dashboard?campaignId=X`), el usuario habla con el "Analista Financiero". El Backend extrae los últimos cientos de leads procesados, sus estados de victoria, la inversión total y agrupa la información. La IA responde a nivel corporativo ("El nicho de odontología generó 3 cierres ganados, sugiero escalar en la zona Norte").
+
+El Sistema REST mapea el contexto en tiempo real. Todas las sesiones son persistentes en MongoDB y permiten a los vendedores retomar conversaciones tácticas de días anteriores sin perder de vista los datos heurísticos.
+
+---
+
+## 🚀 6. Operatividad y Ejecución (La "Última Milla")
+
+La inteligencia no sirve si hay fricción en la ejecución.
+
+Por eso, el Frontend intercepta la estrategia JSON de MARIO y despliega una interfaz premium en el `LeadDetailsPanel`:
+1. **Accionables Condicionales:** El botón "Enviar WhatsApp" dispara una URL `wa.me` dinámica que inyecta automáticamente el texto de la IA en la aplicación móvil o web. El botón de Correo inyecta un enlace `mailto`.
+2. **Sanitización Matemática:** Gracias a `libphonenumber-js`, los números en formatos locales corruptos como `011 15-4321-9876` son esterilizados a identificaciones universales (ej. `5491143219876`). Si el teléfono es inválido o el prospecto no posée uno, el sistema deshabilita visualmente los botones impidiendo fallos operativos en caliente.
+
+El resultado es una **"Batlecard de Mando"** donde el agente humano se vuelve 100 veces más destructivo y certero; MARIO piensa, SPIDER clasifica, VORTEX investiga, y el humano solo da clics calificados.
