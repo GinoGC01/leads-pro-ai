@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import axios from 'axios';
 import Tooltip from './Tooltip';
 import AlertService from '../services/AlertService';
+import StatusUpdateModal from './StatusUpdateModal';
 import { getWhatsAppLink } from '../utils/phoneUtils';
 
 const api = axios.create({
@@ -30,7 +31,7 @@ const getFriendlyErrorMessage = (errorString) => {
     return 'Fallo de extracción: El proveedor de hosting o la tecnología del sitio impidieron la recolección asíncrona de datos.';
 };
 
-const ActionCard = ({ title, textContent, icon, colorClass, lead }) => {
+const ActionCard = ({ title, textContent, whatsAppText, icon, colorClass, lead }) => {
     const validWaNumber = getWhatsAppLink(lead?.phoneNumber, lead?.countryCode || 'AR');
 
     const handleCopy = () => {
@@ -40,7 +41,7 @@ const ActionCard = ({ title, textContent, icon, colorClass, lead }) => {
 
     const handleWhatsApp = () => {
         if (!validWaNumber) return;
-        window.open(`https://wa.me/${validWaNumber}?text=${encodeURIComponent(textContent)}`, '_blank');
+        window.open(`https://wa.me/${validWaNumber}?text=${encodeURIComponent(whatsAppText || textContent)}`, '_blank');
     };
 
     const handleEmail = () => {
@@ -97,6 +98,7 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
     const [error, setError] = useState(null);
     const [aiResponse, setAiResponse] = useState(lead.tactical_response || '');
     const [isAiLoading, setIsAiLoading] = useState(false);
+    const [statusModal, setStatusModal] = useState({ isOpen: false, newStatus: null });
     const vortexToastIdRef = useRef(null);
 
     // Spider State
@@ -170,9 +172,13 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
         });
     };
 
-    const handleStatusUpdate = async (newStatus) => {
-        const note = window.prompt(`Actualizando a '${newStatus}'. ¿Alguna nota?`);
-        if (note === null) return; // User cancelled the prompt
+    const handleStatusUpdate = (newStatus) => {
+        setStatusModal({ isOpen: true, newStatus });
+    };
+
+    const confirmStatusUpdate = async (note) => {
+        const newStatus = statusModal.newStatus;
+        setStatusModal({ isOpen: false, newStatus: null });
 
         const updateRequest = api.patch(`/leads/${lead._id}/status`, { status: newStatus, note });
 
@@ -325,37 +331,45 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
 
         if (!isCompleted) {
             return (
-                <div className={`rounded-2xl p-6 border-2 transition-all duration-500 ${isProcessing ? 'bg-indigo-50 border-indigo-200' : isFailed ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className={`p-2 rounded-xl ${isProcessing ? 'bg-indigo-600 animate-pulse' : isFailed ? 'bg-red-600' : 'bg-slate-200'} text-white`}>
+                <div className={`rounded-2xl p-6 border transition-all duration-500 relative overflow-hidden ${isProcessing ? 'bg-indigo-900/10 border-indigo-500/20' : isFailed ? 'bg-red-900/10 border-red-500/20' : 'bg-[#151720] border-white/5'}`}>
+
+                    {/* Background glow effects */}
+                    {isProcessing && <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-[40px] pointer-events-none"></div>}
+                    {isFailed && <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-[40px] pointer-events-none"></div>}
+                    {!isProcessing && !isFailed && <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[40px] pointer-events-none"></div>}
+
+                    <div className="flex items-center gap-3 mb-6 relative z-10">
+                        <div className={`p-2 rounded-xl border ${isProcessing ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400 animate-pulse' : isFailed ? 'bg-red-500/20 border-red-500/30 text-red-500' : 'bg-white/5 border-white/10 text-slate-300'}`}>
                             <Sparkles className="w-5 h-5" />
                         </div>
-                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Vortex Audit</h3>
+                        <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Vortex Audit</h3>
                     </div>
+
                     {(isFailed || lead.enrichmentStatus === 'unprocessed') && (
-                        <div className="space-y-4 mb-4">
+                        <div className="space-y-4 mb-2 relative z-10">
                             {isFailed && (
-                                <div className="p-3 bg-red-100 border border-red-200 rounded-lg text-red-800 text-xs flex gap-2 items-start shadow-sm">
-                                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-600" />
+                                <div className="p-3 bg-red-500/5 border border-red-500/20 rounded-xl text-red-400 text-xs flex gap-3 items-start shadow-sm backdrop-blur-sm">
+                                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-500" />
                                     <div>
-                                        <p className="font-bold text-red-900 mb-0.5 text-[11px] uppercase tracking-wide">Fallo de Análisis Web</p>
-                                        <p className="text-red-800 leading-relaxed font-medium">{getFriendlyErrorMessage(lead.enrichmentError)}</p>
+                                        <p className="font-bold text-red-500 mb-1 text-[11px] uppercase tracking-widest">Fallo de Análisis Web</p>
+                                        <p className="text-red-400/80 leading-relaxed font-medium text-[11px]">{getFriendlyErrorMessage(lead.enrichmentError)}</p>
                                     </div>
                                 </div>
                             )}
                             <button
                                 onClick={handleActivateVortex}
                                 disabled={isActivating}
-                                className="w-full py-3 bg-white text-black hover:bg-slate-200 rounded-xl font-black text-[10px] uppercase tracking-[0.1em] transition-all flex justify-center items-center shadow-md active:scale-95"
+                                className="w-full py-4 bg-white/5 text-white border border-white/10 hover:bg-white/10 hover:border-white/20 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all flex justify-center items-center shadow-lg active:scale-[0.98] group"
                             >
-                                {isActivating ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Run Technical Audit'}
+                                {isActivating ? <Loader2 className="w-4 h-4 animate-spin mx-auto text-accent-blue" /> :
+                                    <span className="flex items-center gap-2">Run Technical Audit <Sparkles className="w-3 h-3 text-slate-400 group-hover:text-accent-blue transition-colors" /></span>}
                             </button>
                         </div>
                     )}
                     {isProcessing && (
-                        <div className="space-y-3 py-4 text-center">
-                            <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mx-auto" />
-                            <p className="text-[10px] font-black text-indigo-700 uppercase">Escaneando Infraestructura...</p>
+                        <div className="space-y-4 py-8 text-center relative z-10">
+                            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mx-auto" />
+                            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.25em]">Escaneando Infraestructura...</p>
                         </div>
                     )}
                 </div>
@@ -660,11 +674,15 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                                     const textContent = parsedStrategy[card.key];
                                     if (!textContent) return null;
 
+                                    const salesRep = localStorage.getItem('salesRepName') || 'nuestro equipo';
+                                    const processedForWA = textContent.replace(/\[TÚ\]/g, salesRep).replace(/\[Nombre del Prospector\]/g, salesRep).replace(/\[Tu Nombre\]/g, salesRep);
+
                                     return (
                                         <ActionCard
                                             key={card.key}
                                             title={card.title}
                                             textContent={textContent}
+                                            whatsAppText={processedForWA}
                                             colorClass={card.colorClass}
                                             icon={<Sparkles className="w-3 h-3" />}
                                             lead={lead}
@@ -686,34 +704,66 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
 
     const renderGestion = () => (
         <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="p-5 bg-app-card rounded-2xl border border-white/5">
-                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Estado del Lead (CRM)</h4>
-                <div className="grid grid-cols-1 gap-2">
-                    {['Nuevo', 'Contactado', 'Cita Agendada', 'Propuesta Enviada', 'Cerrado Ganado', 'Cerrado Perdido'].map(status => (
-                        <button
-                            key={status}
-                            onClick={() => handleStatusUpdate(status)}
-                            className={`px-4 py-3 rounded-xl text-xs font-bold text-left transition-all border ${lead.status === status ? 'bg-white text-black border-white shadow-md' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/20 hover:bg-white/5'}`}
-                        >
-                            {status.toUpperCase()}
-                        </button>
-                    ))}
+            <div className="p-6 bg-[#0B0B0C] rounded-2xl border border-white/5 relative overflow-hidden shadow-xl">
+                <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                <h4 className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-accent-blue shadow-[0_0_8px_rgba(56,189,248,0.8)]"></div>
+                    Estado del Prospecto
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative z-10">
+                    {['Nuevo', 'Contactado', 'Cita Agendada', 'Propuesta Enviada', 'En Espera', 'Cerrado Ganado', 'Sin WhatsApp', 'Descartados', 'Cerrado Perdido'].map(status => {
+                        const isSelected = lead.status === status;
+                        return (
+                            <button
+                                key={status}
+                                onClick={() => handleStatusUpdate(status)}
+                                className={`px-4 py-3.5 rounded-xl text-[11px] uppercase tracking-widest font-black text-left transition-all border outline-none 
+                                ${isSelected
+                                        ? 'bg-accent-blue/10 text-accent-blue border-accent-blue/30 shadow-[0_0_15px_rgba(56,189,248,0.15)] ring-1 ring-accent-blue/50'
+                                        : 'bg-white/5 text-slate-400 border-white/5 hover:border-white/20 hover:bg-white/10 hover:text-slate-200'}`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span>{status}</span>
+                                    {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-accent-blue/80" />}
+                                </div>
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
-            <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Historial de Notas</h4>
+            <div className="p-6 bg-[#0B0B0C] rounded-2xl border border-white/5 relative overflow-hidden shadow-xl">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-[40px] pointer-events-none"></div>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-5 flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]"></div>
+                    Historial de Interacciones
+                </h4>
+
                 {lead.interactionLogs?.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="space-y-4 relative z-10">
                         {lead.interactionLogs.reverse().map((log, i) => (
-                            <div key={i} className="bg-white p-3 rounded-xl border border-slate-200">
-                                <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">{new Date(log.timestamp).toLocaleDateString()} - {log.status}</p>
-                                <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{log.note || 'Sin nota.'}</p>
+                            <div key={i} className="flex gap-4 group">
+                                <div className="flex flex-col items-center">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-white/20 border-2 border-[#0B0B0C] z-10 group-hover:bg-purple-400 group-hover:shadow-[0_0_10px_rgba(168,85,247,0.5)] transition-colors"></div>
+                                    {i !== lead.interactionLogs.length - 1 && <div className="flex-1 w-px bg-white/5 mt-1 group-hover:bg-white/10 transition-colors"></div>}
+                                </div>
+                                <div className="bg-[#151720] flex-1 p-4 rounded-xl border border-white/5 group-hover:border-white/10 transition-colors shadow-lg">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[9px] text-purple-400 font-bold uppercase tracking-widest">{log.status}</span>
+                                        </div>
+                                        <span className="text-[10px] font-mono text-slate-500">{new Date(log.timestamp).toLocaleDateString()}</span>
+                                    </div>
+                                    <p className="text-xs text-slate-300 whitespace-pre-wrap leading-loose font-medium">{log.note || 'Actualización de estado sin notas adicionales.'}</p>
+                                </div>
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <p className="text-xs text-slate-400 italic text-center py-4">Sin interacciones registradas.</p>
+                    <div className="flex flex-col items-center justify-center py-10 opacity-50 relative z-10 gap-3">
+                        <MessageSquare className="w-6 h-6 text-slate-600" />
+                        <p className="text-[11px] text-slate-500 italic uppercase tracking-widest font-bold">Sin interacciones previas</p>
+                    </div>
                 )}
             </div>
         </div>
@@ -727,13 +777,13 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
             ></div>
 
             {/* Slide-over panel */}
-            <div className="relative w-[896px] max-w-[90vw] bg-app-bg shadow-2xl shadow-black/80 flex flex-col border-l border-white/10 animate-in slide-in-from-right duration-300 h-full">
+            <div className="relative w-[896px] max-w-[90vw] bg-gradient-to-b from-[#11131A] to-[#0A0B10] shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col border-l border-white/10 animate-in slide-in-from-right duration-300 h-full">
                 {/* Header */}
-                <div className="p-8 border-b border-white/5 bg-[#121212]">
+                <div className="p-8 border-b border-white/5 bg-white/[0.02]">
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-2xl font-bold text-white tracking-tight truncate max-w-[350px]">{lead.name}</h2>
-                        <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors flex-shrink-0">
-                            <X className="w-5 h-5 text-slate-500 hover:text-white" />
+                        <h2 className="text-2xl font-black text-white tracking-tight truncate max-w-[350px] drop-shadow-md">{lead.name}</h2>
+                        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors flex-shrink-0 group">
+                            <X className="w-5 h-5 text-slate-500 group-hover:text-white transition-colors" />
                         </button>
                     </div>
                     <div className="flex gap-2">
@@ -743,15 +793,22 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="flex border-b border-white/5 bg-app-card">
+                <div className="flex border-b border-white/5 bg-black/20 backdrop-blur-sm">
                     {['inteligencia', 'estrategia', 'gestion'].map(tab => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
-                            className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-[0.1em] transition-all relative ${activeTab === tab ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`flex-[1] py-4 text-[10px] font-black uppercase tracking-[0.1em] transition-all relative overflow-hidden group ${activeTab === tab ? 'text-white' : 'text-slate-500 hover:text-slate-300'
+                                }`}
                         >
-                            {tab === 'gestion' ? 'Gestión' : tab === 'estrategia' ? 'Estrategia AI' : tab}
-                            {activeTab === tab && <div className="absolute bottom-0 inset-x-0 h-[2px] bg-white animate-in fade-in duration-300" />}
+                            {/* Hover Base Focus */}
+                            <div className="absolute inset-0 bg-white/[0.02] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                            <span className="relative z-10">{tab === 'gestion' ? 'Gestión' : tab === 'estrategia' ? 'Estrategia AI' : tab}</span>
+
+                            {/* Active Indicator */}
+                            {activeTab === tab && (
+                                <div className="absolute bottom-0 inset-x-0 h-[2px] bg-accent-blue shadow-[0_0_10px_rgba(56,189,248,0.5)] animate-in fade-in duration-300" />
+                            )}
                         </button>
                     ))}
                 </div>
@@ -770,17 +827,25 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-slate-100 bg-slate-50/50">
+                <div className="p-6 border-t border-white/5 bg-[#0B0B0C] relative overflow-hidden">
+                    <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
                     <a
                         href={lead.googleMapsUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="w-full py-4 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-2 hover:bg-black transition-all shadow-xl shadow-slate-200"
+                        className="w-full py-4 bg-white/5 border border-white/10 text-white rounded-xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-2 hover:bg-white/10 hover:border-white/20 transition-all shadow-[0_0_15px_rgba(255,255,255,0.02)] group"
                     >
-                        Ver en Google Maps <ExternalLink className="w-4 h-4" />
+                        Ver en Google Maps <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
                     </a>
                 </div>
             </div>
+
+            <StatusUpdateModal
+                isOpen={statusModal.isOpen}
+                newStatus={statusModal.newStatus}
+                onClose={() => setStatusModal({ isOpen: false, newStatus: null })}
+                onConfirm={confirmStatusUpdate}
+            />
         </div>
     );
 };

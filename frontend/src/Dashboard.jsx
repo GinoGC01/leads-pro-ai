@@ -73,7 +73,7 @@ const Dashboard = () => {
 
             const historyItem = historyRes.data;
             const leadsData = leadsRes.data;
-            const pipelineStatus = { new: 0, contacted: 0, in_progress: 0, closed: 0 };
+            const pipelineStatus = { new: 0, contacted: 0, in_progress: 0, closed: 0, en_espera: 0, descartados: 0 };
             const monthlyAcquisition = Array(12).fill(0);
             const exactDates = Array(12).fill(null).map(() => []);
 
@@ -82,8 +82,10 @@ const Dashboard = () => {
 
                 if (['nuevo', 'new'].includes(rawStatus)) pipelineStatus.new++;
                 else if (['contactado', 'contacted'].includes(rawStatus)) pipelineStatus.contacted++;
+                else if (['en espera'].includes(rawStatus)) pipelineStatus.en_espera++;
                 else if (['cita agendada', 'propuesta enviada', 'in_progress'].includes(rawStatus)) pipelineStatus.in_progress++;
-                else if (['cerrado ganado', 'cerrado perdido', 'closed'].includes(rawStatus)) pipelineStatus.closed++;
+                else if (['cerrado ganado', 'cerrado perdido', 'closed', 'sin whatsapp'].includes(rawStatus)) pipelineStatus.closed++;
+                else if (['descartados'].includes(rawStatus)) pipelineStatus.descartados++;
                 else pipelineStatus.new++;
 
                 const dateObj = lead.createdAt ? new Date(lead.createdAt) : new Date(historyItem.createdAt);
@@ -145,13 +147,15 @@ const Dashboard = () => {
 
             setStats(prevStats => {
                 if (!prevStats) return prevStats;
-                const pipelineStatus = { new: 0, contacted: 0, in_progress: 0, closed: 0 };
+                const pipelineStatus = { new: 0, contacted: 0, in_progress: 0, closed: 0, en_espera: 0, descartados: 0 };
                 newLeads.forEach(lead => {
                     const rawStatus = String(lead.status || '').toLowerCase().trim();
                     if (['nuevo', 'new'].includes(rawStatus)) pipelineStatus.new++;
                     else if (['contactado', 'contacted'].includes(rawStatus)) pipelineStatus.contacted++;
+                    else if (['en espera'].includes(rawStatus)) pipelineStatus.en_espera++;
                     else if (['cita agendada', 'propuesta enviada', 'in_progress'].includes(rawStatus)) pipelineStatus.in_progress++;
-                    else if (['cerrado ganado', 'cerrado perdido', 'closed'].includes(rawStatus)) pipelineStatus.closed++;
+                    else if (['cerrado ganado', 'cerrado perdido', 'closed', 'sin whatsapp'].includes(rawStatus)) pipelineStatus.closed++;
+                    else if (['descartados'].includes(rawStatus)) pipelineStatus.descartados++;
                     else pipelineStatus.new++;
                 });
                 return { ...prevStats, charts: { ...prevStats.charts, pipelineStatus } };

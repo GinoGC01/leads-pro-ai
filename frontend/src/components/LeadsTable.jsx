@@ -3,13 +3,17 @@ import { ExternalLink, Mail, Phone, MapPin, Star, Globe, MessageSquare, ChevronD
 import { updateLeadStatus, bulkDeleteLeads } from '../services/api';
 import AlertService from '../services/AlertService';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import StatusUpdateModal from './StatusUpdateModal';
 
 const STATUS_OPTIONS = [
     { label: 'Nuevo', color: 'bg-[#5b86e5]/10 text-[#5b86e5] border border-[#5b86e5]/20' },
     { label: 'Contactado', color: 'bg-[#ff7eb3]/10 text-[#ff7eb3] border border-[#ff7eb3]/20' },
     { label: 'Cita Agendada', color: 'bg-[#f6d365]/10 text-[#f6d365] border border-[#f6d365]/20' },
     { label: 'Propuesta Enviada', color: 'bg-[#f6d365]/10 text-[#f6d365] border border-[#f6d365]/20' }, // Shared with in_progress
+    { label: 'En Espera', color: 'bg-purple-500/10 text-purple-400 border border-purple-500/20' },
     { label: 'Cerrado Ganado', color: 'bg-[#00e57c]/10 text-[#00e57c] border border-[#00e57c]/20' },
+    { label: 'Sin WhatsApp', color: 'bg-slate-500/10 text-slate-400 border border-slate-500/20' },
+    { label: 'Descartados', color: 'bg-zinc-800 text-zinc-500 border border-zinc-700/50' },
     { label: 'Cerrado Perdido', color: 'bg-accent-red/10 text-accent-red border border-accent-red/20' }
 ];
 
@@ -18,6 +22,7 @@ const LeadsTable = ({ leads, onRowClick, onStatusChange }) => {
     const [selectedLeads, setSelectedLeads] = useState([]);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [statusModal, setStatusModal] = useState({ isOpen: false, leadId: null, newStatus: null });
 
     const [sortConfig, setSortConfig] = useState({ key: 'leadOpportunityScore', direction: 'desc' });
     const [filters, setFilters] = useState({
@@ -140,9 +145,14 @@ const LeadsTable = ({ leads, onRowClick, onStatusChange }) => {
         return sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-primary-600" /> : <ArrowDown className="w-3 h-3 text-primary-600" />;
     };
 
-    const handleStatusChange = async (leadId, newStatus) => {
-        const note = window.prompt(`Actualizando a '${newStatus}'. ¿Alguna nota sobre el contacto?`);
-        if (note === null) return;
+    const handleStatusChange = (leadId, newStatus) => {
+        // Trigger the Custom Premium Modal instead of window.prompt
+        setStatusModal({ isOpen: true, leadId, newStatus });
+    };
+
+    const confirmStatusChange = async (note) => {
+        const { leadId, newStatus } = statusModal;
+        setStatusModal({ isOpen: false, leadId: null, newStatus: null });
 
         const updateReq = updateLeadStatus(leadId, newStatus, note);
 
@@ -401,6 +411,12 @@ const LeadsTable = ({ leads, onRowClick, onStatusChange }) => {
                 onConfirm={handleDeleteBulk}
                 count={selectedLeads.length}
                 isDeleting={isDeleting}
+            />
+            <StatusUpdateModal
+                isOpen={statusModal.isOpen}
+                newStatus={statusModal.newStatus}
+                onClose={() => setStatusModal({ isOpen: false, leadId: null, newStatus: null })}
+                onConfirm={confirmStatusChange}
             />
         </>
     );

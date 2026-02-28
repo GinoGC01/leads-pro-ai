@@ -5,12 +5,14 @@ import Dashboard from './Dashboard';
 import SearchView from './SearchView';
 import Sidebar from './components/Sidebar';
 import Settings from './components/Settings';
+import SalesRepModal from './components/SalesRepModal';
 
 function App() {
   return (
     <BrowserRouter>
       <div className="flex min-h-screen bg-[#161616] text-slate-200">
         <Toaster position="bottom-right" reverseOrder={false} />
+        <SalesRepModal />
         <Sidebar />
         <main className="flex-1 ml-[80px]">
           <Routes>
