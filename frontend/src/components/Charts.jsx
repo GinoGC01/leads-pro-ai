@@ -138,28 +138,40 @@ const Charts = ({ stats }) => {
                                 <div className="w-3 h-3 rounded-full bg-[#5b86e5] shadow-[0_0_10px_rgba(91,134,229,0.5)]"></div>
                                 <span className="text-xs font-bold text-slate-300">New Leads</span>
                             </div>
-                            <span className="text-sm font-black text-white">{pctNew.toFixed(0)}%</span>
+                            <div className="flex items-center justify-end gap-2">
+                                <span className="text-[10px] font-bold text-slate-500">({pipelineData.new})</span>
+                                <span className="text-sm font-black text-white min-w-[32px] text-right">{pctNew.toFixed(0)}%</span>
+                            </div>
                         </div>
                         <div className="flex items-center justify-between gap-6 hover:bg-white/5 p-2 -mx-2 rounded-xl cursor-pointer transition-colors">
                             <div className="flex items-center gap-3">
                                 <div className="w-3 h-3 rounded-full bg-[#ff7eb3] shadow-[0_0_10px_rgba(255,126,179,0.5)]"></div>
                                 <span className="text-xs font-bold text-slate-300">Contacted</span>
                             </div>
-                            <span className="text-sm font-black text-white">{pctContacted.toFixed(0)}%</span>
+                            <div className="flex items-center justify-end gap-2">
+                                <span className="text-[10px] font-bold text-slate-500">({pipelineData.contacted})</span>
+                                <span className="text-sm font-black text-white min-w-[32px] text-right">{pctContacted.toFixed(0)}%</span>
+                            </div>
                         </div>
                         <div className="flex items-center justify-between gap-6 hover:bg-white/5 p-2 -mx-2 rounded-xl cursor-pointer transition-colors">
                             <div className="flex items-center gap-3">
                                 <div className="w-3 h-3 rounded-full bg-[#f6d365] shadow-[0_0_10px_rgba(246,211,101,0.5)]"></div>
                                 <span className="text-xs font-bold text-slate-300">In Progress</span>
                             </div>
-                            <span className="text-sm font-black text-white">{pctInProgress.toFixed(0)}%</span>
+                            <div className="flex items-center justify-end gap-2">
+                                <span className="text-[10px] font-bold text-slate-500">({pipelineData.in_progress})</span>
+                                <span className="text-sm font-black text-white min-w-[32px] text-right">{pctInProgress.toFixed(0)}%</span>
+                            </div>
                         </div>
                         <div className="flex items-center justify-between gap-6 hover:bg-white/5 p-2 -mx-2 rounded-xl cursor-pointer transition-colors">
                             <div className="flex items-center gap-3">
                                 <div className="w-3 h-3 rounded-full bg-[#00e57c] shadow-[0_0_10px_rgba(0,229,124,0.5)]"></div>
                                 <span className="text-xs font-bold text-slate-300">Closed</span>
                             </div>
-                            <span className="text-sm font-black text-white">{pctClosed.toFixed(0)}%</span>
+                            <div className="flex items-center justify-end gap-2">
+                                <span className="text-[10px] font-bold text-slate-500">({pipelineData.closed})</span>
+                                <span className="text-sm font-black text-white min-w-[32px] text-right">{pctClosed.toFixed(0)}%</span>
+                            </div>
                         </div>
                     </div>
                 </div>

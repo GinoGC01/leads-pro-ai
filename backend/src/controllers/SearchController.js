@@ -322,7 +322,6 @@ class SearchController {
                 }
             ]);
 
-            // Map native statuses (Spanish enclosed)
             const statusDistribution = {
                 new: 0,
                 contacted: 0,
@@ -330,10 +329,20 @@ class SearchController {
                 closed: 0
             };
             statusDistributionData.forEach(item => {
-                if (item._id === 'Nuevo' || item._id === 'new') statusDistribution.new += item.count;
-                if (item._id === 'Contactado' || item._id === 'contacted') statusDistribution.contacted += item.count;
-                if (item._id === 'Cita Agendada' || item._id === 'Propuesta Enviada' || item._id === 'in_progress') statusDistribution.in_progress += item.count;
-                if (item._id === 'Cerrado Ganado' || item._id === 'Cerrado Perdido' || item._id === 'closed') statusDistribution.closed += item.count;
+                const normalizedId = String(item._id || '').toLowerCase().trim();
+
+                if (['nuevo', 'new'].includes(normalizedId)) {
+                    statusDistribution.new += item.count;
+                } else if (['contactado', 'contacted'].includes(normalizedId)) {
+                    statusDistribution.contacted += item.count;
+                } else if (['cita agendada', 'propuesta enviada', 'in_progress'].includes(normalizedId)) {
+                    statusDistribution.in_progress += item.count;
+                } else if (['cerrado ganado', 'cerrado perdido', 'closed'].includes(normalizedId)) {
+                    statusDistribution.closed += item.count;
+                } else {
+                    // Fallback para leads sin estado o estados no reconocidos
+                    statusDistribution.new += item.count;
+                }
             });
 
             console.log('[DEBUG Stats] currentYear:', new Date().getFullYear(), 'monthlyLeads:', monthlyLeads);

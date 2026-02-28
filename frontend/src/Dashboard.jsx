@@ -78,12 +78,13 @@ const Dashboard = () => {
             const exactDates = Array(12).fill(null).map(() => []);
 
             leadsData.forEach(lead => {
-                const status = lead.pipelineStatus || 'new';
-                if (pipelineStatus[status] !== undefined) {
-                    pipelineStatus[status]++;
-                } else {
-                    pipelineStatus.new++;
-                }
+                const rawStatus = String(lead.status || '').toLowerCase().trim();
+
+                if (['nuevo', 'new'].includes(rawStatus)) pipelineStatus.new++;
+                else if (['contactado', 'contacted'].includes(rawStatus)) pipelineStatus.contacted++;
+                else if (['cita agendada', 'propuesta enviada', 'in_progress'].includes(rawStatus)) pipelineStatus.in_progress++;
+                else if (['cerrado ganado', 'cerrado perdido', 'closed'].includes(rawStatus)) pipelineStatus.closed++;
+                else pipelineStatus.new++;
 
                 const dateObj = lead.createdAt ? new Date(lead.createdAt) : new Date(historyItem.createdAt);
                 const month = dateObj.getMonth();
@@ -99,7 +100,7 @@ const Dashboard = () => {
             setCampaignMetadata(historyItem);
             setStats({
                 summary: {
-                    totalLeads: historyItem.resultsCount,
+                    totalLeads: leadsData.length,
                     totalSearches: 1,
                     totalInvested: historyItem.totalCost,
                     totalHighTicket: leadsData.filter(l => l.isHighTicket).length,
@@ -124,7 +125,7 @@ const Dashboard = () => {
                 },
                 charts: {
                     pipelineStatus,
-                    monthlyAcquisition,
+                    monthlyAcquisition: globalStats?.charts?.monthlyAcquisition || monthlyAcquisition,
                     exactDates
                 }
             });
@@ -136,6 +137,28 @@ const Dashboard = () => {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleLocalStatusChange = (leadId, newStatus) => {
+        setLeads(currentLeads => {
+            const newLeads = currentLeads.map(l => l._id === leadId ? { ...l, status: newStatus } : l);
+
+            setStats(prevStats => {
+                if (!prevStats) return prevStats;
+                const pipelineStatus = { new: 0, contacted: 0, in_progress: 0, closed: 0 };
+                newLeads.forEach(lead => {
+                    const rawStatus = String(lead.status || '').toLowerCase().trim();
+                    if (['nuevo', 'new'].includes(rawStatus)) pipelineStatus.new++;
+                    else if (['contactado', 'contacted'].includes(rawStatus)) pipelineStatus.contacted++;
+                    else if (['cita agendada', 'propuesta enviada', 'in_progress'].includes(rawStatus)) pipelineStatus.in_progress++;
+                    else if (['cerrado ganado', 'cerrado perdido', 'closed'].includes(rawStatus)) pipelineStatus.closed++;
+                    else pipelineStatus.new++;
+                });
+                return { ...prevStats, charts: { ...prevStats.charts, pipelineStatus } };
+            });
+
+            return newLeads;
+        });
     };
 
     const exportUrl = (id, format) => {
@@ -425,7 +448,7 @@ const Dashboard = () => {
                                     {leads.length > 0 && <span className="text-sm font-medium text-slate-400 bg-white/5 px-3 py-1 rounded-full border border-white/10">({leads.length} leads)</span>}
                                 </h2>
                                 {leads.length > 0 ? (
-                                    <LeadsTable leads={leads} onRowClick={(lead) => setSelectedLead(lead)} />
+                                    <LeadsTable leads={leads} onRowClick={(lead) => setSelectedLead(lead)} onStatusChange={handleLocalStatusChange} />
                                 ) : (
                                     <div className="bg-app-card rounded-2xl border border-dashed border-white/20 p-12 text-center text-slate-500 flex flex-col items-center justify-center min-h-[300px]">
                                         <Search className="w-10 h-10 text-slate-700 mb-4" />

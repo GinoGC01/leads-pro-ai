@@ -1,6 +1,7 @@
 import React from 'react';
 import { Users, Activity, BarChart3, Database, TrendingUp, Zap } from 'lucide-react';
 import classNames from 'classnames';
+import Tooltip from './Tooltip';
 
 const Sparkline = () => (
     <svg className="w-24 h-8" viewBox="0 0 100 30" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -48,10 +49,10 @@ const OppScoreGraphic = ({ score }) => (
     </div>
 );
 
-const MetricCard = ({ icon: Icon, title, value, pillText, pillColor, isPrimary, children }) => {
-    return (
+const MetricCard = ({ icon: Icon, title, value, pillText, pillColor, isPrimary, tooltipText, tooltipPosition, children }) => {
+    const cardContent = (
         <div className={classNames(
-            "p-6 rounded-3xl flex flex-col justify-between h-[180px] relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl",
+            "p-6 rounded-3xl flex flex-col justify-between h-[180px] relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl w-full",
             isPrimary ? "bg-white text-black shadow-lg shadow-white/5" : "bg-app-card text-white border border-white/5 hover:border-white/10"
         )}>
             {/* Decorative background glow for primary */}
@@ -100,6 +101,12 @@ const MetricCard = ({ icon: Icon, title, value, pillText, pillColor, isPrimary, 
             </div>
         </div>
     );
+
+    if (tooltipText) {
+        return <Tooltip text={tooltipText} position={tooltipPosition || 'top'}>{cardContent}</Tooltip>;
+    }
+
+    return cardContent;
 };
 
 const Metrics = ({ stats }) => {
@@ -115,12 +122,15 @@ const Metrics = ({ stats }) => {
                 pillText="+12.5%"
                 pillColor="green"
                 isPrimary={true}
+                tooltipText="Leads válidos extraídos exitosamente que superaron los filtros de control de VORTEX (Email/Web/Teléfono presentes)."
+                tooltipPosition="bottom"
             />
             <MetricCard
                 icon={Zap}
                 title="Active Scrapers"
                 value={summary.totalSearches || "4"}
                 pillText={null}
+                tooltipText="Instancias concurrentes del motor de extracción procesando data en la nube."
             >
                 <ActiveScrapersGraphic />
             </MetricCard>
@@ -129,6 +139,7 @@ const Metrics = ({ stats }) => {
                 title="Average Opp Score"
                 value={`${(summary.avgScore || 0).toFixed(0)}`}
                 pillText="pts"
+                tooltipText="Promedio global del Costo Hundido. Puntajes más de 60 pts implican alta predisposición a cambiar de proveedor."
             >
                 <OppScoreGraphic score={summary.avgScore || 0} />
             </MetricCard>
@@ -138,6 +149,7 @@ const Metrics = ({ stats }) => {
                 value={`${Math.min(100, Math.round((summary.totalLeads / 5000) * 100))}%`}
                 pillText="+5.6%"
                 pillColor="green"
+                tooltipText="Participación de mercado total escaneada en comparación al target teórico comercial establecido."
             >
                 <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden mt-6">
                     <div className="bg-pastel-green h-1.5 rounded-full relative" style={{ width: `${Math.min(100, Math.round((summary.totalLeads / 5000) * 100))}%` }}>

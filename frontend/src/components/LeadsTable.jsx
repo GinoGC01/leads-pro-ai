@@ -5,15 +5,15 @@ import AlertService from '../services/AlertService';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 
 const STATUS_OPTIONS = [
-    { label: 'Nuevo', color: 'bg-white/5 text-slate-300 border border-white/10' },
-    { label: 'Contactado', color: 'bg-pastel-blue/10 text-pastel-blue border border-pastel-blue/20' },
-    { label: 'Cita Agendada', color: 'bg-pastel-yellow/10 text-pastel-yellow border border-pastel-yellow/20' },
-    { label: 'Propuesta Enviada', color: 'bg-purple-500/10 text-purple-400 border border-purple-500/20' },
-    { label: 'Cerrado Ganado', color: 'bg-pastel-green/10 text-pastel-green border border-pastel-green/20' },
+    { label: 'Nuevo', color: 'bg-[#5b86e5]/10 text-[#5b86e5] border border-[#5b86e5]/20' },
+    { label: 'Contactado', color: 'bg-[#ff7eb3]/10 text-[#ff7eb3] border border-[#ff7eb3]/20' },
+    { label: 'Cita Agendada', color: 'bg-[#f6d365]/10 text-[#f6d365] border border-[#f6d365]/20' },
+    { label: 'Propuesta Enviada', color: 'bg-[#f6d365]/10 text-[#f6d365] border border-[#f6d365]/20' }, // Shared with in_progress
+    { label: 'Cerrado Ganado', color: 'bg-[#00e57c]/10 text-[#00e57c] border border-[#00e57c]/20' },
     { label: 'Cerrado Perdido', color: 'bg-accent-red/10 text-accent-red border border-accent-red/20' }
 ];
 
-const LeadsTable = ({ leads, onRowClick }) => {
+const LeadsTable = ({ leads, onRowClick, onStatusChange }) => {
     const [localLeads, setLocalLeads] = useState(leads || []);
     const [selectedLeads, setSelectedLeads] = useState([]);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -155,6 +155,7 @@ const LeadsTable = ({ leads, onRowClick }) => {
             }
         ).then(({ data }) => {
             setLocalLeads(prev => prev.map(l => l._id === leadId ? { ...l, status: data.status, interactionLogs: data.interactionLogs } : l));
+            if (onStatusChange) onStatusChange(leadId, data.status);
         });
     };
 
@@ -338,13 +339,13 @@ const LeadsTable = ({ leads, onRowClick }) => {
                                             <select
                                                 value={lead.status || 'Nuevo'}
                                                 onChange={(e) => handleStatusChange(lead._id, e.target.value)}
-                                                className={`appearance-none font-bold text-[10px] px-3 py-1.5 rounded-full outline-none pr-8 cursor-pointer border-0 shadow-sm transition-all ${STATUS_OPTIONS.find(opt => opt.label === (lead.status || 'Nuevo'))?.color}`}
+                                                className={`appearance-none font-bold text-[10px] pl-3 pr-7 py-1.5 rounded-full outline-none cursor-pointer border-0 shadow-sm transition-all ${STATUS_OPTIONS.find(opt => opt.label === (lead.status || 'Nuevo'))?.color}`}
                                             >
                                                 {STATUS_OPTIONS.map(opt => (
-                                                    <option key={opt.label} value={opt.label}>{opt.label.toUpperCase()}</option>
+                                                    <option key={opt.label} value={opt.label} className="bg-slate-900 text-white">{opt.label.toUpperCase()}</option>
                                                 ))}
                                             </select>
-                                            <ChevronDown className="w-3 h-3 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
+                                            <ChevronDown className="w-3 h-3 absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
