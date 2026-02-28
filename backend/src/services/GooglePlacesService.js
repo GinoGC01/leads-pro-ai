@@ -60,7 +60,7 @@ class GooglePlacesService {
                 const headers = {
                     'Content-Type': 'application/json',
                     'X-Goog-Api-Key': GOOGLE_API_KEY,
-                    'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.types,nextPageToken'
+                    'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.types,places.businessStatus,nextPageToken'
                 };
 
                 let response;
@@ -103,7 +103,7 @@ class GooglePlacesService {
 
                     // Map the new V1 format to a compatible flat object
                     const mappedResults = places.map(p => ({
-                        place_id: p.id,
+                        id: p.id,
                         name: p.displayName?.text || '',
                         formatted_address: p.formattedAddress,
                         nationalPhoneNumber: p.nationalPhoneNumber,
@@ -111,7 +111,8 @@ class GooglePlacesService {
                         websiteUri: p.websiteUri,
                         rating: p.rating,
                         user_ratings_total: p.userRatingCount,
-                        types: p.types || []
+                        types: p.types || [],
+                        businessStatus: p.businessStatus
                     }));
 
                     const filteredResults = mappedResults.filter(place =>
@@ -165,35 +166,6 @@ class GooglePlacesService {
         return true;
     }
 
-    /**
-     * Get detailed information for a specific place
-     */
-    static async getPlaceDetails(placeId) {
-        const url = `${BASE_URL}/details/json?place_id=${placeId}&fields=name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,geometry,url,reviews&key=${GOOGLE_API_KEY}`;
-
-        try {
-            const response = await axios.get(url);
-            const data = response.data;
-
-            if (data.status !== 'OK') {
-                throw new Error(`Google API Details Error: ${data.status}`);
-            }
-
-            // Track SKU Usage (Place Details)
-            try {
-                const usage = await ApiUsage.getCurrentMonth();
-                usage.placeDetailsCount += 1;
-                await usage.save();
-            } catch (usageErr) {
-                console.error('[Billing] Error tracking Place Details SKU:', usageErr.message);
-            }
-
-            return data.result;
-        } catch (error) {
-            console.error(`Error in getPlaceDetails for ${placeId}:`, error.message);
-            return null;
-        }
-    }
 }
 
 export default GooglePlacesService;

@@ -108,15 +108,15 @@ class SearchController {
 
             const places = validLeads;
 
-            let totalCost = 0.032; // Initial Search Cost
-            await pushStatus(`✅ Google API devolvió ${rawGoogleResults.length} entidades. Filtro Heurístico aprobó ${places.length} candidatos viables.`, 'success');
-            await pushStatus('🔍 Iniciando fase de enriquecimiento profundo (Web Scraping + Tech Profiling)...');
+            let totalCost = 0.00; // API V1 with Basic FieldMasks + BusinessStatus is strictly $0
+            await pushStatus(`✅ Google API V1 devolvió ${rawGoogleResults.length} entidades a $0 costo. Filtro Heurístico aprobó ${places.length} candidatos viables.`, 'success');
+            await pushStatus('🔍 Validando y depurando Base de Datos de Leads locales...');
 
             // 3. Process Leads in Parallel
             const leadPromises = places.map(async (place, index) => {
                 try {
                     // Check if lead already exists
-                    let existingLead = await Lead.findOne({ placeId: place.place_id });
+                    let existingLead = await Lead.findOne({ placeId: place.id });
                     if (existingLead) {
                         await pushStatus(`⏭️ Omitiendo duplicado: ${place.name}`, 'info');
                         return existingLead;
@@ -124,43 +124,40 @@ class SearchController {
 
                     await pushStatus(`📎 Procesando: ${place.name}...`, 'info');
 
-                    // Get Details
-                    totalCost += 0.017; // Details Cost
-                    const details = await GooglePlacesService.getPlaceDetails(place.place_id);
-                    if (!details) return null;
+                    // 1. ZOMBIE FILTER ($0 Cost): Ignore non-operational locations
+                    if (place.businessStatus && place.businessStatus !== 'OPERATIONAL') {
+                        await pushStatus(`⏭️ Omitiendo negocio inactivo (Zombie): ${place.name}`, 'info');
+                        return null;
+                    }
 
-                    // Deduplication by domain
-                    if (details.website) {
-                        const domain = new URL(details.website).hostname.replace('www.', '');
+                    // 2. Deduplication by domain (using V1 data)
+                    if (place.websiteUri) {
+                        const domain = new URL(place.websiteUri).hostname.replace('www.', '');
                         const duplicateByDomain = await Lead.findOne({ website: new RegExp(domain, 'i') });
                         if (duplicateByDomain) return duplicateByDomain;
                     }
 
-                    // Zombie Check
-                    let isZombie = false;
-                    if (details.reviews && details.reviews.length > 0) {
-                        const lastReviewTime = Math.max(...details.reviews.map(r => r.time));
-                        const twelveMonthsAgo = Math.floor(Date.now() / 1000) - (365 * 24 * 60 * 60);
-                        isZombie = lastReviewTime < twelveMonthsAgo;
-                    }
-
+                    // 3. Direct Mapping from V1 FieldMask (No N+1 Loop)
                     const leadData = {
-                        placeId: place.place_id,
-                        name: details.name,
-                        address: details.formatted_address,
-                        phoneNumber: details.formatted_phone_number,
-                        website: details.website,
-                        rating: details.rating,
-                        userRatingsTotal: details.user_ratings_total,
+                        placeId: place.id,
+                        name: place.name,
+                        address: place.formatted_address,
+                        phoneNumber: place.nationalPhoneNumber,
+                        website: place.websiteUri,
+                        rating: place.rating,
+                        userRatingsTotal: place.user_ratings_total,
+                        // Note: V1 geometry requires adding places.location to the mask, 
+                        // fallback to empty if missing to save costs.
                         location: {
-                            lat: details.geometry.location.lat,
-                            lng: details.geometry.location.lng
+                            lat: place.location?.latitude || 0,
+                            lng: place.location?.longitude || 0
                         },
-                        googleMapsUrl: details.url,
+                        googleMapsUrl: place.websiteUri, // V1 websiteUri takes priority
                         searchId: search._id,
-                        reviews: details.reviews ? details.reviews.slice(0, 3).map(r => r.text) : [],
-                        is_zombie: isZombie,
-                        is_advertising: !!(place.ad_placed || place.is_promoted)
+                        reviews: [], // Dropped API SKU
+                        is_zombie: false, // Handled by businessStatus filter above
+                        is_advertising: false, // Ad logic may vary in V1, fallback false
+                        status: (!place.nationalPhoneNumber && !place.websiteUri) ? 'En Espera' : 'Nuevo',
                     };
 
                     leadData.enrichmentStatus = 'unprocessed';
@@ -326,7 +323,9 @@ class SearchController {
                 new: 0,
                 contacted: 0,
                 in_progress: 0,
-                closed: 0
+                closed: 0,
+                en_espera: 0,
+                descartados: 0
             };
             statusDistributionData.forEach(item => {
                 const normalizedId = String(item._id || '').toLowerCase().trim();
@@ -335,10 +334,14 @@ class SearchController {
                     statusDistribution.new += item.count;
                 } else if (['contactado', 'contacted'].includes(normalizedId)) {
                     statusDistribution.contacted += item.count;
+                } else if (['en espera'].includes(normalizedId)) {
+                    statusDistribution.en_espera += item.count;
                 } else if (['cita agendada', 'propuesta enviada', 'in_progress'].includes(normalizedId)) {
                     statusDistribution.in_progress += item.count;
-                } else if (['cerrado ganado', 'cerrado perdido', 'closed'].includes(normalizedId)) {
+                } else if (['cerrado ganado', 'cerrado perdido', 'closed', 'sin whatsapp'].includes(normalizedId)) {
                     statusDistribution.closed += item.count;
+                } else if (['descartados'].includes(normalizedId)) {
+                    statusDistribution.descartados += item.count;
                 } else {
                     // Fallback para leads sin estado o estados no reconocidos
                     statusDistribution.new += item.count;

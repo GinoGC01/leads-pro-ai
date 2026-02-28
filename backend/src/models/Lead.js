@@ -44,7 +44,7 @@ const LeadSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Nuevo', 'Contactado', 'Cita Agendada', 'Propuesta Enviada', 'Cerrado Ganado', 'Cerrado Perdido'],
+        enum: ['Nuevo', 'Contactado', 'Cita Agendada', 'Propuesta Enviada', 'Cerrado Ganado', 'Cerrado Perdido', 'En Espera', 'Sin WhatsApp', 'Descartados'],
         default: 'Nuevo'
     },
     interactionLogs: [{
