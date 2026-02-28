@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Save, AlertCircle, CheckCircle2 } from 'lucide-react';
+import AlertService from '../services/AlertService';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
@@ -9,7 +10,6 @@ const api = axios.create({
 const Settings = () => {
     const [agencyContext, setAgencyContext] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [status, setStatus] = useState({ type: '', message: '' });
     const [showConfirmModal, setShowConfirmModal] = useState(false);
 
     useEffect(() => {
@@ -35,18 +35,19 @@ const Settings = () => {
     const handleConfirmSave = async () => {
         setShowConfirmModal(false);
         setIsLoading(true);
-        setStatus({ type: '', message: '' });
 
-        try {
-            const { data } = await api.post('/settings/agency-context', { context: agencyContext });
-            if (data.success) {
-                setStatus({ type: 'success', message: 'Agency Context saved successfully. The AI is now synced.' });
+        const saveReq = api.post('/settings/agency-context', { context: agencyContext });
+
+        AlertService.promise(
+            saveReq,
+            {
+                loading: 'Actualizando núcleo del sistema...',
+                success: 'Códice de la Agencia guardado exitosamente.',
+                error: 'Error al actualizar el contexto.'
             }
-        } catch (err) {
-            setStatus({ type: 'error', message: err.response?.data?.message || 'Error saving settings.' });
-        } finally {
+        ).finally(() => {
             setIsLoading(false);
-        }
+        });
     };
 
     return (
@@ -97,16 +98,6 @@ const Settings = () => {
                     El Cortex de Inteligencia Artificial ("Vortex") consumirá este archivo master para evaluar <strong>el valor y compatibilidad</strong> de cada Lead entrante,
                     y determinar qué tácticas o guiones generar en base a lo que vendes. Modifícalo con precaución.
                 </p>
-
-                {status.message && (
-                    <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm font-medium ${status.type === 'success'
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                        }`}>
-                        {status.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-                        {status.message}
-                    </div>
-                )}
 
                 <form onSubmit={handleSaveRequest} className="flex flex-col gap-6">
                     <div className="flex flex-col gap-2">

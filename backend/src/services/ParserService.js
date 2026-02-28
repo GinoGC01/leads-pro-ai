@@ -1,5 +1,5 @@
-const cheerio = require('cheerio');
-const TurndownService = require('turndown');
+import * as cheerio from 'cheerio';
+import TurndownService from 'turndown';
 
 /**
  * Servicio de purificación de HTML y síntesis de Markdown.
@@ -49,4 +49,4 @@ class ParserService {
     }
 }
 
-module.exports = new ParserService();
+export default new ParserService();

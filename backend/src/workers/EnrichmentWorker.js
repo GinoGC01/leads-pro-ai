@@ -1,12 +1,12 @@
-const { Worker } = require('bullmq');
-const { connection } = require('../services/QueueService');
-const ScraperService = require('../services/ScraperService');
-const ParserService = require('../services/ParserService');
-const ProfilerService = require('../services/ProfilerService');
-const AIService = require('../services/AIService');
-const SupabaseService = require('../services/SupabaseService');
-const ragConfig = require('../config/rag.config');
-const Lead = require('../models/Lead');
+import { Worker } from 'bullmq';
+import { connection } from '../services/QueueService.js';
+import ScraperService from '../services/ScraperService.js';
+import ParserService from '../services/ParserService.js';
+import ProfilerService from '../services/ProfilerService.js';
+import AIService from '../services/AIService.js';
+import SupabaseService from '../services/SupabaseService.js';
+import ragConfig from '../config/rag.config.js';
+import Lead from '../models/Lead.js';
 
 /**
  * Worker para procesar leads asíncronamente (Pipeline de 4 Fases).
@@ -114,4 +114,4 @@ enrichmentWorker.on('failed', (job, err) => {
 
 console.log('[EnrichmentWorker] Asynchronous Engine Operational (3 slots).');
 
-module.exports = enrichmentWorker;
+export default enrichmentWorker;

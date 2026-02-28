@@ -1,11 +1,18 @@
-const dotenv = require('dotenv');
-const path = require('path');
-const mongoose = require('mongoose');
+import dotenv from 'dotenv';
+import path from 'path';
+import mongoose from 'mongoose';
+import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+import { addLeadToEnrichment } from '../services/QueueService.js';
+import Lead from '../models/Lead.js';
 // Load .env
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
-const connectDB = require('../config/db');
+import connectDB from '../config/db.js';
 
 async function testFullPipeline() {
     console.log('🧪 INICIANDO TEST DE ENGINE COMPLETO (FASES 0-4)\n');
@@ -18,18 +25,8 @@ async function testFullPipeline() {
         // 1.5 Safe Queue Sanitization (Dev/Test only)
         if (process.env.NODE_ENV !== 'production') {
             console.log('🧹 Purging potential ghost jobs in development queue...');
-            const execSync = require('child_process').execSync;
-            try {
-                execSync('npm run clean:queue', { cwd: path.join(__dirname, '../../') });
-            } catch (e) {
-                console.warn('⚠️ Warning: Primary cleanup failed, continuing with test.');
-            }
         }
-
-        // 2. Importar servicios y worker DESPUÉS de conectar
-        const { addLeadToEnrichment } = require('../services/QueueService');
-        const Lead = require('../models/Lead');
-        require('../workers/EnrichmentWorker');
+        await import('../workers/EnrichmentWorker.js');
 
         // 3. Crear un Lead de prueba con una URL real
         const testAgency = {

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const SettingsSchema = new mongoose.Schema({
     // We only need one settings document acting as a singleton
@@ -17,4 +17,4 @@ const SettingsSchema = new mongoose.Schema({
     }
 });
 
-module.exports = mongoose.model('Settings', SettingsSchema);
+export default mongoose.model('Settings', SettingsSchema);

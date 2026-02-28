@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SearchForm from './components/SearchForm';
 import { searchLeads, getHistory, getHistoryItem, deleteHistory } from './services/api';
+import AlertService from './services/AlertService';
 import { History, Search, Trash2, MapPin, Database } from 'lucide-react';
 
 const SearchView = () => {
@@ -11,6 +12,8 @@ const SearchView = () => {
     const [currentSearchId, setCurrentSearchId] = useState(null);
     const [logs, setLogs] = useState([]);
     const [totalCost, setTotalCost] = useState(0);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [campaignToDelete, setCampaignToDelete] = useState(null);
     const navigate = useNavigate();
     const logEndRef = React.useRef(null);
 
@@ -93,21 +96,37 @@ const SearchView = () => {
             }
         } catch (error) {
             const msg = error.response?.data?.message || error.message;
-            alert('Error al realizar la búsqueda: ' + msg);
+            AlertService.error('Error al realizar la búsqueda', msg);
             setIsLoading(false);
         }
     };
 
     const handleDeleteHistory = async (e, searchId) => {
         e.stopPropagation();
-        if (!window.confirm('¿Estás seguro de eliminar esta campaña y todos sus prospectos?')) return;
+        setCampaignToDelete(searchId);
+        setIsDeleteModalOpen(true);
+    };
 
-        try {
-            await deleteHistory(searchId);
+    const confirmDeleteCampaign = async () => {
+        if (!campaignToDelete) return;
+
+        const deleteReq = deleteHistory(campaignToDelete);
+
+        AlertService.promise(
+            deleteReq,
+            {
+                loading: 'Eliminando campaña web...',
+                success: 'Campaña eliminada permanentemente',
+                error: 'Error al purgar la campaña'
+            }
+        ).then(() => {
             fetchHistory();
-        } catch (error) {
-            alert('Error al eliminar: ' + error.message);
-        }
+            setIsDeleteModalOpen(false);
+            setCampaignToDelete(null);
+        }).catch(() => {
+            setIsDeleteModalOpen(false);
+            setCampaignToDelete(null);
+        });
     };
 
     const openInDashboard = (searchId) => {
@@ -260,6 +279,42 @@ const SearchView = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Modal de Confirmación de Borrado */}
+            {isDeleteModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="bg-slate-800 rounded-xl p-6 w-full max-w-sm border border-slate-700 shadow-xl shadow-red-900/20">
+                        <div className="flex flex-col items-center mb-6">
+                            <div className="bg-red-500/10 p-4 rounded-full mb-4">
+                                <Trash2 className="w-8 h-8 text-red-500" />
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-2 text-center">
+                                ¿Purgar Campaña?
+                            </h3>
+                            <p className="text-sm text-slate-400 text-center font-medium px-4">
+                                Esta acción es irreversible. Todos los prospectos y datos de la campaña serán destruidos.
+                            </p>
+                        </div>
+                        <div className="flex gap-3 w-full">
+                            <button
+                                onClick={() => {
+                                    setIsDeleteModalOpen(false);
+                                    setCampaignToDelete(null);
+                                }}
+                                className="flex-1 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold text-sm transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmDeleteCampaign}
+                                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold text-sm shadow-[0_0_15px_rgba(220,38,38,0.5)] transition-all flex justify-center items-center"
+                            >
+                                Pulverizar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

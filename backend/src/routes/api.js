@@ -1,11 +1,11 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const SearchController = require('../controllers/SearchController');
-const ExportController = require('../controllers/ExportController');
-const AIController = require('../controllers/AIController');
-const VortexController = require('../controllers/VortexController');
-const SettingsController = require('../controllers/SettingsController');
-const ChatController = require('../controllers/ChatController');
+import SearchController from '../controllers/SearchController.js';
+import ExportController from '../controllers/ExportController.js';
+import AIController from '../controllers/AIController.js';
+import VortexController from '../controllers/VortexController.js';
+import SettingsController from '../controllers/SettingsController.js';
+import ChatController from '../controllers/ChatController.js';
 
 // Search Routes
 router.use((req, res, next) => {
@@ -29,6 +29,7 @@ router.get('/vortex/status/:leadId', VortexController.getLeadStatus);
 
 // AI Routes
 router.post('/ai/chat', AIController.chat);
+router.get('/ai/spider-analysis/:leadId', AIController.spiderAnalysis);
 
 // Chat Sessions Routes
 router.get('/chat/sessions', ChatController.getSessions);
@@ -45,4 +46,4 @@ router.get('/export/:searchId/excel', ExportController.exportExcel);
 router.get('/settings/agency-context', SettingsController.getAgencyContext);
 router.post('/settings/agency-context', SettingsController.updateAgencyContext);
 
-module.exports = router;
+export default router;

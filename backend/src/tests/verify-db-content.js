@@ -1,6 +1,6 @@
-const { MongoClient } = require('mongodb');
-const dotenv = require('dotenv');
-const path = require('path');
+import { MongoClient, ObjectId } from 'mongodb';
+import dotenv from 'dotenv';
+import path from 'path';
 
 async function run() {
     const url = 'mongodb://127.0.0.1:27017';
@@ -33,7 +33,7 @@ async function run() {
             console.log(`Associated SearchIDs found in leads: ${searchIds.length}`);
 
             for (const sId of searchIds) {
-                const history = await db.collection('searchhistories').findOne({ _id: sId.length === 24 ? require('mongodb').ObjectId.createFromHexString(sId) : sId });
+                const history = await db.collection('searchhistories').findOne({ _id: sId.length === 24 ? ObjectId.createFromHexString(sId) : sId });
                 console.log(`- SearchID ${sId}: ${history ? `FOUND (${history.keyword})` : 'MISSING in SearchHistories'}`);
             }
 

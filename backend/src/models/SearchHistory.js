@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const SearchHistorySchema = new mongoose.Schema({
     keyword: {
@@ -59,4 +59,4 @@ const SearchHistorySchema = new mongoose.Schema({
     }
 });
 
-module.exports = mongoose.model('SearchHistory', SearchHistorySchema);
+export default mongoose.model('SearchHistory', SearchHistorySchema);

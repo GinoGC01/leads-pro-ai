@@ -1,8 +1,9 @@
-const Lead = require('../models/Lead');
-const ChatSession = require('../models/ChatSession');
-const AIService = require('../services/AIService');
-const SupabaseService = require('../services/SupabaseService');
-const ragConfig = require('../config/rag.config');
+import Lead from '../models/Lead.js';
+import ChatSession from '../models/ChatSession.js';
+import AIService from '../services/AIService.js';
+import SupabaseService from '../services/SupabaseService.js';
+import SpiderEngine from '../services/SpiderEngine.js';
+import ragConfig from '../config/rag.config.js';
 
 class AIController {
     /**
@@ -157,6 +158,67 @@ class AIController {
             });
         }
     }
+
+    /**
+     * Delete a chat session
+     */
+    static async deleteSession(req, res) {
+        // ... (unchanged existing methods are above this block, this is just to append) 
+    }
+
+    /**
+     * SPIDER Analysis Endpoint (Neuro-Symbolic)
+     */
+    static async spiderAnalysis(req, res) {
+        const { leadId } = req.params;
+        const forceRefresh = req.query.forceRefresh === 'true';
+
+        try {
+            const lead = await Lead.findById(leadId);
+            if (!lead) {
+                return res.status(404).json({ error: 'Lead no encontrado' });
+            }
+
+            // 1. Capa Simbólica (Determinista + ML) - Costo 0 Tokens
+            const spiderVerdict = await SpiderEngine.analyzeLead(lead);
+
+            // CACHE HIT LOGIC: Si no se fuerza refresco y ya hay un playbook generado para esta táctica
+            if (!forceRefresh && lead.spider_memory && lead.spider_memory.generated_playbook) {
+                console.log(`[AIController] Spider Cache Hit (Tokens guardados) para Lead: ${leadId}`);
+                return res.status(200).json({
+                    spider_verdict: spiderVerdict, // Veredicto fresh calculado
+                    mario_strategy: lead.spider_memory.generated_playbook
+                });
+            }
+
+            console.log(`[AIController] Spider Cache Miss/Force Refresh. LLM run para: ${leadId}`);
+
+            // 2. Capa Neuronal (LLM Persona)
+            const marioResponse = await AIService.chatWithSpiderContext(spiderVerdict);
+
+            // Persist the strategic tactical response and memory for future ML loops
+            lead.spider_memory = {
+                applied_tactic: spiderVerdict.tactic_name,
+                friction_score: spiderVerdict.friction_score,
+                historical_confidence: spiderVerdict.historical_confidence,
+                generated_playbook: marioResponse,
+                last_analyzed_at: new Date()
+            };
+            lead.tactical_response = marioResponse;
+            await lead.save();
+
+            return res.status(200).json({
+                spider_verdict: spiderVerdict,
+                mario_strategy: marioResponse
+            });
+
+        } catch (error) {
+            console.error('[AIController - Spider] Error:', error);
+            res.status(500).json({ error: 'Error procesando la estrategia Spider/Mario' });
+        }
+    }
 }
 
-module.exports = AIController;
+export default AIController;
+
+

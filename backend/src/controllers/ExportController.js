@@ -1,6 +1,6 @@
-const Lead = require('../models/Lead');
-const { Parser } = require('json2csv');
-const ExcelJS = require('exceljs');
+import Lead from '../models/Lead.js';
+import { Parser } from 'json2csv';
+import ExcelJS from 'exceljs';
 
 /**
  * Controller for Exporting data
@@ -75,4 +75,4 @@ class ExportController {
     }
 }
 
-module.exports = ExportController;
+export default ExportController;

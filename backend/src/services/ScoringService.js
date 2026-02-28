@@ -1,3 +1,5 @@
+import ragConfig from '../config/rag.config.js';
+
 class ScoringService {
     /**
      * Calculates a dynamic opportunity score (0-100) for Leads Pro AI v2.0
@@ -42,7 +44,6 @@ class ScoringService {
 
         // 5. [NEW] Agency Affinity Bonus (+25)
         // Checks if the lead's "pains" align with what the agency sells (defined in AGENCY_CONTEXT.md)
-        const ragConfig = require('../config/rag.config');
         const agencyOffers = ragConfig.agency.raw.toLowerCase();
 
         const detectAffinity = () => {
@@ -110,4 +111,4 @@ class ScoringService {
     }
 }
 
-module.exports = ScoringService;
+export default ScoringService;

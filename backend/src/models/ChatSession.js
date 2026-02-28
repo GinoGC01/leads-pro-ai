@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const ChatMessageSchema = new mongoose.Schema({
     role: {
@@ -53,4 +53,4 @@ ChatSessionSchema.pre('save', function (next) {
     next();
 });
 
-module.exports = mongoose.model('ChatSession', ChatSessionSchema);
+export default mongoose.model('ChatSession', ChatSessionSchema);

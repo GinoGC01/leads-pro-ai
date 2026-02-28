@@ -1,6 +1,6 @@
-const app = require('./app');
-const connectDB = require('./config/db');
-const dotenv = require('dotenv');
+import app from './app.js';
+import connectDB from './config/db.js';
+import dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 5000;
 connectDB();
 
 // Phase 0: Start Asynchronous Enrichment Engine Worker
-require('./workers/EnrichmentWorker');
+import './workers/EnrichmentWorker.js';
 
 // Start Server
 const server = app.listen(PORT, () => {

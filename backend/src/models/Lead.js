@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const LeadSchema = new mongoose.Schema({
     placeId: {
@@ -92,10 +92,17 @@ const LeadSchema = new mongoose.Schema({
         type: String,
         default: null
     },
+    spider_memory: {
+        applied_tactic: { type: String, default: null }, // Ej: 'SOFTWARE_MEDIDA_REACT'
+        friction_score: { type: String, enum: ['LOW', 'HIGH', 'UNKNOWN', 'N/A'], default: 'UNKNOWN' },
+        historical_confidence: { type: Number, default: 0 }, // Confidence percentage (0-100)
+        generated_playbook: { type: String, default: null }, // Almacenamiento del Playbook (String para Markdown, evitar ValidationError por schema array mixto)
+        last_analyzed_at: { type: Date, default: null }
+    },
     createdAt: {
         type: Date,
         default: Date.now
     }
 });
 
-module.exports = mongoose.model('Lead', LeadSchema);
+export default mongoose.model('Lead', LeadSchema);

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const ApiUsageSchema = new mongoose.Schema({
     month: {
@@ -34,4 +34,4 @@ ApiUsageSchema.statics.getCurrentMonth = async function () {
     return usage;
 };
 
-module.exports = mongoose.model('ApiUsage', ApiUsageSchema);
+export default mongoose.model('ApiUsage', ApiUsageSchema);

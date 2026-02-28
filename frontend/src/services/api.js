@@ -46,6 +46,7 @@ export const updateLeadStatus = (id, status, note) => api.patch(`/leads/${id}/st
 export const getLead = (id) => api.get(`/leads/${id}`);
 export const deleteHistory = (searchId) => api.delete(`/history/${searchId}`);
 export const askAi = (query, history, leadId = null, campaignId = null, sessionId = null) => api.post('/ai/chat', { query, history, leadId, campaignId, sessionId });
+export const getSpiderAnalysis = (leadId) => api.get(`/ai/spider-analysis/${leadId}`);
 export const bulkDeleteLeads = (leadIds) => api.delete('/leads', { data: { leadIds } });
 
 // Vortex Intelligence Engine

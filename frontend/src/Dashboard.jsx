@@ -7,6 +7,7 @@ import AIChat from './components/AIChat';
 import LeadDetailsPanel from './components/LeadDetailsPanel';
 import DataIntelligence from './components/DataIntelligence';
 import { getHistoryItem, getLeadsBySearch, getGlobalStats, exportUrl } from './services/api';
+import AlertService from './services/AlertService';
 import { Download, Database, Star, Phone, Search, BarChart3, Sparkles, X as CloseIcon, Bell, Settings, MapPin, Globe, ChevronRight, FileJson, FileText, FileSpreadsheet } from 'lucide-react';
 import axios from 'axios';
 
@@ -131,7 +132,7 @@ const Dashboard = () => {
             setLeads(leadsRes.data);
         } catch (error) {
             console.error('Error fetching search details:', error);
-            alert('Error al cargar los detalles de la búsqueda');
+            AlertService.error('Error Crítico', 'No se pudieron cargar los detalles de la campaña.');
         } finally {
             setIsLoading(false);
         }

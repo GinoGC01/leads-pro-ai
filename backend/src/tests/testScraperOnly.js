@@ -1,4 +1,4 @@
-const ScraperService = require('../services/ScraperService');
+import ScraperService from '../services/ScraperService.js';
 
 async function testScraper() {
     console.log('🧪 INICIANDO TEST DE SCRAPER (FASE 1 - WAF EVASION)\n');

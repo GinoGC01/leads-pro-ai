@@ -1,4 +1,4 @@
-const { MongoClient } = require('mongodb');
+import { MongoClient } from 'mongodb';
 
 async function migrate() {
     const url = 'mongodb://127.0.0.1:27017';

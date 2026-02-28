@@ -1,5 +1,5 @@
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
 // Configuración de Puppeteer Stealth
 puppeteer.use(StealthPlugin());
@@ -88,4 +88,4 @@ class ScraperService {
     }
 }
 
-module.exports = ScraperService;
+export default ScraperService;

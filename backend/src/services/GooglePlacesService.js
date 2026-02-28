@@ -1,6 +1,6 @@
-const axios = require('axios');
-const dotenv = require('dotenv');
-const ApiUsage = require('../models/ApiUsage');
+import axios from 'axios';
+import dotenv from 'dotenv';
+import ApiUsage from '../models/ApiUsage.js';
 
 dotenv.config();
 
@@ -196,4 +196,4 @@ class GooglePlacesService {
     }
 }
 
-module.exports = GooglePlacesService;
+export default GooglePlacesService;

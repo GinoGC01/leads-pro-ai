@@ -1,4 +1,4 @@
-const ChatSession = require('../models/ChatSession');
+import ChatSession from '../models/ChatSession.js';
 
 class ChatController {
     /**
@@ -91,4 +91,4 @@ class ChatController {
     }
 }
 
-module.exports = ChatController;
+export default ChatController;

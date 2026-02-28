@@ -1,5 +1,9 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let agencyContext = 'No se ha definido el contexto de la agencia.';
 const agencyPath = path.join(__dirname, 'AGENCY_CONTEXT.md');
@@ -17,7 +21,7 @@ function loadAgencyContext() {
 // Carga inicial al arrancar el servidor
 loadAgencyContext();
 
-module.exports = {
+export default {
     // Función para recargar dinámicamente cuando se guarda desde el Frontend Settings
     reloadAgencyContext: loadAgencyContext,
 

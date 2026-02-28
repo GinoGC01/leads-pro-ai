@@ -1,8 +1,8 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const apiRoutes = require('./routes/api');
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import apiRoutes from './routes/api.js';
 
 const app = express();
 
@@ -31,4 +31,4 @@ app.use((err, req, res, next) => {
     res.status(500).json({ success: false, message: 'Internal Server Error' });
 });
 
-module.exports = app;
+export default app;

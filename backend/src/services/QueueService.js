@@ -1,5 +1,5 @@
-const { Queue } = require('bullmq');
-const Redis = require('ioredis');
+import { Queue } from 'bullmq';
+import Redis from 'ioredis';
 
 // Conexión centralizada a Redis
 const connection = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', {
@@ -37,7 +37,7 @@ const addLeadToEnrichment = async (leadData) => {
     }
 };
 
-module.exports = {
+export {
     enrichmentQueue,
     addLeadToEnrichment,
     connection

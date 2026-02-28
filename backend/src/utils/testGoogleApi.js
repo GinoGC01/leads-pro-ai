@@ -1,6 +1,12 @@
-const axios = require('axios');
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+import axios from 'axios';
+import path from 'path';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const testGoogleApi = async () => {
     const key = process.env.GOOGLE_PLACES_API_KEY;

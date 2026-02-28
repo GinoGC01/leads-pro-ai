@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Globe, MapPin, Phone, MessageSquare, AlertCircle, Loader2, CheckCircle2, X, Star, ExternalLink, Zap } from 'lucide-react';
+import { Sparkles, Globe, MapPin, Phone, MessageSquare, AlertCircle, Loader2, CheckCircle2, X, Star, ExternalLink, Zap, Copy, Mail, RefreshCw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import axios from 'axios';
 import Tooltip from './Tooltip';
 import AlertService from '../services/AlertService';
+import { getWhatsAppLink } from '../utils/phoneUtils';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
@@ -29,6 +30,66 @@ const getFriendlyErrorMessage = (errorString) => {
     return 'Fallo de extracción: El proveedor de hosting o la tecnología del sitio impidieron la recolección asíncrona de datos.';
 };
 
+const ActionCard = ({ title, textContent, icon, colorClass, lead }) => {
+    const validWaNumber = getWhatsAppLink(lead?.phoneNumber, lead?.countryCode || 'AR');
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(textContent);
+        AlertService.success("Copiado al portapapeles");
+    };
+
+    const handleWhatsApp = () => {
+        if (!validWaNumber) return;
+        window.open(`https://wa.me/${validWaNumber}?text=${encodeURIComponent(textContent)}`, '_blank');
+    };
+
+    const handleEmail = () => {
+        if (!lead?.email) return AlertService.warning("No hay email registrado");
+        window.open(`mailto:${lead.email}?body=${encodeURIComponent(textContent)}`, '_blank');
+    };
+
+    return (
+        <div className="bg-[#151720] border border-white/10 rounded-xl overflow-hidden shadow-2xl shrink-0">
+            <div className="bg-slate-900/50 border-b border-white/5 py-2 px-4 shadow-inner">
+                <span className={`text-[10px] font-black ${colorClass} uppercase tracking-widest flex items-center gap-2`}>
+                    {icon}
+                    {title}
+                </span>
+            </div>
+            <div className="p-5 text-slate-200 text-sm font-sans leading-relaxed whitespace-pre-wrap prose prose-invert prose-xs max-w-none">
+                <ReactMarkdown>
+                    {textContent}
+                </ReactMarkdown>
+            </div>
+            <div className="bg-[#0B0B0C] border-t border-white/5 p-4 flex flex-wrap items-center gap-3">
+                <button onClick={handleCopy} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-[11px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm">
+                    <Copy className="w-4 h-4 text-slate-300" /> Copiar
+                </button>
+
+                {validWaNumber ? (
+                    <button onClick={handleWhatsApp} className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm">
+                        <MessageSquare className="w-4 h-4" /> Enviar WhatsApp
+                    </button>
+                ) : (
+                    <button disabled title="Número inválido o no detectado" className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-slate-500 text-[11px] font-black uppercase tracking-widest rounded-xl cursor-not-allowed border border-white/5">
+                        <MessageSquare className="w-4 h-4 opacity-50" /> WhatsApp (ND)
+                    </button>
+                )}
+
+                {lead?.email ? (
+                    <button onClick={handleEmail} className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm">
+                        <Mail className="w-4 h-4" /> Enviar Email
+                    </button>
+                ) : (
+                    <button disabled title="Sin email detectado" className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-slate-500 text-[11px] font-black uppercase tracking-widest rounded-xl cursor-not-allowed border border-white/5">
+                        <Mail className="w-4 h-4 opacity-50" /> Email (ND)
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
+
 const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
     const [lead, setLead] = useState(initialLead);
     const [activeTab, setActiveTab] = useState('inteligencia');
@@ -37,6 +98,53 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
     const [aiResponse, setAiResponse] = useState(lead.tactical_response || '');
     const [isAiLoading, setIsAiLoading] = useState(false);
     const vortexToastIdRef = useRef(null);
+
+    // Spider State
+    const [spiderData, setSpiderData] = useState(null);
+    const [isSpiderLoading, setIsSpiderLoading] = useState(false);
+
+    const fetchSpiderStrategy = async (forceRefresh = false) => {
+        setIsSpiderLoading(true);
+        if (forceRefresh) {
+            setAiResponse('');
+        }
+        try {
+            const url = `/ai/spider-analysis/${lead._id}${forceRefresh ? '?forceRefresh=true' : ''}`;
+            const aiRequest = api.get(url);
+
+            if (forceRefresh) {
+                AlertService.promise(
+                    aiRequest,
+                    {
+                        loading: 'MARIO re-calculando estrategia...',
+                        success: 'Playbook regenerado en base de datos',
+                        error: 'Fallo crítico en neuro-procesamiento'
+                    }
+                ).then(({ data }) => {
+                    setSpiderData(data.spider_verdict);
+                    setAiResponse(data.mario_strategy);
+                }).finally(() => {
+                    setIsSpiderLoading(false);
+                });
+            } else {
+                const { data } = await aiRequest;
+                setSpiderData(data.spider_verdict);
+                setAiResponse(data.mario_strategy);
+                setIsSpiderLoading(false);
+            }
+        } catch (err) {
+            console.error("Spider fetch error:", err);
+            AlertService.error("Fallo al calcular Estrategia Neuro-Simbólica.");
+            setIsSpiderLoading(false);
+        }
+    };
+
+    // Effect to Trigger Spider Auto-Analysis when 'estrategia' tab is opened
+    useEffect(() => {
+        if (activeTab === 'estrategia' && !spiderData && !isSpiderLoading && !aiResponse) {
+            fetchSpiderStrategy(false);
+        }
+    }, [activeTab, lead._id, spiderData, aiResponse, isSpiderLoading]);
 
     const handleTacticalAction = async (prompt, label) => {
         setIsAiLoading(true);
@@ -139,6 +247,25 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
         } finally {
             setIsActivating(false);
         }
+    };
+
+    // --- Action Card Handlers ---
+    const handleCopy = async (text) => {
+        await navigator.clipboard.writeText(text);
+        AlertService.success("Mensaje copiado al portapapeles");
+    };
+
+    const handleWhatsApp = (text) => {
+        if (!lead.phoneNumber) return AlertService.error("El lead no tiene teléfono");
+        const phone = lead.phoneNumber.replace(/(?!^\+)[^\d]/g, '');
+        const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
+
+    const handleEmailAction = (bodyText, subject = "Estrategia Digital B2B") => {
+        if (!lead.email) return AlertService.error("El lead no tiene email registrado");
+        const url = `mailto:${lead.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+        window.open(url, '_blank');
     };
 
     if (!lead) return null;
@@ -387,59 +514,173 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
     };
 
     const renderEstrategia = () => (
-        <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="grid grid-cols-1 gap-2">
-                {lead.website ? (
-                    <>
-                        <button
-                            onClick={() => handleTacticalAction("Dame una estrategia de 3 viñetas sobre su debilidad técnica.", "Estrategia")}
-                            className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 transition-all text-xs font-bold text-slate-700"
-                        >
-                            Estrategia Técnica <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
-                        </button>
-                        <button
-                            onClick={() => handleTacticalAction("Redacta un correo en frío asimétrico.", "Email")}
-                            className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 transition-all text-[10px] font-bold text-slate-700"
-                        >
-                            Draft Email Profesional <Globe className="w-3.5 h-3.5 text-indigo-500" />
-                        </button>
-                    </>
-                ) : (
-                    <>
-                        <button
-                            onClick={() => handleTacticalAction(`Guion de llamada enfocado en reputación (${lead.rating}) y clientes perdidos.`, "Script")}
-                            className="flex items-center justify-between p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all text-xs font-bold"
-                        >
-                            Script de Llamada Estratégica <Phone className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                            onClick={() => handleTacticalAction("Mensaje de WhatsApp corto sobre el costo de oportunidad de no tener web.", "WhatsApp")}
-                            className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 transition-all text-[10px] font-bold text-slate-700"
-                        >
-                            WhatsApp FOMO <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
-                        </button>
-                    </>
-                )}
-            </div>
+        <div className="space-y-6 animate-in fade-in duration-300 flex flex-col h-full">
+            {spiderData && (
+                <div className="flex flex-col lg:flex-row gap-3 mb-4">
+                    {/* Rentabilidad Card */}
+                    <div className="flex-1 bg-gradient-to-b from-[#151720] to-[#0A0B10] p-4 rounded-2xl border border-white/[0.05] relative overflow-hidden group flex flex-col justify-between min-h-[100px]">
+                        <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                        <div className={`absolute -top-10 -right-10 w-32 h-32 rounded-full blur-[50px] pointer-events-none transition-colors ${spiderData.isRentable ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}></div>
 
-            {(isAiLoading || aiResponse) && (
-                <div className="bg-[#0B0B0C] rounded-xl p-5 border border-white/5 overflow-hidden flex-1 mt-6">
-                    <div className="text-[9px] font-black text-white uppercase tracking-[0.2em] mb-4 pb-3 border-b border-white/5 flex items-center justify-between">
-                        <span>Vortex AI Console</span>
-                        <div className="w-2 h-2 rounded-full bg-accent-blue animate-pulse"></div>
+                        <div className="relative z-10 flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <div className={`w-1.5 h-1.5 rounded-full ${spiderData.isRentable ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]' : 'bg-rose-400 shadow-[0_0_10px_rgba(251,113,133,0.8)]'}`}></div>
+                                <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Rentabilidad</span>
+                            </div>
+                            <span className="text-[9px] font-bold text-slate-600 bg-white/5 px-2 py-0.5 rounded-full">TIER {spiderData.tier}</span>
+                        </div>
+
+                        <div className="relative z-10 flex flex-col">
+                            <span className={`text-lg font-black tracking-tight ${spiderData.isRentable ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                {spiderData.isRentable ? 'GO' : 'NO-GO'}
+                            </span>
+                            <span className="text-xs text-slate-400 font-medium truncate mt-0.5" title={spiderData.service}>
+                                {spiderData.service}
+                            </span>
+                        </div>
                     </div>
-                    {isAiLoading ? (
-                        <div className="h-40 flex flex-col items-center justify-center text-[10px] text-slate-500 font-mono uppercase gap-4">
-                            <Loader2 className="w-6 h-6 animate-spin text-accent-blue" />
-                            <span>Generando Táctica...</span>
+
+                    {/* Dolor Card */}
+                    <div className="flex-[1.5] bg-gradient-to-b from-[#151720] to-[#0A0B10] p-4 rounded-2xl border border-white/[0.05] relative overflow-hidden group flex flex-col min-h-[100px]">
+                        <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                        <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-amber-500/10 rounded-full blur-[50px] pointer-events-none"></div>
+
+                        <div className="relative z-10 mb-2">
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500/50"></div>
+                                Pain Point (Dolor)
+                            </span>
                         </div>
-                    ) : (
-                        <div className="prose prose-invert prose-xs text-slate-300 max-h-[400px] overflow-y-auto pr-2 minimal-scrollbar font-mono leading-relaxed">
-                            <ReactMarkdown>{aiResponse}</ReactMarkdown>
+                        <div className="relative z-10 flex-1 flex items-center">
+                            <p className="text-[13px] font-medium text-slate-300 leading-relaxed line-clamp-3" title={spiderData.pain}>
+                                {spiderData.pain}
+                            </p>
                         </div>
-                    )}
+                    </div>
                 </div>
             )}
+
+            {/* TABLERO DE MANDOS (SPIDER METRICS) */}
+            {spiderData && spiderData.isRentable && (
+                <div className="flex items-center gap-3 mb-4 flex-wrap">
+                    {/* Confianza */}
+                    <div className="flex items-center gap-2 bg-[#12141A] border border-white/10 px-3 py-1.5 rounded-full shadow-sm">
+                        <span>🔥</span>
+                        <span className="text-[10px] uppercase font-bold text-slate-400">Confianza:</span>
+                        <span className={`text-xs font-black ${spiderData.historical_confidence > 50 ? 'text-emerald-400' :
+                            spiderData.historical_confidence <= 20 ? 'text-rose-400' : 'text-amber-400'
+                            }`}>
+                            {spiderData.historical_confidence || 0}%
+                        </span>
+                    </div>
+
+                    {/* Friccion */}
+                    <div className="flex items-center gap-2 bg-[#12141A] border border-white/10 px-3 py-1.5 rounded-full shadow-sm relative group cursor-help">
+                        <span>⚙️</span>
+                        <span className="text-[10px] uppercase font-bold text-slate-400">Fricción Tech:</span>
+                        <span className={`text-xs font-black ${spiderData.has_website_flag === false ? 'text-blue-400' :
+                            spiderData.friction_score === 'HIGH' ? 'text-amber-400' : 'text-emerald-400'
+                            }`}>
+                            {spiderData.has_website_flag === false ? 'NULA (Sin Web)' : (spiderData.friction_score === 'HIGH' ? 'ALTA' : 'BAJA')}
+                        </span>
+
+                        {/* Tooltip */}
+                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-black border border-white/10 text-slate-300 text-[10px] p-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-xl text-center">
+                            {spiderData.has_website_flag === false
+                                ? "No tienen sitio web. Fricción cero, es un lienzo en blanco para vender Identidad Digital."
+                                : spiderData.friction_score === 'HIGH'
+                                    ? "Costo hundido tech detectado. No insultar su web actual, la defenderán. Ángulo: Repair/Upgrade."
+                                    : "Tecnología básica o nula. Costo hundido bajo. Ángulo: Reemplazo Total justificable."}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="bg-[#0B0B0C] rounded-2xl p-5 border border-white/[0.05] overflow-hidden flex-1 flex flex-col relative shadow-xl">
+                {/* Decorative Background Blob for the Bot */}
+                <div className="absolute top-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px] pointer-events-none"></div>
+
+                <div className="relative z-10 text-[9px] font-black text-white uppercase tracking-[0.2em] mb-4 pb-4 border-b border-white/[0.05] flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                            <img src="/bot.png" alt="Bot Mario" className="w-8 h-8 rounded-full border border-emerald-500/30 object-cover shadow-[0_0_15px_rgba(52,211,153,0.2)]" />
+                            <div className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border-2 border-[#0B0B0C]"></div>
+                        </div>
+                        <span className="text-slate-300 font-bold tracking-widest text-[10px]">MARIO <span className="text-slate-600 font-medium ml-1">|</span> <span className="text-emerald-500/80 ml-1">Neuro-Symbolic Closer</span></span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {!isSpiderLoading && !isAiLoading && aiResponse && (
+                            <button
+                                onClick={() => fetchSpiderStrategy(true)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-400 text-slate-400 border border-white/5 hover:border-emerald-500/30 transition-all rounded-lg"
+                                title="Forzar LLM"
+                            >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                                <span>Regenerar Estrategia</span>
+                            </button>
+                        )}
+                        {(isSpiderLoading || isAiLoading) && <div className="w-2 h-2 rounded-full bg-accent-blue animate-pulse"></div>}
+                    </div>
+                </div>
+
+                {isSpiderLoading || isAiLoading ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-[10px] text-slate-500 font-mono uppercase gap-4 min-h-[200px]">
+                        <Loader2 className="w-6 h-6 animate-spin text-accent-blue" />
+                        <span>SPIDER Engine procesando...</span>
+                    </div>
+                ) : (
+                    aiResponse ? (
+                        <div className="flex flex-col gap-4 overflow-y-auto overflow-x-hidden pr-2 minimal-scrollbar h-[60vh]">
+                            {(() => {
+                                let parsedStrategy;
+                                try {
+                                    // Defensiva contra un posible wrapper de sub-bloque Markdown que retorne OpenAI
+                                    let cleanJSON = aiResponse;
+                                    if (cleanJSON.startsWith('```json')) {
+                                        cleanJSON = cleanJSON.replace(/^```json\n/, '').replace(/\n```$/, '');
+                                    }
+                                    parsedStrategy = JSON.parse(cleanJSON);
+                                } catch (e) {
+                                    return (
+                                        <div className="text-red-400 text-xs p-4 bg-red-900/10 border border-red-900/20 rounded-xl">
+                                            Error parseando Battlecard. Respuesta cruda:<br />
+                                            {aiResponse}
+                                        </div>
+                                    );
+                                }
+
+                                const cards = [
+                                    { key: 'ataque_inicial', title: '🗡️ El Ataque Inicial (Ahora)', colorClass: 'text-emerald-400' },
+                                    { key: 'reaccion_ignorado', title: '🔴 Si te ignoran (En 48hs)', colorClass: 'text-rose-400' },
+                                    { key: 'reaccion_favorable', title: '🟢 Si responden favorable', colorClass: 'text-emerald-400' },
+                                    { key: 'reaccion_objecion', title: '🟡 Si hay objeción', colorClass: 'text-amber-400' },
+                                ];
+
+                                return cards.map(card => {
+                                    const textContent = parsedStrategy[card.key];
+                                    if (!textContent) return null;
+
+                                    return (
+                                        <ActionCard
+                                            key={card.key}
+                                            title={card.title}
+                                            textContent={textContent}
+                                            colorClass={card.colorClass}
+                                            icon={<Sparkles className="w-3 h-3" />}
+                                            lead={lead}
+                                        />
+                                    );
+                                });
+                            })()}
+                        </div>
+                    ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 min-h-[200px] gap-2">
+                            <AlertCircle className="w-6 h-6 opacity-50" />
+                            <span className="text-xs">No hay respuesta táctica aún.</span>
+                        </div>
+                    )
+                )}
+            </div>
         </div>
     );
 
@@ -480,14 +721,13 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
 
     return (
         <div className="fixed inset-0 z-[100] flex justify-end">
-            {/* Dark Overlay (Backdrop) */}
             <div
-                className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+                className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity"
                 onClick={onClose}
             ></div>
 
             {/* Slide-over panel */}
-            <div className="relative w-[500px] bg-app-bg shadow-2xl shadow-black/80 flex flex-col border-l border-white/10 animate-in slide-in-from-right duration-300 h-full">
+            <div className="relative w-[896px] max-w-[90vw] bg-app-bg shadow-2xl shadow-black/80 flex flex-col border-l border-white/10 animate-in slide-in-from-right duration-300 h-full">
                 {/* Header */}
                 <div className="p-8 border-b border-white/5 bg-[#121212]">
                     <div className="flex items-center justify-between mb-4">

@@ -1,5 +1,5 @@
-const { createClient } = require('@supabase/supabase-js');
-const ragConfig = require('../config/rag.config');
+import { createClient } from '@supabase/supabase-js';
+import ragConfig from '../config/rag.config.js';
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
     console.error('CRITICAL: Supabase credentials missing in .env');
@@ -102,4 +102,4 @@ class SupabaseService {
     }
 }
 
-module.exports = SupabaseService;
+export default SupabaseService;

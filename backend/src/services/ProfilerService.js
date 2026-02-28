@@ -1,5 +1,5 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 
 /**
  * Servicio de perfilado técnico y rendimiento.
@@ -83,4 +83,4 @@ class ProfilerService {
     }
 }
 
-module.exports = new ProfilerService();
+export default new ProfilerService();

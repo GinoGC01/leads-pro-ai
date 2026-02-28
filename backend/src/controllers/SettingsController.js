@@ -1,7 +1,11 @@
-const Settings = require('../models/Settings');
-const fs = require('fs');
-const path = require('path');
-const ragConfig = require('../config/rag.config');
+import Settings from '../models/Settings.js';
+import fs from 'fs';
+import path from 'path';
+import ragConfig from '../config/rag.config.js';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class SettingsController {
     /**
@@ -63,4 +67,4 @@ class SettingsController {
     }
 }
 
-module.exports = SettingsController;
+export default SettingsController;

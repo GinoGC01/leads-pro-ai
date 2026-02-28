@@ -1,4 +1,4 @@
-const { MongoClient } = require('mongodb');
+import { MongoClient } from 'mongodb';
 
 async function run() {
     const url = 'mongodb://127.0.0.1:27017';

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ExternalLink, Mail, Phone, MapPin, Star, Globe, MessageSquare, ChevronDown, ArrowUp, ArrowDown, ArrowUpDown, Trash2, CheckCircle2, AlertTriangle, X } from 'lucide-react';
 import { updateLeadStatus, bulkDeleteLeads } from '../services/api';
+import AlertService from '../services/AlertService';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 
 const STATUS_OPTIONS = [
@@ -88,18 +89,24 @@ const LeadsTable = ({ leads, onRowClick }) => {
 
     const handleDeleteBulk = async () => {
         setIsDeleting(true);
-        try {
-            await bulkDeleteLeads(selectedLeads);
+
+        const deleteReq = bulkDeleteLeads(selectedLeads);
+
+        AlertService.promise(
+            deleteReq,
+            {
+                loading: `Eliminando ${selectedLeads.length} leads...`,
+                success: 'Leads eliminados permanentemente',
+                error: 'Error al purgar los leads seleccionados'
+            }
+        ).then(() => {
             // Update local state by removing deleted leads
             setLocalLeads(prev => prev.filter(l => !selectedLeads.includes(l._id)));
             setSelectedLeads([]);
             setIsDeleteModalOpen(false);
-        } catch (error) {
-            console.error('Error deleting leads:', error);
-            alert('Error al eliminar los leads. Por favor reintenta.');
-        } finally {
+        }).finally(() => {
             setIsDeleting(false);
-        }
+        });
     };
 
     const toggleFilter = (key) => {
@@ -135,13 +142,20 @@ const LeadsTable = ({ leads, onRowClick }) => {
 
     const handleStatusChange = async (leadId, newStatus) => {
         const note = window.prompt(`Actualizando a '${newStatus}'. ¿Alguna nota sobre el contacto?`);
-        try {
-            const { data } = await updateLeadStatus(leadId, newStatus, note);
+        if (note === null) return;
+
+        const updateReq = updateLeadStatus(leadId, newStatus, note);
+
+        AlertService.promise(
+            updateReq,
+            {
+                loading: 'Actualizando estado en CRM...',
+                success: 'Estado del lead actualizado',
+                error: 'Error de sincronización con CRM'
+            }
+        ).then(({ data }) => {
             setLocalLeads(prev => prev.map(l => l._id === leadId ? { ...l, status: data.status, interactionLogs: data.interactionLogs } : l));
-        } catch (error) {
-            console.error('Error updating status:', error);
-            alert('No se pudo actualizar el estado del lead.');
-        }
+        });
     };
 
     if (!localLeads || localLeads.length === 0) return null;
@@ -309,6 +323,11 @@ const LeadsTable = ({ leads, onRowClick }) => {
                                             )}
                                             {lead.is_zombie && (
                                                 <span className="px-2 py-0.5 bg-slate-400 text-white text-[9px] font-bold rounded uppercase">Zombie</span>
+                                            )}
+                                            {lead.enrichmentStatus === 'completed' && (
+                                                <span className="px-2 py-0.5 bg-indigo-600 shadow-[0_0_10px_rgba(79,70,229,0.4)] border border-indigo-400/30 text-white text-[9px] font-bold rounded uppercase flex items-center">
+                                                    Vortex
+                                                </span>
                                             )}
                                         </div>
                                         <div className="text-sm text-slate-500 mt-0.5">{lead.address}</div>

@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 /**
  * Service to profile lead websites and detect inefficiencies
@@ -57,4 +57,4 @@ class TechProfiler {
     }
 }
 
-module.exports = TechProfiler;
+export default TechProfiler;

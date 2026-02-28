@@ -1,12 +1,12 @@
-const Lead = require('../models/Lead');
-const SearchHistory = require('../models/SearchHistory');
-const ApiUsage = require('../models/ApiUsage');
-const GooglePlacesService = require('../services/GooglePlacesService');
-const ScoringService = require('../services/ScoringService');
-const QueueService = require('../services/QueueService');
-const ragConfig = require('../config/rag.config');
-const AIService = require('../services/AIService');
-const SupabaseService = require('../services/SupabaseService');
+import Lead from '../models/Lead.js';
+import SearchHistory from '../models/SearchHistory.js';
+import ApiUsage from '../models/ApiUsage.js';
+import GooglePlacesService from '../services/GooglePlacesService.js';
+import ScoringService from '../services/ScoringService.js';
+import * as QueueService from '../services/QueueService.js';
+import ragConfig from '../config/rag.config.js';
+import AIService from '../services/AIService.js';
+import SupabaseService from '../services/SupabaseService.js';
 
 /**
  * Controller for Lead Generation logic
@@ -455,7 +455,6 @@ class SearchController {
 
             // 1. Delete from Supabase (pgvector)
             try {
-                const SupabaseService = require('../services/SupabaseService');
                 await SupabaseService.deleteLeadVectors(leadIds);
                 console.log(`[SearchController] Vectores eliminados en Supabase.`);
             } catch (vdbError) {
@@ -519,4 +518,4 @@ class SearchController {
     }
 }
 
-module.exports = SearchController;
+export default SearchController;

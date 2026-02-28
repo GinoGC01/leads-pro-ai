@@ -1,11 +1,15 @@
-const dotenv = require('dotenv');
-const path = require('path');
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load .env from backend root
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
-const ScraperService = require('../services/ScraperService');
-const { connection, addLeadToEnrichment } = require('../services/QueueService');
+import ScraperService from '../services/ScraperService.js';
+import { connection, addLeadToEnrichment } from '../services/QueueService.js';
 
 async function runTests() {
     console.log('🧪 INICIANDO TEST DE ENRIQUECIMIENTO ASÍNCRONO (FASES 0 & 1)\n');

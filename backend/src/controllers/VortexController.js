@@ -1,5 +1,5 @@
-const Lead = require('../models/Lead');
-const QueueService = require('../services/QueueService');
+import Lead from '../models/Lead.js';
+import * as QueueService from '../services/QueueService.js';
 
 /**
  * Vortex Intelligence Engine Controller (Manual Trigger)
@@ -84,4 +84,4 @@ class VortexController {
     }
 }
 
-module.exports = VortexController;
+export default VortexController;
