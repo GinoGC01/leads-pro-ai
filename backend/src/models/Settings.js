@@ -19,6 +19,11 @@ const SettingsSchema = new mongoose.Schema({
         type: String,
         default: 'Mariosweb'
     },
+    languageTone: {
+        type: String,
+        enum: ['AUTO_DETECT', 'FORCE_LATAM', 'FORCE_EXPORT'],
+        default: 'AUTO_DETECT'
+    },
     updatedAt: {
         type: Date,
         default: Date.now

@@ -26,7 +26,8 @@ class SettingsController {
                 success: true,
                 context: settings.agencyContext,
                 senderName: settings.senderName,
-                agencyName: settings.agencyName
+                agencyName: settings.agencyName,
+                languageTone: settings.languageTone
             });
         } catch (error) {
             console.error('[SettingsController] Error fetching agency context:', error);
@@ -39,7 +40,7 @@ class SettingsController {
      */
     static async updateAgencyContext(req, res) {
         try {
-            const { context, senderName, agencyName } = req.body;
+            const { context, senderName, agencyName, languageTone } = req.body;
             if (typeof context !== 'string') {
                 return res.status(400).json({ success: false, message: 'El contexto debe ser un texto válido.' });
             }
@@ -47,6 +48,7 @@ class SettingsController {
             // Exctract fallback variables just in case
             const finalSender = senderName || 'Gino';
             const finalAgency = agencyName || 'Mariosweb';
+            const finalLanguageTone = languageTone || 'AUTO_DETECT';
 
             // Upsert the singleton record
             const settings = await Settings.findOneAndUpdate(
@@ -55,6 +57,7 @@ class SettingsController {
                     agencyContext: context,
                     senderName: finalSender,
                     agencyName: finalAgency,
+                    languageTone: finalLanguageTone,
                     updatedAt: Date.now()
                 },
                 { new: true, upsert: true }
@@ -71,7 +74,8 @@ class SettingsController {
                 success: true,
                 context: settings.agencyContext,
                 senderName: settings.senderName,
-                agencyName: settings.agencyName
+                agencyName: settings.agencyName,
+                languageTone: settings.languageTone
             });
         } catch (error) {
             console.error('[SettingsController] Error updating agency context:', error);

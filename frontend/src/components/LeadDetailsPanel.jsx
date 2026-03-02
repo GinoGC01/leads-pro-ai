@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Globe, MapPin, Phone, MessageSquare, AlertCircle, Loader2, CheckCircle2, X, Star, ExternalLink, Zap, Copy, Mail, RefreshCw } from 'lucide-react';
+import { Globe, MapPin, Phone, MessageSquare, AlertCircle, Loader2, CheckCircle2, X, Star, ExternalLink, Zap, Copy, Mail, RefreshCw, Server, Activity, AlertTriangle, Target, Clock, Bot } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import axios from 'axios';
 import Tooltip from './Tooltip';
@@ -372,7 +372,7 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
 
                     <div className="flex items-center gap-3 mb-6 relative z-10">
                         <div className={`p-2 rounded-xl border ${isProcessing ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400 animate-pulse' : isFailed ? 'bg-red-500/20 border-red-500/30 text-red-500' : 'bg-white/5 border-white/10 text-slate-300'}`}>
-                            <Sparkles className="w-5 h-5" />
+                            <Activity className="w-5 h-5" />
                         </div>
                         <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Vortex Audit</h3>
                     </div>
@@ -394,7 +394,7 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                                 className="w-full py-4 bg-white/5 text-white border border-white/10 hover:bg-white/10 hover:border-white/20 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all flex justify-center items-center shadow-lg active:scale-[0.98] group"
                             >
                                 {isActivating ? <Loader2 className="w-4 h-4 animate-spin mx-auto text-accent-blue" /> :
-                                    <span className="flex items-center gap-2">Run Technical Audit <Sparkles className="w-3 h-3 text-slate-400 group-hover:text-accent-blue transition-colors" /></span>}
+                                    <span className="flex items-center gap-2">Run Technical Audit <Activity className="w-3 h-3 text-slate-400 group-hover:text-accent-blue transition-colors" /></span>}
                             </button>
                         </div>
                     )}
@@ -427,7 +427,7 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                                             'bg-red-500/20 text-red-500'
                                 }
                             `}>
-                                {lead.performance_metrics?.performanceScore ?? 'N/A'}
+                                {typeof lead.performance_metrics?.performanceScore === 'number' ? lead.performance_metrics.performanceScore.toFixed(2) : (lead.performance_metrics?.performanceScore ?? 'N/A')}
                             </span>
                         </div>
                     </div>
@@ -504,7 +504,7 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                 <div className="bg-app-card rounded-2xl border border-white/5 overflow-hidden">
                     <div className="p-4 border-b border-white/5 bg-slate-900/50 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-indigo-400" />
+                            <Server className="w-4 h-4 text-indigo-400" />
                             <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Tecnologías Base</h4>
                         </div>
                     </div>
@@ -568,11 +568,7 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                         <div className="absolute inset-0 bg-accent-blue/20 blur-xl rounded-full"></div>
                     </div>
                     <div className="text-center space-y-2">
-                        <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] relative inline-block">
-                            <Sparkles className="w-3 h-3 text-accent-blue absolute -left-5 top-0.5 animate-pulse" />
-                            Analizando Infraestructura Core
-                            <Sparkles className="w-3 h-3 text-accent-blue absolute -right-5 top-0.5 animate-pulse" />
-                        </h3>
+                        Analizando Infraestructura Core
                         <p className="text-[10px] text-slate-400 font-mono">Calculando Costos Hundidos y Densidad de Fricción UX/UI...</p>
                     </div>
 
@@ -772,7 +768,7 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                                             textContent={textContent}
                                             whatsAppText={processedForWA}
                                             colorClass={card.colorClass}
-                                            icon={<Sparkles className="w-3 h-3" />}
+                                            icon={<Target className="w-3 h-3" />}
                                             lead={lead}
                                         />
                                     );
@@ -799,7 +795,7 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                                     onClick={() => fetchSpiderStrategy(false)}
                                     className="w-full py-4 bg-accent-blue/10 hover:bg-accent-blue/20 text-accent-blue border border-accent-blue/30 hover:border-accent-blue/50 transition-all rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(56,189,248,0.1)] hover:shadow-[0_0_30px_rgba(56,189,248,0.2)] group"
                                 >
-                                    <Sparkles className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                    <Target className="w-4 h-4 group-hover:scale-110 transition-transform" />
                                     Analizar Web Inteligencia
                                 </button>
                             </div>
@@ -814,16 +810,46 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
         <div className="space-y-6 animate-in fade-in duration-300 flex flex-col h-full">
             <div className="p-5 bg-[#0B0B0C] rounded-2xl border border-white/5 shadow-inner">
                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Estado del Lead (CRM)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {['Nuevo', 'Contactado', 'Cita Agendada', 'Propuesta Enviada', 'Cerrado Ganado', 'Cerrado Perdido'].map(status => (
-                        <button
-                            key={status}
-                            onClick={() => setStatusModal({ isOpen: true, newStatus: status })}
-                            className={`px-4 py-3 rounded-xl text-xs font-bold text-left transition-all border ${lead.status === status ? 'bg-accent-blue/20 text-accent-blue border-accent-blue shadow-md' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/20 hover:bg-white/5'}`}
-                        >
-                            {status.toUpperCase()}
-                        </button>
-                    ))}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {[
+                        { label: 'Nuevo', color: 'slate' },
+                        { label: 'Contactado', color: 'indigo' },
+                        { label: 'En Espera', color: 'sky' },
+                        { label: 'Cita Agendada', color: 'emerald' },
+                        { label: 'Propuesta Enviada', color: 'teal' },
+                        { label: 'Cerrado Ganado', color: 'amber' },
+                        { label: 'Cerrado Perdido', color: 'rose' },
+                        { label: 'Descartados', color: 'zinc' },
+                        { label: 'Sin WhatsApp', color: 'red' }
+                    ].map(statusObj => {
+                        const isActive = lead.status === statusObj.label;
+                        let activeStyles = '';
+                        if (isActive) {
+                            switch (statusObj.color) {
+                                case 'indigo': activeStyles = 'bg-indigo-500/20 text-indigo-400 border-indigo-500 shadow-md'; break;
+                                case 'sky': activeStyles = 'bg-sky-500/20 text-sky-400 border-sky-500 shadow-md'; break;
+                                case 'emerald': activeStyles = 'bg-emerald-500/20 text-emerald-400 border-emerald-500 shadow-md'; break;
+                                case 'teal': activeStyles = 'bg-teal-500/20 text-teal-400 border-teal-500 shadow-md'; break;
+                                case 'amber': activeStyles = 'bg-amber-500/20 text-amber-400 border-amber-500 shadow-md'; break;
+                                case 'rose': activeStyles = 'bg-rose-500/20 text-rose-400 border-rose-500 shadow-md'; break;
+                                case 'red': activeStyles = 'bg-red-500/20 text-red-500 border-red-500 shadow-md'; break;
+                                case 'zinc': activeStyles = 'bg-zinc-500/20 text-zinc-400 border-zinc-500 shadow-md'; break;
+                                default: activeStyles = 'bg-slate-500/20 text-slate-300 border-slate-500 shadow-md';
+                            }
+                        } else {
+                            activeStyles = 'bg-transparent text-slate-400 border-white/10 hover:border-white/20 hover:bg-white/5';
+                        }
+
+                        return (
+                            <button
+                                key={statusObj.label}
+                                onClick={() => setStatusModal({ isOpen: true, newStatus: statusObj.label })}
+                                className={`px-4 py-3 rounded-xl text-[10px] font-bold text-center transition-all border uppercase tracking-widest ${activeStyles}`}
+                            >
+                                {statusObj.label}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 

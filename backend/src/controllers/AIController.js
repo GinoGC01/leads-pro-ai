@@ -181,7 +181,14 @@ class AIController {
 
             // Detect Region from phone using libphonenumber-js or fallback
             let region = 'LATAM'; // Default
-            if (lead.phone) {
+            const globalTone = ragConfig.agency?.languageTone;
+
+            if (globalTone === 'FORCE_LATAM') {
+                region = 'LATAM';
+            } else if (globalTone === 'FORCE_EXPORT') {
+                region = 'EXPORT';
+            } else if (lead.phone) {
+                // Auto Detect Mode
                 try {
                     // Try parsing dynamically
                     const { parsePhoneNumberFromString } = await import('libphonenumber-js');
@@ -202,6 +209,7 @@ class AIController {
                     console.log(`[AIController] Error parsing phone ${lead.phone} for region. Defaulting to LATAM.`);
                 }
             }
+
             console.log(`[AIController] Detected Region For Prompt: ${region}`);
 
             // 1. Capa Simbólica (Determinista + ML) - Costo 0 Tokens
@@ -220,7 +228,7 @@ class AIController {
             console.log(`[AIController] Spider Cache Miss/Force Refresh. LLM run para: ${leadId} en modo ${region}`);
 
             // 2. Capa Neuronal (LLM Persona) con perfil lingüístico inyectado
-            const marioResponse = await AIService.chatWithSpiderContext(spiderVerdict, region);
+            const marioResponse = await AIService.chatWithSpiderContext(spiderVerdict, region, lead.name);
 
             // Persist the strategic tactical response and memory for future ML loops
             lead.spider_memory = {

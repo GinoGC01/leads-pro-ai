@@ -8,7 +8,7 @@ import LeadDetailsPanel from './components/LeadDetailsPanel';
 import DataIntelligence from './components/DataIntelligence';
 import { getHistoryItem, getLeadsBySearch, getGlobalStats, exportUrl } from './services/api';
 import AlertService from './services/AlertService';
-import { Download, Database, Star, Phone, Search, BarChart3, Sparkles, X as CloseIcon, Bell, Settings, MapPin, Globe, ChevronRight, FileJson, FileText, FileSpreadsheet } from 'lucide-react';
+import { Download, Database, Star, Phone, Search, BarChart3, X as CloseIcon, Bell, Settings, MapPin, Globe, ChevronRight, FileJson, FileText, FileSpreadsheet } from 'lucide-react';
 import axios from 'axios';
 
 const api = axios.create({
@@ -180,6 +180,15 @@ const Dashboard = () => {
         setShowExportMenu(false);
     };
 
+    const filteredLeads = leads.filter(l => {
+        if (!searchTerm) return true;
+        const s = searchTerm.toLowerCase();
+        return (l.name?.toLowerCase().includes(s)) ||
+            (l.phoneNumber?.toLowerCase().includes(s)) ||
+            (l.website?.toLowerCase().includes(s)) ||
+            (l.formattedAddress?.toLowerCase().includes(s));
+    });
+
     return (
         <div className="min-h-screen bg-app-bg text-slate-200">
             {/* Refined Context Header */}
@@ -315,7 +324,6 @@ const Dashboard = () => {
                                                 </div>
                                                 {!isLoading && (
                                                     <div className="flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
-                                                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
                                                         <span className="text-[10px] font-black text-indigo-700 uppercase">AI Active</span>
                                                     </div>
                                                 )}
@@ -404,9 +412,7 @@ const Dashboard = () => {
                                                             </div>
                                                         </div>
 
-                                                        {/* AI Insight Box */}
                                                         <div className="bg-gradient-to-br from-indigo-900/40 to-indigo-900/10 p-4 rounded-xl border border-indigo-500/20 mb-5 relative flex-1">
-                                                            <Sparkles className="absolute top-4 right-4 w-4 h-4 text-indigo-500/40" />
                                                             <div className="pr-6">
                                                                 <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-1 block">IA Sales Angle</span>
                                                                 <p className="text-xs text-indigo-100/90 leading-relaxed italic group-hover:text-white transition-colors">
@@ -448,15 +454,39 @@ const Dashboard = () => {
                                     </div>
                                 )}
 
-                                <h2 id="search-results-title" className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                                    <span className="bg-indigo-500/10 p-2 rounded-lg">
-                                        <Database className="w-5 h-5 text-indigo-400" />
-                                    </span>
-                                    Resultados de la Búsqueda
-                                    {leads.length > 0 && <span className="text-sm font-medium text-slate-400 bg-white/5 px-3 py-1 rounded-full border border-white/10">({leads.length} leads)</span>}
-                                </h2>
-                                {leads.length > 0 ? (
-                                    <LeadsTable leads={leads} onRowClick={(lead) => setSelectedLead(lead)} onStatusChange={handleLocalStatusChange} />
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                                    <h2 id="search-results-title" className="text-xl font-bold text-white flex items-center gap-3">
+                                        <span className="bg-indigo-500/10 p-2 rounded-lg">
+                                            <Database className="w-5 h-5 text-indigo-400" />
+                                        </span>
+                                        Resultados de la Búsqueda
+                                        {leads.length > 0 && <span className="text-sm font-medium text-slate-400 bg-white/5 px-3 py-1 rounded-full border border-white/10">({leads.length} leads)</span>}
+                                    </h2>
+                                    <div className="relative w-full sm:w-80">
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar lead (nombre, web, tel)..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full bg-[#1a1a1c] border border-white/10 text-white text-sm rounded-xl pl-10 pr-4 py-3 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-500 shadow-inner"
+                                        />
+                                        <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                        {searchTerm && (
+                                            <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors">
+                                                <CloseIcon className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {filteredLeads.length > 0 ? (
+                                    <LeadsTable leads={filteredLeads} onRowClick={(lead) => setSelectedLead(lead)} onStatusChange={handleLocalStatusChange} />
+                                ) : searchTerm !== '' ? (
+                                    <div className="bg-app-card rounded-2xl border border-dashed border-white/20 p-12 text-center text-slate-500 flex flex-col items-center justify-center min-h-[200px]">
+                                        <Search className="w-8 h-8 text-slate-700 mb-3" />
+                                        <p className="text-sm font-bold text-white">No hay coincidencias</p>
+                                        <p className="text-xs mt-1">Intenta buscar con otro término.</p>
+                                    </div>
                                 ) : (
                                     <div className="bg-app-card rounded-2xl border border-dashed border-white/20 p-12 text-center text-slate-500 flex flex-col items-center justify-center min-h-[300px]">
                                         <Search className="w-10 h-10 text-slate-700 mb-4" />

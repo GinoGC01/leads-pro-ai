@@ -161,7 +161,7 @@ REGLAS ESTRICTAS:
     /**
      * Chat with GPT using Spider Deterministic Verdict (Neuro-Symbolic)
      */
-    static async chatWithSpiderContext(spiderVerdict, region = 'LATAM') {
+    static async chatWithSpiderContext(spiderVerdict, region = 'LATAM', leadName = 'Empresa') {
         try {
             let dynamicConstraints = "";
 
@@ -220,7 +220,7 @@ ${dynamicConstraints}
 
 [REGLAS DE FORMATO Y REDACCIÓN - TOLERANCIA CERO]:
 1. NUNCA firmes el mensaje. NUNCA uses "Saludos, Mario", ni "Atentamente". El mensaje debe terminar abruptamente en el Call to Action o pregunta final.
-2. NUNCA uses "Español de Película" (ej. "lucir tu página", "atrapar clientes", "discutirlo pronto"). Habla como un empresario real en WhatsApp o en un correo rápido de 2 líneas.
+2. NUNCA uses "Español de Película" (cero clichés de marketing, cero lenguaje corporativo). Habla como un empresario real en WhatsApp o en un correo rápido de 2 líneas.
 3. El saludo debe ser natural y rápido. (Ej: ${geoProfile.greetings[0]}).
 4. A menos que conozcas al dueño, háblale a la EMPRESA en plural ("Vi que *tienen* buenas reseñas...").
 5. CERO FORMALIDAD CLÁSICA: Elimina por completo palabras como "brindar", "ofrecer", "otorgar", "soluciones", "requerimiento". Habla en jerga comercial de negocios.
@@ -234,17 +234,29 @@ Palabras recomendadas: ${geoProfile.preferred_words.join(", ")}
 El primer contacto NUNCA debe ser una simple observación o diagnóstico técnico aburrido.
 
 REGLA DE ORO (PRESENTACIÓN): EL MENSAJE **DEBE** EMPEZAR PRESENTÁNDOTE Y MENCIONANDO LA AGENCIA.
-Ejemplo OBLIGATORIO de apertura: "Hola [Nombre]! Soy ${senderProfile.name} de ${senderProfile.agency}, estaba..."
+Ejemplo OBLIGATORIO de apertura: "Hola${leadName && leadName !== 'Empresa' ? ' ' + leadName + ',' : ','} soy ${senderProfile.name} de ${senderProfile.agency}, estaba..."
+[PROHIBICIÓN ESTRICTA DE NOMBRE]: NUNCA uses la cadena literal "[Nombre]" ni ningún placeholder entre corchetes. Si no conoces el nombre de la empresa, simplemente saluda con "Hola, soy..." sin ningún nombre.
 [PROHIBICIÓN ESTRICTA]: NUNCA uses la palabra "equipo" (ej. "Hola equipo"). Habla directamente con el o los dueños en plural de manera natural.
 
 Luego de presentarte, debes generar entusiasmo táctico y urgencia usando la fórmula "Estatus + Fuga + Disonancia":
 
 1. ESTATUS (Elevar el ego): Empieza validando su autoridad de forma creíble. Finge que te sorprende lo buenos que son.
-2. LA FUGA (El Cuchillo/FOMO/Hemorragia de Negocios): DEBES traducir la "Falla Técnica Real" a una pérdida de clientes pura y dura. Menciona el técnico (ej. tiempo de carga, SEO roto) pero explícalo ESTRICTAMENTE como una "Hemorragia de Negocios". 
-   (Ejemplo Obligatorio de Tono: "Tienen un LCP altísimo, lo que significa que la web tarda una vida en abrir en 4G. Le están dejando la mesa servida a la clínica de la otra cuadra que carga más rápido y se lleva a los pacientes premium" o "Al no tener web oficial y depender de un Linktree, están perdiendo todo el tráfico de búsqueda contra competidores más chicos").
-3. DISONANCIA (El Cierre): Usa una pregunta asimétrica asumiendo que es una decisión consciente. (Ej: "¿Tienen pensado solucionar esa fuga técnica para retener al cliente premium o están cómodos con el volumen que manejan hoy?")
+2. LA FUGA (El Cuchillo/FOMO/Hemorragia de Negocios): DEBES traducir la "Falla Técnica Real" a una pérdida de clientes y dinero. PROHIBIDO TOTALMENTE mencionar cualquier término técnico (nada de tags, títulos HTML, scores, LCP, Lighthouse, H1, SEO, indexación, rendimiento, etc). El lead NO es ingeniero. Habla SOLO en pérdida de clientes y plata.
+   (Ejemplo Obligatorio de Tono: "La web les tarda en cargar desde el celular. Eso hace que los clientes se vayan a la competencia que carga más rápido y se lleva a los pacientes premium" o "Al no tener web oficial, están perdiendo todo el tráfico de búsqueda contra competidores más chicos que sí aparecen en Google").
+3. DISONANCIA (El Cierre): Usa una pregunta asimétrica asumiendo que es una decisión consciente. (Ejemplo: "Tienen pensado frenar esa fuga de clientes o están cómodos con el volumen que manejan hoy?")
 
 TONO: Entusiasta, astuto, como si le estuvieras avisando de un punto ciego a un socio comercial.
+
+[REGLA DE SUPERVIVENCIA - LENGUAJE COMERCIAL PURO]:
+El lead es un dueño de negocio, NO un programador. ESTÁ TERMINANTEMENTE PROHIBIDO usar en los 4 mensajes finales:
+- Cualquier etiqueta HTML (<title>, <h1>, etc.)
+- Cualquier término técnico (SEO, LCP, Lighthouse, H1, indexación, rendimiento, score, performance, meta, tag, etiqueta, código, markup)
+- Cualquier placeholder como [Nombre] o similares entre corchetes
+- Cualquier número de puntaje o score
+Si la falla técnica del lead es un problema de velocidad de carga, TRADÚCELO como "la web tarda en abrir y los clientes se van".
+Si la falla técnica es de visibilidad, TRADÚCELO como "Google no los muestra a los clientes que buscan su servicio".
+Si la falla técnica es de estructura web, TRADÚCELO como "la web no está preparada para captar clientes que buscan desde el celular".
+Cualquier violación de esta regla invalida todo el mensaje.
 
 [FORMATO DE SALIDA ESTRICTO - DEBES RESPONDER EN FORMATO JSON]:
 Genera un objeto JSON válido con estas 4 claves exactas:
@@ -259,7 +271,7 @@ Cero markdown, cero explicaciones fuera del JSON.
 [CHECKLIST DE SUPERVIVENCIA ANTES DE RESPONDER]:
 Revisa tus 4 mensajes generados y aplica estas reglas de vida o muerte:
 
-${region === 'LATAM' ? "1. DESTRUCCIÓN DEL SIGNO DE APERTURA: Revisa cada frase minuciosamente. Si usaste el signo '¿' o '¡', BÓRRALO. ESTÁ TERMINANTEMENTE PROHIBIDO USARLOS EN LATAM. (Ejemplo: \"Tienen un minuto?\" NO \"¿Tienen un minuto?\")." : "1. PUNTUACIÓN INTERNACIONAL CORRETA: Estás en modo EXPORT. Es completamente válido y legal usar '¿' y '¡' en todas tus preguntas operativas."}
+${region === 'LATAM' ? "1. DESTRUCCIÓN DEL SIGNO DE APERTURA: Revisa cada frase minuciosamente. BÓRRALO SI EXISTE un signo '¿' o '¡'. Usa un lenguaje 100% conversacional porteño sin formalidades. PUNTO FINAL." : "1. PUNTUACIÓN INTERNACIONAL CORRETA: Estás en modo EXPORT. Es completamente válido y legal usar '¿' y '¡' en todas tus preguntas operativas."}
 2. PROHIBICIÓN DE VENTA EN 'REACCION_FAVORABLE': Si responden que les interesa, NO ofrezcas mostrarles nada ni digas "Genial!". Aísla al prospecto con fricción. 
    - Correcto: "Perfecto Juan. Te lo muestro en 5 min por Meet para que veas la fuga en vivo. Hoy a las 15 o mañana a las 10${region === 'LATAM' ? '?' : ', ¿qué te queda mejor?'}"
 3. JUDO COMERCIAL EN 'REACCION_OBJECION': Si te rechazan, NUNCA digas "Aquí estoy" ni "Entiendo". Toca su ego y vete.
@@ -279,7 +291,33 @@ ${region === 'LATAM' ? "1. DESTRUCCIÓN DEL SIGNO DE APERTURA: Revisa cada frase
                 response_format: { type: "json_object" }
             });
 
-            return response.choices[0].message.content;
+            let finalContent = response.choices[0].message.content;
+
+            if (region === 'LATAM') {
+                try {
+                    // Pre-parse the JSON to avoid destroying structural colons 
+                    let parsedJson = JSON.parse(finalContent);
+                    for (const key in parsedJson) {
+                        if (typeof parsedJson[key] === 'string') {
+                            parsedJson[key] = parsedJson[key]
+                                .replace(/[¿¡:]/g, '')                    // Strip banned punctuation
+                                .replace(/<[^>]*>/g, '')                  // Strip any HTML tags (<title>, <h1>, etc.)
+                                .replace(/\[Nombre\]/gi, '')              // Strip [Nombre] placeholder
+                                .replace(/\s{2,}/g, ' ')                  // Collapse double spaces left by removals
+                                .trim();
+                        }
+                    }
+                    finalContent = JSON.stringify(parsedJson);
+                } catch (e) {
+                    console.warn('[AIService] LATAM Post-processing: Invalid JSON from Mario, applying fallback strip.');
+                    finalContent = finalContent
+                        .replace(/[¿¡:]/g, '')
+                        .replace(/<[^>]*>/g, '')
+                        .replace(/\[Nombre\]/gi, '');
+                }
+            }
+
+            return finalContent;
         } catch (error) {
             console.error('[AIService] Spider Chat Error:', error.message);
             throw new Error(`AI Spider Service failed: ${error.message}`);

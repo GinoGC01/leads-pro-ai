@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, X, Sparkles, MessageSquare, Loader2, Plus, Trash2, ChevronLeft, Clock, Edit2, Check } from 'lucide-react';
+import { Send, Bot, User, X, MessageSquare, Loader2, Plus, Trash2, ChevronLeft, Clock, Edit2, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { askAi, getChatSessions, getChatSession, renameChatSession, deleteChatSession } from '../services/api';
 

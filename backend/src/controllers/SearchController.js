@@ -7,6 +7,7 @@ import * as QueueService from '../services/QueueService.js';
 import ragConfig from '../config/rag.config.js';
 import AIService from '../services/AIService.js';
 import SupabaseService from '../services/SupabaseService.js';
+import { RENTED_LAND_DOMAINS } from '../services/SpiderEngine.js';
 
 /**
  * Controller for Lead Generation logic
@@ -130,11 +131,24 @@ class SearchController {
                         return null;
                     }
 
-                    // 2. Deduplication by domain (using V1 data)
+                    // 2. Deduplication by domain, Sinkhole Check, and Rented Land Filter
                     if (place.websiteUri) {
                         const domain = new URL(place.websiteUri).hostname.replace('www.', '');
-                        const duplicateByDomain = await Lead.findOne({ website: new RegExp(domain, 'i') });
-                        if (duplicateByDomain) return duplicateByDomain;
+                        const urlLower = place.websiteUri.toLowerCase();
+
+                        // 2a. Domain Parking / For-Sale Sinkhole
+                        const sinkholes = ['hugedomains.com', 'dan.com', 'sedo.com', 'afternic.com', 'domainmarket.com', 'godaddy.com/forsale'];
+                        if (sinkholes.some(sink => domain.toLowerCase().includes(sink) || urlLower.includes(sink))) {
+                            await pushStatus(`🚧 Dominio en venta detectado (${domain}). Removiendo URL fantasma...`, 'info');
+                            place.websiteUri = null;
+                            // 2b. Rented Land Filter (subdomains of agendapro, linktr.ee, etc.)
+                        } else if (RENTED_LAND_DOMAINS.some(rl => urlLower.includes(rl))) {
+                            await pushStatus(`🏚️ Tierra Alquilada detectada (${domain}). Marcando como sin web propia...`, 'info');
+                            // Keep websiteUri for Spider to classify, but flag it
+                        } else {
+                            const duplicateByDomain = await Lead.findOne({ website: new RegExp(domain, 'i') });
+                            if (duplicateByDomain) return duplicateByDomain;
+                        }
                     }
 
                     // 3. Direct Mapping from V1 FieldMask (No N+1 Loop)

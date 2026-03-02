@@ -582,18 +582,20 @@ export const SPIDER_CODEX = {
 export const GEO_LOCALIZATION = {
     "LATAM": {
         pronoun: "ustedes / vos (si es muy personal)",
-        greetings: ["Hola [Nombre]!", "Hola!"],
+        greetings: ["Hola, soy", "Hola!"],
         banned_words: [
             "lucir", "atrapar", "discutirlo", "potencial", "presencia digital sólida",
             "espero que te guste", "espero que te encuentres bien", "brindar", "soluciones",
-            "saludos cordiales", "atentamente", "quedo atento", "equipo", "oportunidad", "otorgar"
+            "saludos cordiales", "atentamente", "quedo atento", "equipo", "oportunidad", "otorgar", ":",
+            "[Nombre]", "<title>", "<h1>", "SEO", "LCP", "Lighthouse", "HTML", "etiqueta", "indexación",
+            "rendimiento", "score", "performance", "meta", "tag"
         ],
         preferred_words: ["armar", "tener", "clientes", "facturar", "negocio", "revisar", "pasar"],
-        grammar_rules: "Háblale a la empresa en plural ('Ustedes tienen excelentes reviews', 'No tienen página web'). Usa un tono directo, callejero, astuto, estilo emprendedor argentino. ESTRICTAMENTE PROHIBIDO: NUNCA uses el signo de interrogación de apertura ('¿') ni el de exclamación de apertura ('¡'). Solo usa los de cierre correspondientes a chats de WhatsApp informal ('?' o '!'). NUNCA suenes como un doblaje de película."
+        grammar_rules: "Háblale a la empresa en plural ('Ustedes tienen excelentes reviews', 'No tienen página web'). Usa un tono directo, callejero, astuto, ESTRICTAMENTE ARGENTINO / PORTEÑO. ESTRICTAMENTE PROHIBIDO: NUNCA uses el signo de interrogación de apertura ('¿') ni el de exclamación de apertura ('¡'). Solo usa los de cierre correspondientes a chats de WhatsApp informal ('?' o '!'). NUNCA suenes como un doblaje de película ni uses español neutro mexicano."
     },
     "EXPORT": {
         pronoun: "ustedes / vosotros / tú",
-        greetings: ["Hola [Nombre],", "Qué tal [Nombre],"],
+        greetings: ["Hola, soy", "Qué tal,"],
         banned_words: ["lucir", "espero que te encuentres bien", "saludos cordiales", "atentamente", "equipo", "estimado", "cordial saludo"],
         preferred_words: ["ROI", "operación", "leads", "conversión", "rentabilidad", "flujo de clientes"],
         grammar_rules: "Tono pragmático, profesional y directo. Habla en español internacional/neutro. Ve directo al punto de dolor sin formalismos excesivos como 'Estimado' o 'Cordial saludo'. IMPORTANTE: ESTÁ PERMITIDO el uso correcto de signos ortográficos (puedes usar '¿' y '¡' libremente). Mantén la asimetría comercial de un experto, no de un vendedor que suplica."

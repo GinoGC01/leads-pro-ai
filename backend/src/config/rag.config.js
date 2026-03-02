@@ -10,6 +10,7 @@ import Settings from '../models/Settings.js';
 let agencyContext = 'No se ha definido el contexto de la agencia.';
 let senderName = process.env.SALES_REP_NAME || "Gino";
 let agencyName = process.env.AGENCY_NAME || "Mariosweb";
+let languageTone = "AUTO_DETECT";
 
 const agencyPath = path.join(__dirname, 'AGENCY_CONTEXT.md');
 
@@ -24,6 +25,7 @@ async function loadAgencyContext() {
         if (settings) {
             senderName = settings.senderName || senderName;
             agencyName = settings.agencyName || agencyName;
+            languageTone = settings.languageTone || languageTone;
             // Also update the markdown string just in case the file system failed 
             if (settings.agencyContext) {
                 agencyContext = settings.agencyContext;
@@ -47,7 +49,8 @@ export default {
             raw: agencyContext,
             condensed: agencyContext.substring(0, 1000),
             senderName: senderName,
-            agencyName: agencyName
+            agencyName: agencyName,
+            languageTone: languageTone
         };
     },
     // 1. LLM Operational Parameters (Anti-Hallucination Core)

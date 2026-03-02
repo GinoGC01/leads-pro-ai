@@ -7,6 +7,7 @@ import AIService from '../services/AIService.js';
 import SupabaseService from '../services/SupabaseService.js';
 import ragConfig from '../config/rag.config.js';
 import Lead from '../models/Lead.js';
+import { RENTED_LAND_DOMAINS } from '../services/SpiderEngine.js';
 
 /**
  * Worker para procesar leads asíncronamente (Pipeline de 4 Fases).
@@ -20,6 +21,19 @@ const enrichmentWorker = new Worker('enrichmentQueue', async (job) => {
     const lead = await Lead.findById(leadId);
     if (!lead || !website) {
         console.log(`[EnrichmentWorker] Saltando: Lead no encontrado o sin website.`);
+        return;
+    }
+
+    // PRE-FLIGHT: Rented Land Abort Gate
+    // If the URL is a subdomain of a rented platform (agendapro, linktr.ee, etc.),
+    // skip enrichment entirely to avoid wasting Scraper + Lighthouse resources.
+    const urlLower = website.toLowerCase();
+    const isRentedLand = RENTED_LAND_DOMAINS.some(domain => urlLower.includes(domain));
+    if (isRentedLand) {
+        console.log(`[VIE] 🚧 ABORT: "${name}" usa Tierra Alquilada (${website}). Saltando enriquecimiento.`);
+        lead.enrichmentStatus = 'skipped_rented_land';
+        lead.enrichmentError = `URL de Tierra Alquilada detectada: ${website}`;
+        await lead.save();
         return;
     }
 

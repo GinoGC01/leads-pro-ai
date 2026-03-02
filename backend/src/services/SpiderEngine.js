@@ -3,7 +3,7 @@ import Lead from '../models/Lead.js';
 
 const HIGH_COST_TECH = ['React', 'Next.js', 'Vue.js', 'Angular', 'AWS', 'Shopify Plus', 'Magento', 'Laravel'];
 const LOW_COST_TECH = ['Wix', 'Weebly', 'Squarespace', 'WordPress', 'Blogger', 'Joomla'];
-const RENTED_LAND_DOMAINS = [
+export const RENTED_LAND_DOMAINS = [
     'agendapro.com', 'linktr.ee', 'instagram.com', 'facebook.com',
     'wa.me', 'calendly.com', 'sites.google.com', 'wixsite.com',
     'wordpress.com', 'canva.site', 'beacons.ai', 'fresha.com', 'booksy.com', 'tiktok.com'
@@ -119,12 +119,23 @@ class SpiderEngine {
         const { performance_metrics, seo_audit, enrichmentStatus, enrichmentError } = lead;
 
         if (enrichmentStatus === 'failed') {
-            technical_flaw = `Sitio web caído o bloqueado (Error: ${enrichmentError || 'Desconocido'}).`;
-        } else if (performance_metrics) {
-            if (performance_metrics.lcp > 3000) {
-                technical_flaw = `Carga lenta (LCP > 3s).`;
-            } else if (performance_metrics.performanceScore < 50) {
-                technical_flaw = `Pésimo rendimiento general en móviles (Score: ${performance_metrics.performanceScore}).`;
+            technical_flaw = `La web no carga o está caída. Los clientes que buscan su negocio en Google ven un error.`;
+        } else {
+            let flaws = [];
+
+            if (performance_metrics?.lcp > 3000) {
+                flaws.push(`La web tarda demasiado en abrir desde el celular, los clientes se van antes de verla`);
+            } else if (performance_metrics?.performanceScore < 50) {
+                flaws.push(`La web funciona muy mal en celulares, los clientes la abandonan antes de contactarlos`);
+            }
+
+            if (seo_audit) {
+                if (seo_audit.h1_tags && seo_audit.h1_tags.length === 0) flaws.push(`Google no puede leer bien la web, así que no la muestra a los clientes que buscan su servicio`);
+                if (!seo_audit.title) flaws.push(`La web no tiene identificación para Google, es como un local sin cartel en la calle`);
+            }
+
+            if (flaws.length > 0) {
+                technical_flaw = flaws.join(" | ");
             }
         }
 

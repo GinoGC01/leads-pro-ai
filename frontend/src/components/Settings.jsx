@@ -11,6 +11,7 @@ const Settings = () => {
     const [agencyContext, setAgencyContext] = useState('');
     const [senderName, setSenderName] = useState('');
     const [agencyName, setAgencyName] = useState('');
+    const [languageTone, setLanguageTone] = useState('AUTO_DETECT');
     const [isLoading, setIsLoading] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -23,6 +24,7 @@ const Settings = () => {
                     if (data.context) setAgencyContext(data.context);
                     if (data.senderName) setSenderName(data.senderName);
                     if (data.agencyName) setAgencyName(data.agencyName);
+                    if (data.languageTone) setLanguageTone(data.languageTone);
                 }
             } catch (err) {
                 console.error("No context found or error fetching", err);
@@ -43,7 +45,8 @@ const Settings = () => {
         const saveReq = api.post('/settings/agency-context', {
             context: agencyContext,
             senderName,
-            agencyName
+            agencyName,
+            languageTone
         });
 
         AlertService.promise(
@@ -139,6 +142,28 @@ const Settings = () => {
                                 placeholder="Mariosweb"
                                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-medium focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
                             />
+                        </div>
+                    </div>
+
+                    {/* AI Language Behavior Configuration */}
+                    <div className="bg-[#1a1a1c] border border-white/10 p-6 rounded-xl flex flex-col gap-4">
+                        <div>
+                            <h3 className="text-white font-bold mb-1">Comportamiento Lingüístico de MARIO</h3>
+                            <p className="text-xs text-slate-400">Define si la Inteligencia Artificial debe anular la detección por código de área y forzar un dialecto específico para evitar doblajes o respuestas robóticas.</p>
+                        </div>
+                        <div className="relative">
+                            <select
+                                value={languageTone}
+                                onChange={(e) => setLanguageTone(e.target.value)}
+                                className="w-full appearance-none px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-medium focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all cursor-pointer"
+                            >
+                                <option value="AUTO_DETECT" className="bg-[#1a1a1c] text-white py-2">🌍 Detección Automática (Basado en el prefijo del Teléfono)</option>
+                                <option value="FORCE_LATAM" className="bg-[#1a1a1c] text-white py-2">🇦🇷 Forzar LATAM (Dialecto comercial porteño, NINGÚN signo '¿/¡' permitido)</option>
+                                <option value="FORCE_EXPORT" className="bg-[#1a1a1c] text-white py-2">🌐 Forzar EXPORT (Español Neutro/Internacional, Formalidad Permitida)</option>
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                            </div>
                         </div>
                     </div>
 
