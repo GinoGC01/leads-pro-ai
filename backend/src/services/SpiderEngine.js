@@ -84,7 +84,8 @@ class SpiderEngine {
 
         // 2. Identify Niche by 'types' or 'category'
         let matchedTier = 2; // Default to Tier 2 (Volume Local) if unknown
-        let codexMatch = SPIDER_CODEX.volume_local;
+        // Safely pick a generic Tier 2 as fallback if explicit niche doesn't exist
+        let codexMatch = SPIDER_CODEX.negocio_local_generico || Object.values(SPIDER_CODEX)[0];
 
         // Check types array from Google Places if available
         const leadTypes = lead.types || [];
@@ -133,7 +134,7 @@ class SpiderEngine {
 
         // 4. ML Heuristics (Historical Confidence)
         // Check win rate of the theoretical tactic
-        const theoreticalTactic = codexMatch.tactic_name || "ESTRATEGIA_DEFAULT";
+        const theoreticalTactic = codexMatch.estrategia_spider?.tactic_name || "Secuestro de Tráfico Local (Local Hijack)";
 
         const stats = await Lead.aggregate([
             {
@@ -159,7 +160,7 @@ class SpiderEngine {
 
         const totalSamples = won + lost;
         let winRate = 0;
-        let activeService = codexMatch.recommended_service;
+        let activeService = codexMatch.estrategia_spider?.recommended_service || "Posicionamiento Dominante en Maps + Generación de Leads";
         let activeCadence = codexMatch.cadence_structure;
 
         if (totalSamples > 0) {
@@ -167,7 +168,7 @@ class SpiderEngine {
 
             // Mutación de Táctica (Machine Learning Heurístico)
             if (totalSamples >= 5 && winRate < 15) {
-                activeService = codexMatch.contingency_service || 'Consultoría de Negocios';
+                activeService = codexMatch.estrategia_spider?.contingency_service || 'Auditoría Básica de Presencia Online';
                 activeCadence = codexMatch.contingency_cadence || codexMatch.cadence_structure;
             }
         }
@@ -181,7 +182,8 @@ class SpiderEngine {
             status: "GO",
             isRentable: true,
             tier: matchedTier,
-            pain: codexMatch.pain_point,
+            has_website_flag: true,
+            pain: codexMatch.psicologia_de_venta?.pain_point_real || "Pérdida de tráfico a manos de competidores locales",
             service: activeService,
             tactic_name: theoreticalTactic,
             cadence: activeCadence,

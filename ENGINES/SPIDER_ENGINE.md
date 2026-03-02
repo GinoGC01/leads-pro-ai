@@ -38,7 +38,7 @@ Posee un agregador de MongoDB que, en tiempo real, calcula el **Win Rate (Confia
 
 **VORTEX** es la capa de Adquisición y Sensorial (Los ojos del sistema). SPIDER es ciego sin él.
 
-1. **VORTEX Extrae:** Pasa por Google Places, raspa correos con Cheerio, levanta un navegador oculto (Puppeteer Stealth) para auditar TTFB/LCP, y usa Wappalyzer para ver qué tecnologías están vivas en el servidor del lead.
+1. **VORTEX Extrae:** Ingesta masiva desde Google Places API V1 con **Costo $0 Garantizado** (mediante FieldMasks de Basic Data y descartando Zombies inoperativos). Raspa correos con Cheerio, levanta un navegador oculto (Puppeteer Stealth) para auditar TTFB/LCP, y usa Wappalyzer para ver qué tecnologías están vivas en el servidor del lead. Esta auditoría pesada ocurre **exclusivamente On-Demand** al abrir un lead, protegiendo al sistema de colapsos por Rate Limits.
 2. **SPIDER Cruza los Datos:** Agarra el JSON masivo de VORTEX y lo destila.
    * Si VORTEX dice: `lcp: 4000`, SPIDER concluye: `Dolor Técnico: Carga Lenta (LCP > 3s)`.
    * Si VORTEX dice: `tech_stack: ['Wix']`, SPIDER concluye: `Fricción: BAJA`.

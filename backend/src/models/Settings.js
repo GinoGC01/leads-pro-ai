@@ -11,6 +11,14 @@ const SettingsSchema = new mongoose.Schema({
         type: String,
         default: '# Agency Context\nModify this to define your business rules for the AI.',
     },
+    senderName: {
+        type: String,
+        default: 'Gino'
+    },
+    agencyName: {
+        type: String,
+        default: 'Mariosweb'
+    },
     updatedAt: {
         type: Date,
         default: Date.now

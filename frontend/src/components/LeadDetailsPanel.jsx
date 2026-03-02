@@ -101,9 +101,41 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
     const [statusModal, setStatusModal] = useState({ isOpen: false, newStatus: null });
     const vortexToastIdRef = useRef(null);
 
-    // Spider State
     const [spiderData, setSpiderData] = useState(null);
     const [isSpiderLoading, setIsSpiderLoading] = useState(false);
+
+    // Resizable Mario Panel State
+    const [marioWidth, setMarioWidth] = useState(550);
+    const isDraggingRef = useRef(false);
+
+    useEffect(() => {
+        const handleMouseMove = (e) => {
+            if (!isDraggingRef.current) return;
+            // Calculate new width: window width - mouse X position
+            // giving the right panel the remaining width
+            const newWidth = window.innerWidth - e.clientX;
+            // Constrain between 350px and 900px
+            if (newWidth >= 350 && newWidth <= 900) {
+                setMarioWidth(newWidth);
+            }
+        };
+
+        const handleMouseUp = () => {
+            if (isDraggingRef.current) {
+                isDraggingRef.current = false;
+                document.body.style.cursor = 'default';
+                document.body.style.userSelect = 'auto';
+            }
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, []);
 
     const fetchSpiderStrategy = async (forceRefresh = false) => {
         setIsSpiderLoading(true);
@@ -527,128 +559,184 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
         );
     };
 
-    const renderEstrategia = () => (
-        <div className="space-y-6 animate-in fade-in duration-300 flex flex-col h-full">
-            {spiderData && (
-                <div className="flex flex-col lg:flex-row gap-3 mb-4">
-                    {/* Rentabilidad Card */}
-                    <div className="flex-1 bg-gradient-to-b from-[#151720] to-[#0A0B10] p-4 rounded-2xl border border-white/[0.05] relative overflow-hidden group flex flex-col justify-between min-h-[100px]">
-                        <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-                        <div className={`absolute -top-10 -right-10 w-32 h-32 rounded-full blur-[50px] pointer-events-none transition-colors ${spiderData.isRentable ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}></div>
+    const renderEstrategia = () => {
+        if (isSpiderLoading && !spiderData && !aiResponse) {
+            return (
+                <div className="h-full w-full flex flex-col items-center justify-center space-y-4 p-12">
+                    <div className="relative">
+                        <Loader2 className="w-12 h-12 text-accent-blue animate-spin" />
+                        <div className="absolute inset-0 bg-accent-blue/20 blur-xl rounded-full"></div>
+                    </div>
+                    <div className="text-center space-y-2">
+                        <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] relative inline-block">
+                            <Sparkles className="w-3 h-3 text-accent-blue absolute -left-5 top-0.5 animate-pulse" />
+                            Analizando Infraestructura Core
+                            <Sparkles className="w-3 h-3 text-accent-blue absolute -right-5 top-0.5 animate-pulse" />
+                        </h3>
+                        <p className="text-[10px] text-slate-400 font-mono">Calculando Costos Hundidos y Densidad de Fricción UX/UI...</p>
+                    </div>
 
-                        <div className="relative z-10 flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                                <div className={`w-1.5 h-1.5 rounded-full ${spiderData.isRentable ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]' : 'bg-rose-400 shadow-[0_0_10px_rgba(251,113,133,0.8)]'}`}></div>
-                                <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Rentabilidad</span>
-                            </div>
-                            <span className="text-[9px] font-bold text-slate-600 bg-white/5 px-2 py-0.5 rounded-full">TIER {spiderData.tier}</span>
+                    {/* Fake Matrix Progress */}
+                    <div className="w-64 mt-6">
+                        <div className="flex justify-between text-[8px] font-bold text-slate-500 uppercase mb-1">
+                            <span>Extrayendo DOM Vectorial</span>
+                            <span className="text-accent-blue animate-pulse">Running</span>
                         </div>
+                        <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-accent-blue w-1/2 animate-pulse rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
 
-                        <div className="relative z-10 flex flex-col">
-                            <span className={`text-lg font-black tracking-tight ${spiderData.isRentable ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                {spiderData.isRentable ? 'GO' : 'NO-GO'}
+        if (!spiderData) return null;
+
+        return (
+            <div className="space-y-6 animate-in fade-in duration-300 flex flex-col h-full">
+                {/* Tech Stack Matrix */}
+                <div className="flex flex-col lg:flex-row gap-3 mb-2">
+                    <div className="flex-1 bg-[#0A0B10] p-5 rounded-2xl border border-white/[0.05] relative overflow-hidden group">
+                        <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                        <div className="relative z-10 flex items-center justify-between mb-4">
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                                <Server className="w-3.5 h-3.5" /> Matrix Tecnológica
                             </span>
-                            <span className="text-xs text-slate-400 font-medium truncate mt-0.5" title={spiderData.service}>
-                                {spiderData.service}
+                            <span className="text-[9px] font-bold text-slate-400 bg-white/5 px-2 py-0.5 rounded-full capitalize">
+                                {spiderData.infrastructure_type || 'Desconocido'}
                             </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {lead.tech_stack?.length > 0 ? lead.tech_stack.map((t, i) => (
+                                <span key={i} className="px-2 py-1 bg-white/[0.02] border border-white/10 rounded-md text-[10px] font-mono text-slate-300">{t}</span>
+                            )) : <span className="text-xs text-slate-600 italic">No frameworks detectados</span>}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Vitals Gauges */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                    {/* Confianza Gauge */}
+                    <div className="bg-[#0A0B10] border border-white/[0.05] p-4 rounded-2xl flex flex-col gap-3">
+                        <div className="flex justify-between items-center">
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5"><Activity className="w-3 h-3" /> Confianza (IA)</span>
+                            <span className="text-xs font-black text-white">{spiderData.historical_confidence || 0}%</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full shadow-[0_0_10px_rgba(255,255,255,0.2)] ${(spiderData.historical_confidence || 0) > 70 ? 'bg-emerald-400' : (spiderData.historical_confidence || 0) > 30 ? 'bg-amber-400' : 'bg-rose-400'}`} style={{ width: `${spiderData.historical_confidence || 0}%` }}></div>
                         </div>
                     </div>
 
-                    {/* Dolor Card */}
-                    <div className="flex-[1.5] bg-gradient-to-b from-[#151720] to-[#0A0B10] p-4 rounded-2xl border border-white/[0.05] relative overflow-hidden group flex flex-col min-h-[100px]">
-                        <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-                        <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-amber-500/10 rounded-full blur-[50px] pointer-events-none"></div>
-
-                        <div className="relative z-10 mb-2">
-                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500/50"></div>
-                                Pain Point (Dolor)
-                            </span>
+                    {/* Velocidad Gauge */}
+                    <div className="bg-[#0A0B10] border border-white/[0.05] p-4 rounded-2xl flex flex-col gap-3">
+                        <div className="flex justify-between items-center">
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5"><Zap className="w-3 h-3" /> Velocidad LCP</span>
+                            <span className="text-xs font-black text-white">{spiderData.load_speed_score || 50}%</span>
                         </div>
-                        <div className="relative z-10 flex-1 flex items-center">
-                            <p className="text-[13px] font-medium text-slate-300 leading-relaxed line-clamp-3" title={spiderData.pain}>
-                                {spiderData.pain}
+                        <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${(spiderData.load_speed_score || 50) > 70 ? 'bg-emerald-400' : (spiderData.load_speed_score || 50) > 30 ? 'bg-amber-400' : 'bg-rose-400'}`} style={{ width: `${spiderData.load_speed_score || 50}%` }}></div>
+                        </div>
+                    </div>
+
+                    {/* SEO Gauge */}
+                    <div className="bg-[#0A0B10] border border-white/[0.05] p-4 rounded-2xl flex flex-col gap-3">
+                        <div className="flex justify-between items-center">
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5"><Globe className="w-3 h-3" /> Estructura SEO</span>
+                            <span className="text-xs font-black text-white">{spiderData.seo_integrity_score || 60}%</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full shadow-[0_0_10px_rgba(96,165,250,0.5)]" style={{ width: `${spiderData.seo_integrity_score || 60}%` }}></div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Friction Banner */}
+                {spiderData.friction_score === 'HIGH' && (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2 mb-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-400 leading-relaxed">
+                            <span className="font-bold">Alta Fricción Detectada:</span> El Stack tecnológico del prospecto presenta dependencias severas (ej. Linktree, Wix, sin dominio propio). Fuga de prospectos premium altamente probable.
+                        </p>
+                    </div>
+                )}
+
+                {/* Tactical Blueprint */}
+                <div className="p-6 bg-slate-900/80 border-l-4 border-l-accent-blue rounded-r-2xl shadow-inner relative overflow-hidden group">
+                    <div className="absolute right-0 top-0 w-48 h-full bg-gradient-to-l from-accent-blue/10 to-transparent pointer-events-none"></div>
+
+                    <div className="flex items-start gap-4 relative z-10">
+                        <div className="w-10 h-10 rounded-xl bg-accent-blue/10 border border-accent-blue/20 flex flex-shrink-0 items-center justify-center">
+                            <Target className="w-5 h-5 text-accent-blue" />
+                        </div>
+                        <div>
+                            <h5 className="text-[10px] font-black text-accent-blue uppercase tracking-widest mb-1">
+                                Blueprint de Venta
+                            </h5>
+                            <h3 className="text-white font-bold text-base mb-2">
+                                Objetivo: <span className="text-accent-blue">{spiderData.service || 'Ingeniería SEO'}</span>
+                            </h3>
+                            <p className="text-[12px] text-slate-300 leading-relaxed font-medium mb-3 relative">
+                                Táctica a ejecutar: <strong className="text-white">{spiderData.tactic_name || 'Desconocida'}</strong><br />
+                                <span className="text-slate-400 block mt-1">El bot MARIO ha sido parametrizado con este contexto. Sus mensajes de la derecha aplican ingeniería sociológica diseñada para detonar la Hemorragia de Negocios atada a este dolor técnico especifico. Cópialos o modifícalos ligeramente manteniendo el estatus.</span>
                             </p>
                         </div>
                     </div>
                 </div>
-            )}
 
-            {/* TABLERO DE MANDOS (SPIDER METRICS) */}
-            {spiderData && spiderData.isRentable && (
-                <div className="flex items-center gap-3 mb-4 flex-wrap">
-                    {/* Confianza */}
-                    <div className="flex items-center gap-2 bg-[#12141A] border border-white/10 px-3 py-1.5 rounded-full shadow-sm">
-                        <span>🔥</span>
-                        <span className="text-[10px] uppercase font-bold text-slate-400">Confianza:</span>
-                        <span className={`text-xs font-black ${spiderData.historical_confidence > 50 ? 'text-emerald-400' :
-                            spiderData.historical_confidence <= 20 ? 'text-rose-400' : 'text-amber-400'
-                            }`}>
-                            {spiderData.historical_confidence || 0}%
-                        </span>
+                {/* Raw Vector Info */}
+                {spiderData.pain && (
+                    <div className="p-4 bg-[#0B0B0C] border border-white/5 rounded-xl text-xs text-slate-400 font-mono whitespace-pre-wrap mt-auto">
+                        <div className="text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-widest">// Vector Base de Dolor (Raw)</div>
+                        {spiderData.pain}
                     </div>
+                )}
+            </div>
+        );
+    };
 
-                    {/* Friccion */}
-                    <div className="flex items-center gap-2 bg-[#12141A] border border-white/10 px-3 py-1.5 rounded-full shadow-sm relative group cursor-help">
-                        <span>⚙️</span>
-                        <span className="text-[10px] uppercase font-bold text-slate-400">Fricción Tech:</span>
-                        <span className={`text-xs font-black ${spiderData.has_website_flag === false ? 'text-blue-400' :
-                            spiderData.friction_score === 'HIGH' ? 'text-amber-400' : 'text-emerald-400'
-                            }`}>
-                            {spiderData.has_website_flag === false ? 'NULA (Sin Web)' : (spiderData.friction_score === 'HIGH' ? 'ALTA' : 'BAJA')}
-                        </span>
+    const renderMarioPanel = () => (
+        <div className="flex-1 flex flex-col bg-[#0B0B0C] border-l border-white/[0.05] relative shadow-xl h-full">
+            {/* Decorative Background Blob for the Bot */}
+            <div className="absolute top-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px] pointer-events-none"></div>
 
-                        {/* Tooltip */}
-                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-black border border-white/10 text-slate-300 text-[10px] p-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-xl text-center">
-                            {spiderData.has_website_flag === false
-                                ? "No tienen sitio web. Fricción cero, es un lienzo en blanco para vender Identidad Digital."
-                                : spiderData.friction_score === 'HIGH'
-                                    ? "Costo hundido tech detectado. No insultar su web actual, la defenderán. Ángulo: Repair/Upgrade."
-                                    : "Tecnología básica o nula. Costo hundido bajo. Ángulo: Reemplazo Total justificable."}
-                        </div>
+            <div className="relative z-10 text-[9px] font-black text-white uppercase tracking-[0.2em] p-6 pb-4 border-b border-white/[0.05] flex items-center justify-between shadow-sm bg-[#0B0B0C]">
+                <div className="flex items-center gap-3">
+                    <div className="relative flex-shrink-0">
+                        <img src="/bot.png" alt="Bot Mario" className="w-8 h-8 rounded-full border border-emerald-500/30 object-cover shadow-[0_0_15px_rgba(52,211,153,0.2)]" />
+                        <div className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border-2 border-[#0B0B0C]"></div>
                     </div>
+                    <span className="text-slate-300 font-bold tracking-widest text-[10px] leading-tight flex flex-col">
+                        <span>MARIO</span>
+                        <span className="text-[8px] text-emerald-500/80">Neuro-Symbolic Closer</span>
+                    </span>
                 </div>
-            )}
-
-            <div className="bg-[#0B0B0C] rounded-2xl p-5 border border-white/[0.05] overflow-hidden flex-1 flex flex-col relative shadow-xl">
-                {/* Decorative Background Blob for the Bot */}
-                <div className="absolute top-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px] pointer-events-none"></div>
-
-                <div className="relative z-10 text-[9px] font-black text-white uppercase tracking-[0.2em] mb-4 pb-4 border-b border-white/[0.05] flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <img src="/bot.png" alt="Bot Mario" className="w-8 h-8 rounded-full border border-emerald-500/30 object-cover shadow-[0_0_15px_rgba(52,211,153,0.2)]" />
-                            <div className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border-2 border-[#0B0B0C]"></div>
-                        </div>
-                        <span className="text-slate-300 font-bold tracking-widest text-[10px]">MARIO <span className="text-slate-600 font-medium ml-1">|</span> <span className="text-emerald-500/80 ml-1">Neuro-Symbolic Closer</span></span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {!isSpiderLoading && !isAiLoading && aiResponse && (
-                            <button
-                                onClick={() => fetchSpiderStrategy(true)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-400 text-slate-400 border border-white/5 hover:border-emerald-500/30 transition-all rounded-lg"
-                                title="Forzar LLM"
-                            >
-                                <RefreshCw className="w-3.5 h-3.5" />
-                                <span>Regenerar Estrategia</span>
-                            </button>
-                        )}
-                        {(isSpiderLoading || isAiLoading) && <div className="w-2 h-2 rounded-full bg-accent-blue animate-pulse"></div>}
-                    </div>
+                <div className="flex items-center gap-3">
+                    {!isSpiderLoading && !isAiLoading && aiResponse && (
+                        <button
+                            onClick={() => fetchSpiderStrategy(true)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-400 text-slate-400 border border-white/5 hover:border-emerald-500/30 transition-all rounded-lg shrink-0"
+                            title="Forzar LLM"
+                        >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>Regenerar</span>
+                        </button>
+                    )}
+                    {(isSpiderLoading || isAiLoading) && <div className="w-2 h-2 rounded-full bg-accent-blue animate-pulse"></div>}
                 </div>
+            </div>
 
+            <div className="flex-1 overflow-hidden relative">
                 {isSpiderLoading || isAiLoading ? (
-                    <div className="flex-1 flex flex-col items-center justify-center text-[10px] text-slate-500 font-mono uppercase gap-4 min-h-[200px]">
+                    <div className="h-full w-full flex flex-col items-center justify-center text-[10px] text-slate-500 font-mono uppercase gap-4 absolute inset-0">
                         <Loader2 className="w-6 h-6 animate-spin text-accent-blue" />
                         <span>SPIDER Engine procesando...</span>
                     </div>
                 ) : (
                     aiResponse ? (
-                        <div className="flex flex-col gap-4 overflow-y-auto overflow-x-hidden pr-2 minimal-scrollbar h-[60vh]">
+                        <div className="h-full overflow-y-auto overflow-x-hidden p-6 gap-4 minimal-scrollbar flex flex-col">
                             {(() => {
                                 let parsedStrategy;
                                 try {
-                                    // Defensiva contra un posible wrapper de sub-bloque Markdown que retorne OpenAI
                                     let cleanJSON = aiResponse;
                                     if (cleanJSON.startsWith('```json')) {
                                         cleanJSON = cleanJSON.replace(/^```json\n/, '').replace(/\n```$/, '');
@@ -692,9 +780,29 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                             })()}
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 min-h-[200px] gap-2">
-                            <AlertCircle className="w-6 h-6 opacity-50" />
-                            <span className="text-xs">No hay respuesta táctica aún.</span>
+                        <div className="h-full w-full flex flex-col items-center justify-center p-8 absolute inset-0 z-0">
+                            <div className="w-32 h-32 bg-accent-blue/5 rounded-full blur-3xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+
+                            <div className="relative z-10 flex flex-col items-center gap-6 text-center max-w-[300px]">
+                                <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#0B0B0C] to-white/5 border border-white/10 flex items-center justify-center shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                                    <Bot className="w-8 h-8 text-slate-500" />
+                                </div>
+
+                                <div>
+                                    <h3 className="text-white font-black text-sm uppercase tracking-widest mb-2">Spider Inactivo</h3>
+                                    <p className="text-xs text-slate-400 leading-relaxed">
+                                        Genera una radiografía SEO, detecta fricción tecnológica y arma el embudo de ventas exacto para este prospecto.
+                                    </p>
+                                </div>
+
+                                <button
+                                    onClick={() => fetchSpiderStrategy(false)}
+                                    className="w-full py-4 bg-accent-blue/10 hover:bg-accent-blue/20 text-accent-blue border border-accent-blue/30 hover:border-accent-blue/50 transition-all rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(56,189,248,0.1)] hover:shadow-[0_0_30px_rgba(56,189,248,0.2)] group"
+                                >
+                                    <Sparkles className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                    Analizar Web Inteligencia
+                                </button>
+                            </div>
                         </div>
                     )
                 )}
@@ -703,66 +811,40 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
     );
 
     const renderGestion = () => (
-        <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="p-6 bg-[#0B0B0C] rounded-2xl border border-white/5 relative overflow-hidden shadow-xl">
-                <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-                <h4 className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-accent-blue shadow-[0_0_8px_rgba(56,189,248,0.8)]"></div>
-                    Estado del Prospecto
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative z-10">
-                    {['Nuevo', 'Contactado', 'Cita Agendada', 'Propuesta Enviada', 'En Espera', 'Cerrado Ganado', 'Sin WhatsApp', 'Descartados', 'Cerrado Perdido'].map(status => {
-                        const isSelected = lead.status === status;
-                        return (
-                            <button
-                                key={status}
-                                onClick={() => handleStatusUpdate(status)}
-                                className={`px-4 py-3.5 rounded-xl text-[11px] uppercase tracking-widest font-black text-left transition-all border outline-none 
-                                ${isSelected
-                                        ? 'bg-accent-blue/10 text-accent-blue border-accent-blue/30 shadow-[0_0_15px_rgba(56,189,248,0.15)] ring-1 ring-accent-blue/50'
-                                        : 'bg-white/5 text-slate-400 border-white/5 hover:border-white/20 hover:bg-white/10 hover:text-slate-200'}`}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <span>{status}</span>
-                                    {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-accent-blue/80" />}
-                                </div>
-                            </button>
-                        );
-                    })}
+        <div className="space-y-6 animate-in fade-in duration-300 flex flex-col h-full">
+            <div className="p-5 bg-[#0B0B0C] rounded-2xl border border-white/5 shadow-inner">
+                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Estado del Lead (CRM)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {['Nuevo', 'Contactado', 'Cita Agendada', 'Propuesta Enviada', 'Cerrado Ganado', 'Cerrado Perdido'].map(status => (
+                        <button
+                            key={status}
+                            onClick={() => setStatusModal({ isOpen: true, newStatus: status })}
+                            className={`px-4 py-3 rounded-xl text-xs font-bold text-left transition-all border ${lead.status === status ? 'bg-accent-blue/20 text-accent-blue border-accent-blue shadow-md' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/20 hover:bg-white/5'}`}
+                        >
+                            {status.toUpperCase()}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            <div className="p-6 bg-[#0B0B0C] rounded-2xl border border-white/5 relative overflow-hidden shadow-xl">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-[40px] pointer-events-none"></div>
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-5 flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]"></div>
-                    Historial de Interacciones
-                </h4>
-
+            <div className="flex-1 p-5 bg-[#0B0B0C] rounded-2xl border border-white/5 shadow-inner flex flex-col">
+                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Historial de Notas</h4>
                 {lead.interactionLogs?.length > 0 ? (
-                    <div className="space-y-4 relative z-10">
-                        {lead.interactionLogs.reverse().map((log, i) => (
-                            <div key={i} className="flex gap-4 group">
-                                <div className="flex flex-col items-center">
-                                    <div className="w-2.5 h-2.5 rounded-full bg-white/20 border-2 border-[#0B0B0C] z-10 group-hover:bg-purple-400 group-hover:shadow-[0_0_10px_rgba(168,85,247,0.5)] transition-colors"></div>
-                                    {i !== lead.interactionLogs.length - 1 && <div className="flex-1 w-px bg-white/5 mt-1 group-hover:bg-white/10 transition-colors"></div>}
-                                </div>
-                                <div className="bg-[#151720] flex-1 p-4 rounded-xl border border-white/5 group-hover:border-white/10 transition-colors shadow-lg">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[9px] text-purple-400 font-bold uppercase tracking-widest">{log.status}</span>
-                                        </div>
-                                        <span className="text-[10px] font-mono text-slate-500">{new Date(log.timestamp).toLocaleDateString()}</span>
-                                    </div>
-                                    <p className="text-xs text-slate-300 whitespace-pre-wrap leading-loose font-medium">{log.note || 'Actualización de estado sin notas adicionales.'}</p>
-                                </div>
+                    <div className="space-y-3 flex-1 overflow-y-auto minimal-scrollbar">
+                        {lead.interactionLogs.slice().reverse().map((log, i) => (
+                            <div key={i} className="bg-white/5 p-3 rounded-xl border border-white/10">
+                                <p className="text-[10px] text-slate-500 font-bold uppercase mb-1 flex items-center gap-2">
+                                    <Clock className="w-3 h-3" />
+                                    {new Date(log.timestamp).toLocaleDateString()} - <span className="text-accent-blue">{log.status}</span>
+                                </p>
+                                <p className="text-[11px] text-slate-300 whitespace-pre-wrap leading-relaxed">{log.note || 'Sin nota.'}</p>
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center py-10 opacity-50 relative z-10 gap-3">
-                        <MessageSquare className="w-6 h-6 text-slate-600" />
-                        <p className="text-[11px] text-slate-500 italic uppercase tracking-widest font-bold">Sin interacciones previas</p>
+                    <div className="flex-1 flex flex-col items-center justify-center opacity-50">
+                        <MessageSquare className="w-8 h-8 text-slate-600 mb-2" />
+                        <p className="text-xs text-slate-500 italic text-center">Sin interacciones registradas.</p>
                     </div>
                 )}
             </div>
@@ -776,67 +858,93 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                 onClick={onClose}
             ></div>
 
-            {/* Slide-over panel */}
-            <div className="relative w-[896px] max-w-[90vw] bg-gradient-to-b from-[#11131A] to-[#0A0B10] shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col border-l border-white/10 animate-in slide-in-from-right duration-300 h-full">
-                {/* Header */}
-                <div className="p-8 border-b border-white/5 bg-white/[0.02]">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-2xl font-black text-white tracking-tight truncate max-w-[350px] drop-shadow-md">{lead.name}</h2>
-                        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors flex-shrink-0 group">
-                            <X className="w-5 h-5 text-slate-500 group-hover:text-white transition-colors" />
-                        </button>
-                    </div>
-                    <div className="flex gap-2">
-                        <span className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase border ${lead.opportunityLevel === 'Critical' ? 'bg-accent-blue/20 text-accent-blue border-accent-blue/30' : 'bg-white/5 text-slate-400 border-white/10'}`}>{lead.opportunityLevel}</span>
-                        {lead.is_advertising && <span className="px-2.5 py-1 bg-accent-red/20 text-accent-red border border-accent-red/30 text-[10px] font-bold rounded uppercase">Ads Active</span>}
-                    </div>
-                </div>
+            {/* Slide-over panel container (1400px dual-column) */}
+            <div className="relative w-[1400px] max-w-[95vw] bg-black shadow-[0_0_50px_rgba(0,0,0,0.8)] flex border-l border-white/10 animate-in slide-in-from-right duration-300 h-full">
 
-                {/* Tab Navigation */}
-                <div className="flex border-b border-white/5 bg-black/20 backdrop-blur-sm">
-                    {['inteligencia', 'estrategia', 'gestion'].map(tab => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`flex-[1] py-4 text-[10px] font-black uppercase tracking-[0.1em] transition-all relative overflow-hidden group ${activeTab === tab ? 'text-white' : 'text-slate-500 hover:text-slate-300'
-                                }`}
-                        >
-                            {/* Hover Base Focus */}
-                            <div className="absolute inset-0 bg-white/[0.02] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-                            <span className="relative z-10">{tab === 'gestion' ? 'Gestión' : tab === 'estrategia' ? 'Estrategia AI' : tab}</span>
-
-                            {/* Active Indicator */}
-                            {activeTab === tab && (
-                                <div className="absolute bottom-0 inset-x-0 h-[2px] bg-accent-blue shadow-[0_0_10px_rgba(56,189,248,0.5)] animate-in fade-in duration-300" />
-                            )}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Tab Content */}
-                <div className="flex-1 overflow-y-auto p-6 scroll-smooth">
-                    {error && (
-                        <div className="mb-6 p-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2 text-red-600 text-[10px] font-bold uppercase">
-                            <AlertCircle className="w-4 h-4" /> {error}
+                {/* Left Column (Data Tabs) */}
+                <div className="flex-1 flex flex-col bg-gradient-to-b from-[#11131A] to-[#0A0B10] h-full overflow-hidden">
+                    {/* Header */}
+                    <div className="p-8 border-b border-white/5 bg-white/[0.02]">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-2xl font-black text-white tracking-tight truncate max-w-[500px] drop-shadow-md">{lead.name}</h2>
+                            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors flex-shrink-0 group">
+                                <X className="w-5 h-5 text-slate-500 group-hover:text-white transition-colors" />
+                            </button>
                         </div>
-                    )}
+                        <div className="flex gap-2">
+                            <span className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase border ${lead.opportunityLevel === 'Critical' ? 'bg-accent-blue/20 text-accent-blue border-accent-blue/30' : 'bg-white/5 text-slate-400 border-white/10'}`}>{lead.opportunityLevel}</span>
+                            {lead.is_advertising && <span className="px-2.5 py-1 bg-accent-red/20 text-accent-red border border-accent-red/30 text-[10px] font-bold rounded uppercase">Ads Active</span>}
+                        </div>
+                    </div>
 
-                    {activeTab === 'inteligencia' && renderInteligencia()}
-                    {activeTab === 'estrategia' && renderEstrategia()}
-                    {activeTab === 'gestion' && renderGestion()}
+                    {/* Tab Navigation */}
+                    <div className="flex border-b border-white/5 bg-black/20 backdrop-blur-sm shrink-0">
+                        {['inteligencia', 'estrategia', 'gestion'].map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`flex-[1] py-4 text-[10px] font-black uppercase tracking-[0.1em] transition-all relative overflow-hidden group ${activeTab === tab ? 'text-white' : 'text-slate-500 hover:text-slate-300'
+                                    }`}
+                            >
+                                <div className="absolute inset-0 bg-white/[0.02] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                                <span className="relative z-10">{tab === 'gestion' ? 'Gestión' : tab === 'estrategia' ? 'Radiografía Spider' : tab}</span>
+
+                                {activeTab === tab && (
+                                    <div className="absolute bottom-0 inset-x-0 h-[2px] bg-accent-blue shadow-[0_0_10px_rgba(56,189,248,0.5)] animate-in fade-in duration-300" />
+                                )}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Tab Content */}
+                    <div className="flex-1 overflow-y-auto p-6 scroll-smooth minimal-scrollbar">
+                        {error && (
+                            <div className="mb-6 p-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2 text-red-600 text-[10px] font-bold uppercase">
+                                <AlertCircle className="w-4 h-4" /> {error}
+                            </div>
+                        )}
+
+                        {activeTab === 'inteligencia' && renderInteligencia()}
+                        {activeTab === 'estrategia' && renderEstrategia()}
+                        {activeTab === 'gestion' && renderGestion()}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="p-6 border-t border-white/5 bg-[#0B0B0C] relative overflow-hidden shrink-0">
+                        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                        <a
+                            href={lead.googleMapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lead.name} ${lead.address || ''}`)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="w-full py-4 bg-white/5 border border-white/10 text-white rounded-xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-2 hover:bg-white/10 hover:border-white/20 transition-all shadow-[0_0_15px_rgba(255,255,255,0.02)] group"
+                        >
+                            Ver en Google Maps <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+                        </a>
+                    </div>
                 </div>
 
-                {/* Footer */}
-                <div className="p-6 border-t border-white/5 bg-[#0B0B0C] relative overflow-hidden">
-                    <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-                    <a
-                        href={lead.googleMapsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="w-full py-4 bg-white/5 border border-white/10 text-white rounded-xl font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-2 hover:bg-white/10 hover:border-white/20 transition-all shadow-[0_0_15px_rgba(255,255,255,0.02)] group"
-                    >
-                        Ver en Google Maps <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
-                    </a>
+                {/* Resizer Handle */}
+                <div
+                    className="w-1.5 bg-transparent hover:bg-accent-blue/50 active:bg-accent-blue cursor-col-resize shrink-0 transition-colors z-50 group relative"
+                    onMouseDown={(e) => {
+                        e.preventDefault();
+                        isDraggingRef.current = true;
+                        document.body.style.cursor = 'col-resize';
+                        document.body.style.userSelect = 'none';
+                    }}
+                >
+                    {/* Visual affordance indicator on hover */}
+                    <div className="absolute inset-y-0 -left-1 -right-1 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="w-0.5 h-12 bg-accent-blue/50 rounded-full"></div>
+                    </div>
+                </div>
+
+                {/* Right Column (MARIO Copilot AI) */}
+                <div
+                    className="shrink-0 h-full border-l border-white/5 bg-[#0B0B0C] transition-none"
+                    style={{ width: `${marioWidth}px` }}
+                >
+                    {renderMarioPanel()}
                 </div>
             </div>
 

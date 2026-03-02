@@ -26,6 +26,8 @@ const Dashboard = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [totalCost, setTotalCost] = useState(0);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [themeConfig, setThemeConfig] = useState(null);
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [selectedLead, setSelectedLead] = useState(null);
     const [campaignMetadata, setCampaignMetadata] = useState(null);
@@ -100,6 +102,7 @@ const Dashboard = () => {
             });
 
             setCampaignMetadata(historyItem);
+
             setStats({
                 summary: {
                     totalLeads: leadsData.length,
@@ -253,10 +256,11 @@ const Dashboard = () => {
                         </button>
                     </div>
                 ) : (
-                    <>
+                    <div className="flex flex-col gap-6">
+
                         {/* Active Campaign Indicator Header */}
                         {campaignMetadata && (
-                            <div className="bg-indigo-900/40 border border-indigo-500/30 rounded-2xl p-6 mb-8 flex items-center justify-between shadow-[0_0_30px_rgba(99,102,241,0.1)] backdrop-blur-sm">
+                            <div className="bg-indigo-900/40 border border-indigo-500/30 rounded-2xl p-6 flex items-center justify-between shadow-[0_0_30px_rgba(99,102,241,0.1)] backdrop-blur-sm">
                                 <div className="flex items-center gap-4">
                                     <div className="bg-indigo-500/20 p-3 rounded-xl border border-indigo-500/50">
                                         <Database className="w-6 h-6 text-indigo-400" />
@@ -284,7 +288,7 @@ const Dashboard = () => {
                         )}
 
                         {/* Dashboard Metrics */}
-                        <div className="mb-8">
+                        <div className="mb-2">
                             {stats && <Metrics stats={stats} />}
                         </div>
 
@@ -462,7 +466,7 @@ const Dashboard = () => {
                                 )}
                             </div>
                         </div>
-                    </>
+                    </div>
                 )}
             </main>
 
@@ -497,7 +501,25 @@ const Dashboard = () => {
                         lead={selectedLead}
                         onClose={() => setSelectedLead(null)}
                         onLeadUpdate={(updatedLead) => {
-                            setLeads(prev => prev.map(l => l._id === updatedLead._id ? updatedLead : l));
+                            setLeads(currentLeads => {
+                                const newLeads = currentLeads.map(l => l._id === updatedLead._id ? updatedLead : l);
+                                setStats(prevStats => {
+                                    if (!prevStats) return prevStats;
+                                    const pipelineStatus = { new: 0, contacted: 0, in_progress: 0, closed: 0, en_espera: 0, descartados: 0 };
+                                    newLeads.forEach(lead => {
+                                        const rawStatus = String(lead.status || '').toLowerCase().trim();
+                                        if (['nuevo', 'new'].includes(rawStatus)) pipelineStatus.new++;
+                                        else if (['contactado', 'contacted'].includes(rawStatus)) pipelineStatus.contacted++;
+                                        else if (['en espera'].includes(rawStatus)) pipelineStatus.en_espera++;
+                                        else if (['cita agendada', 'propuesta enviada', 'in_progress'].includes(rawStatus)) pipelineStatus.in_progress++;
+                                        else if (['cerrado ganado', 'cerrado perdido', 'closed', 'sin whatsapp'].includes(rawStatus)) pipelineStatus.closed++;
+                                        else if (['descartados'].includes(rawStatus)) pipelineStatus.descartados++;
+                                        else pipelineStatus.new++;
+                                    });
+                                    return { ...prevStats, charts: { ...prevStats.charts, pipelineStatus } };
+                                });
+                                return newLeads;
+                            });
                             setSelectedLead(updatedLead);
                         }}
                     />

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import SearchForm from './components/SearchForm';
 import { searchLeads, getHistory, getHistoryItem, deleteHistory } from './services/api';
 import AlertService from './services/AlertService';
-import { History, Search, Trash2, MapPin, Database } from 'lucide-react';
+import { History, Search, Trash2, MapPin, Database, X as CloseIcon } from 'lucide-react';
 
 const SearchView = () => {
     const [history, setHistory] = useState([]);
@@ -11,6 +11,8 @@ const SearchView = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [currentSearchId, setCurrentSearchId] = useState(null);
     const [logs, setLogs] = useState([]);
+    const [activeHistoryLogs, setActiveHistoryLogs] = useState(null);
+    const [activeHistoryStats, setActiveHistoryStats] = useState(null);
     const [totalCost, setTotalCost] = useState(0);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [campaignToDelete, setCampaignToDelete] = useState(null);
@@ -129,7 +131,25 @@ const SearchView = () => {
         });
     };
 
-    const openInDashboard = (searchId) => {
+    const handleHistoryClick = async (searchId) => {
+        try {
+            const { data } = await getHistoryItem(searchId);
+            if (data) {
+                setActiveHistoryLogs(data.logs || []);
+                setActiveHistoryStats({
+                    keyword: data.keyword,
+                    results: data.resultsCount,
+                    cost: data.totalCost || 0
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching history logs:', error);
+            AlertService.error("No se pudieron cargar los logs de esta campaña");
+        }
+    };
+
+    const openInDashboard = (e, searchId) => {
+        e.stopPropagation(); // prevent triggering the history log fetch
         navigate(`/dashboard?campaignId=${searchId}`);
     };
 
@@ -198,6 +218,50 @@ const SearchView = () => {
                             </div>
                         </div>
                     )}
+
+                    {/* Historical Logs Console */}
+                    {activeHistoryLogs && !isLoading && (
+                        <div className="bg-slate-900 rounded-2xl border border-indigo-500/30 shadow-[0_0_30px_rgba(99,102,241,0.1)] overflow-hidden font-mono text-[10px] flex flex-col h-[320px] mt-8 animate-in fade-in slide-in-from-bottom-4">
+                            <div className="bg-slate-800 px-4 py-3 border-b border-indigo-500/20 flex items-center justify-between shrink-0">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex gap-1">
+                                        <div className="w-2 h-2 rounded-full bg-red-500 opacity-60"></div>
+                                        <div className="w-2 h-2 rounded-full bg-amber-500 opacity-60"></div>
+                                        <div className="w-2 h-2 rounded-full bg-emerald-500 opacity-60"></div>
+                                    </div>
+                                    <span className="text-indigo-400 font-bold uppercase tracking-widest text-[9px]">Historical Dump: {activeHistoryStats?.keyword}</span>
+                                </div>
+                                <button
+                                    onClick={() => setActiveHistoryLogs(null)}
+                                    className="text-slate-500 hover:text-white transition-colors"
+                                >
+                                    <CloseIcon className="w-3 h-3" />
+                                </button>
+                            </div>
+                            <div className="p-4 overflow-y-auto flex flex-col gap-1.5 minimal-scrollbar bg-slate-900/50 flex-1">
+                                {activeHistoryLogs.map((log, i) => (
+                                    <div key={i} className={`flex gap-3 items-start ${log.type === 'error' ? 'text-red-400' :
+                                        log.type === 'success' ? 'text-emerald-400' :
+                                            'text-slate-300'
+                                        }`}>
+                                        <span className="text-slate-600 shrink-0 font-light text-[9px]">
+                                            {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                        </span>
+                                        <span className="break-all leading-tight">{log.message}</span>
+                                    </div>
+                                ))}
+                                {activeHistoryLogs.length === 0 && (
+                                    <div className="text-slate-500 italic text-center mt-10">
+                                        Esta campaña no conservó logs de ejecución en su bitácora.
+                                    </div>
+                                )}
+                            </div>
+                            <div className="bg-slate-800/50 px-4 py-2 border-t border-indigo-500/20 shrink-0 flex justify-between items-center text-[9px] font-bold text-slate-500">
+                                <span>LEADS FILTRADOS: <span className="text-indigo-400">{activeHistoryStats?.results}</span></span>
+                                <span className="text-amber-500 uppercase">Final Cost: ${activeHistoryStats?.cost.toFixed(3)}</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Search History Area */}
@@ -225,7 +289,8 @@ const SearchView = () => {
                         <div className="p-4 flex-1 overflow-y-auto minimal-scrollbar flex flex-col gap-3">
                             {filteredHistory.map((item) => (
                                 <div key={item._id}
-                                    className="group p-4 rounded-xl border bg-app-bg border-white/5 hover:border-indigo-500/50 hover:bg-white/5 transition-all duration-300 relative overflow-hidden flex flex-col">
+                                    onClick={() => handleHistoryClick(item._id)}
+                                    className="group p-4 rounded-xl border bg-app-bg border-white/5 hover:border-indigo-500/50 hover:bg-white/5 transition-all duration-300 relative overflow-hidden flex flex-col cursor-pointer">
 
                                     <button
                                         onClick={(e) => handleDeleteHistory(e, item._id)}
@@ -261,7 +326,7 @@ const SearchView = () => {
                                             <span className="text-[9px] font-bold text-slate-500 ml-1 uppercase">Leads</span>
                                         </div>
                                         <button
-                                            onClick={() => openInDashboard(item._id)}
+                                            onClick={(e) => openInDashboard(e, item._id)}
                                             className="bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold px-4 py-2 rounded-lg transition-colors shadow-lg shadow-indigo-500/20"
                                         >
                                             Prospectar

@@ -60,7 +60,7 @@ class GooglePlacesService {
                 const headers = {
                     'Content-Type': 'application/json',
                     'X-Goog-Api-Key': GOOGLE_API_KEY,
-                    'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.types,places.businessStatus,nextPageToken'
+                    'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.rating,places.userRatingCount,places.types,places.businessStatus,nextPageToken'
                 };
 
                 let response;
@@ -109,6 +109,7 @@ class GooglePlacesService {
                         nationalPhoneNumber: p.nationalPhoneNumber,
                         internationalPhoneNumber: p.internationalPhoneNumber,
                         websiteUri: p.websiteUri,
+                        googleMapsUri: p.googleMapsUri,
                         rating: p.rating,
                         user_ratings_total: p.userRatingCount,
                         types: p.types || [],

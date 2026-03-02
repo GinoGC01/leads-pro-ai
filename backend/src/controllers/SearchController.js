@@ -152,7 +152,7 @@ class SearchController {
                             lat: place.location?.latitude || 0,
                             lng: place.location?.longitude || 0
                         },
-                        googleMapsUrl: place.websiteUri, // V1 websiteUri takes priority
+                        googleMapsUrl: place.googleMapsUri, // Google Places API V1 Map Link
                         searchId: search._id,
                         reviews: [], // Dropped API SKU
                         is_zombie: false, // Handled by businessStatus filter above

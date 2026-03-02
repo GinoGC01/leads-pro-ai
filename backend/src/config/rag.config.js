@@ -5,16 +5,32 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import Settings from '../models/Settings.js';
+
 let agencyContext = 'No se ha definido el contexto de la agencia.';
+let senderName = process.env.SALES_REP_NAME || "Gino";
+let agencyName = process.env.AGENCY_NAME || "Mariosweb";
+
 const agencyPath = path.join(__dirname, 'AGENCY_CONTEXT.md');
 
-function loadAgencyContext() {
+async function loadAgencyContext() {
     try {
         if (fs.existsSync(agencyPath)) {
             agencyContext = fs.readFileSync(agencyPath, 'utf8');
         }
+
+        // Try to fetch DB overrides (Settings Singleton)
+        const settings = await Settings.findOne({ isSingleton: true });
+        if (settings) {
+            senderName = settings.senderName || senderName;
+            agencyName = settings.agencyName || agencyName;
+            // Also update the markdown string just in case the file system failed 
+            if (settings.agencyContext) {
+                agencyContext = settings.agencyContext;
+            }
+        }
     } catch (err) {
-        console.error('[RAG Config] Error loading AGENCY_CONTEXT.md:', err.message);
+        console.error('[RAG Config] Error loading Identity settings:', err.message);
     }
 }
 
@@ -29,7 +45,9 @@ export default {
     get agency() {
         return {
             raw: agencyContext,
-            condensed: agencyContext.substring(0, 1000)
+            condensed: agencyContext.substring(0, 1000),
+            senderName: senderName,
+            agencyName: agencyName
         };
     },
     // 1. LLM Operational Parameters (Anti-Hallucination Core)

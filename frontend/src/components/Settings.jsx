@@ -9,6 +9,8 @@ const api = axios.create({
 
 const Settings = () => {
     const [agencyContext, setAgencyContext] = useState('');
+    const [senderName, setSenderName] = useState('');
+    const [agencyName, setAgencyName] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -17,8 +19,10 @@ const Settings = () => {
         const fetchSettings = async () => {
             try {
                 const { data } = await api.get('/settings/agency-context');
-                if (data.success && data.context) {
-                    setAgencyContext(data.context);
+                if (data.success) {
+                    if (data.context) setAgencyContext(data.context);
+                    if (data.senderName) setSenderName(data.senderName);
+                    if (data.agencyName) setAgencyName(data.agencyName);
                 }
             } catch (err) {
                 console.error("No context found or error fetching", err);
@@ -36,7 +40,11 @@ const Settings = () => {
         setShowConfirmModal(false);
         setIsLoading(true);
 
-        const saveReq = api.post('/settings/agency-context', { context: agencyContext });
+        const saveReq = api.post('/settings/agency-context', {
+            context: agencyContext,
+            senderName,
+            agencyName
+        });
 
         AlertService.promise(
             saveReq,
@@ -108,6 +116,30 @@ const Settings = () => {
                             className="w-full h-[500px] p-6 bg-[#1a1a1c] border border-white/10 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-300 font-mono text-sm resize-y shadow-inner scroll-smooth"
                             required
                         />
+                    </div>
+
+                    {/* Persona Injection Identity Variables */}
+                    <div className="bg-[#1a1a1c] border border-white/10 p-6 rounded-xl flex flex-col md:flex-row gap-6 mt-4">
+                        <div className="flex-1">
+                            <label className="block text-slate-400 text-xs font-bold uppercase mb-2 tracking-wider">Tu Nombre (Sales Rep)</label>
+                            <input
+                                type="text"
+                                value={senderName}
+                                onChange={(e) => setSenderName(e.target.value)}
+                                placeholder="Gino"
+                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-medium focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                            />
+                        </div>
+                        <div className="flex-1">
+                            <label className="block text-slate-400 text-xs font-bold uppercase mb-2 tracking-wider">Nombre de Tu Agencia</label>
+                            <input
+                                type="text"
+                                value={agencyName}
+                                onChange={(e) => setAgencyName(e.target.value)}
+                                placeholder="Mariosweb"
+                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-medium focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                            />
+                        </div>
                     </div>
 
                     <div className="flex justify-end pt-4 border-t border-white/5">

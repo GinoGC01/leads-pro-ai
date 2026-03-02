@@ -509,28 +509,93 @@ export const SPIDER_CODEX = {
                 intent_psicologico: "Takeaway: 'Asumo que su posición en Maps está dominada y los contratos con property managers están fluyendo sin fricción. No los interrumpo más. Éxito en la operación.'"
             }
         ]
+    },
+    centros_estetica_premium: {
+        keywords: ['beauty_salon', 'spa', 'hair_care'],
+        tier: 2,
+        psicologia_de_venta: {
+            pain_point_real: "Dependencia tóxica de promociones 2x1 para llenar la agenda, atrayendo 'caza-ofertas' que destruyen el margen de ganancia. Asfixia por altos costos fijos (alquiler, leasing de HIFU/Soprano) y un nivel de ausentismo (no-shows) que arruina la planificación diaria.",
+            ego_trigger: "El deseo visceral y narcisista de ser percibidos como la clínica más exclusiva y premium de su zona; atraer pacientes de élite que valoren su autoridad médica/cosmiátrica y paguen tratamientos high-ticket sin regatear.",
+            industry_jargon: ["HIFU 7D", "Bioestimuladores de colágeno", "Morpheus8", "No-shows", "Ticket promedio (AOV)", "Pacientes High-Ticket", "Rentabilizar gabinete"]
+        },
+        estrategia_spider: {
+            recommended_service: "Sistema de Agendas Llenas sin Descuentos (Captación de Pacientes Premium y Filtrado por IA)",
+            tactic_name: "Filtro Anti Caza-Ofertas (Premium Lock)",
+            contingency_service: "Campaña Flash de Reactivación de Base de Datos Latente (Zero Ad Spend)"
+        },
+        cadence_structure: {
+            primer_contacto: {
+                channel: "WhatsApp",
+                intent_psicologico: "Ruptura de patrón y Estatus. Falso prospecto interesado/colega. Validar su trabajo primero y preguntar por su disponibilidad para tratamientos High-Ticket (HIFU/Bioestimuladores) para forzarlos a admitir si tienen la agenda vacía o saturada."
+            },
+            escenario_ignorado: {
+                condition: "Si clavan el visto o no responden en 48hs",
+                channel: "Email",
+                intent_psicologico: "Autoridad y FOMO. Enviar un análisis rápido de cómo clínicas en su misma zona están llenando agendas de alto valor sin usar descuentos, demostrando que su problema es un embudo de ventas roto, no la crisis del país."
+            },
+            escenario_favorable: {
+                condition: "Si responden 'Me interesa' o '¿De qué se trata?'",
+                channel: "WhatsApp",
+                intent_psicologico: "Aislamiento inmediato. Prohibido explicar el servicio por texto. 'Armé un mapa de ruta adaptado a la aparatología que tienen. ¿Te lo muestro en 5 min por Meet mañana o pasado?'"
+            },
+            escenario_objecion: {
+                condition: "Si responden 'Ya tengo agencia' o 'Hacemos todo por referidos'",
+                channel: "WhatsApp",
+                intent_psicologico: "Judo comercial al ego. 'Perfecto. Si ya tienen la agenda saturada de pacientes premium que no piden descuentos, ignoren mi mensaje. Muchos éxitos con el gabinete.'"
+            }
+        }
+    },
+
+    negocio_local_generico: {
+        keywords: ['store', 'local_business', 'service', 'shop', 'establishment', 'point_of_interest', 'health', 'beauty_salon', 'spa', 'estetica', 'gym', 'restaurant'],
+        tier: 2,
+        psicologia_de_venta: {
+            pain_point_real: "Depender del 'boca a boca' o del tráfico peatonal mientras la competencia captura la demanda activa en Google Maps con mejor infraestructura digital.",
+            ego_trigger: "Ver cómo negocios de menor calidad de servicio u operando de forma precaria se llevan a los clientes de la zona simplemente por aparecer primero en el teléfono del usuario.",
+            industry_jargon: ["Tráfico de pie", "Fidelización", "Costo de Adquisición", "Visibilidad Local", "Reseñas"]
+        },
+        estrategia_spider: {
+            recommended_service: "Posicionamiento Dominante en Maps + Generación de Leads",
+            tactic_name: "Secuestro de Tráfico Local (Local Hijack)",
+            contingency_service: "Auditoría Básica de Presencia Online"
+        },
+        cadence_structure: [
+            {
+                step: 1,
+                channel: "WhatsApp",
+                intent_psicologico: "Ataque al pain point: '[Nombre], un competidor directo en tu código postal sin tu calidad de servicio está capturando a los clientes que buscan en Google Maps ahora mismo por un error en la presentación de tu negocio.'"
+            },
+            {
+                step: 2,
+                channel: "Email",
+                intent_psicologico: "Prueba visual: Enviar comparativa mostrando cómo los clientes ven su negocio vs el del competidor en el celular, resaltando la fuga de tráfico y dinero."
+            },
+            {
+                step: 3,
+                channel: "WhatsApp",
+                intent_psicologico: "Takeaway: 'Asumo que el local ya está a máxima capacidad y no necesitan optimizar su flujo de clientes digitales. No interrumpo más. Éxitos.'"
+            }
+        ]
     }
 };
 
 export const GEO_LOCALIZATION = {
     "LATAM": {
-        // Cubre Argentina y el resto de LATAM bajo un estándar directo
         pronoun: "ustedes / vos (si es muy personal)",
-        greetings: ["Hola!", "Hola [Nombre],", "Qué tal [Nombre]!"],
+        greetings: ["Hola [Nombre]!", "Hola!"],
         banned_words: [
             "lucir", "atrapar", "discutirlo", "potencial", "presencia digital sólida",
             "espero que te guste", "espero que te encuentres bien", "brindar", "soluciones",
-            "saludos cordiales", "atentamente", "quedo atento"
+            "saludos cordiales", "atentamente", "quedo atento", "equipo", "oportunidad", "otorgar"
         ],
         preferred_words: ["armar", "tener", "clientes", "facturar", "negocio", "revisar", "pasar"],
-        grammar_rules: "Háblale a la empresa en plural ('Ustedes tienen excelentes reviews', 'No tienen página web'). Usa un tono directo, coloquial pero respetuoso, estilo emprendedor argentino. NUNCA suenes como un doblaje de película."
+        grammar_rules: "Háblale a la empresa en plural ('Ustedes tienen excelentes reviews', 'No tienen página web'). Usa un tono directo, callejero, astuto, estilo emprendedor argentino. ESTRICTAMENTE PROHIBIDO: NUNCA uses el signo de interrogación de apertura ('¿') ni el de exclamación de apertura ('¡'). Solo usa los de cierre correspondientes a chats de WhatsApp informal ('?' o '!'). NUNCA suenes como un doblaje de película."
     },
-    "NA": {
-        // Norteamérica (USA/Canadá Hispano o Inglés si aplica)
-        pronoun: "ustedes / you",
-        greetings: ["Hola [Nombre],", "Hi [Nombre],"],
-        banned_words: ["discutirlo", "lucir", "espero", "saludos cordiales", "atentamente"],
-        preferred_words: ["ROI", "operación", "leads", "conversión"],
-        grammar_rules: "Tono pragmático y orientado a métricas. Cero formalismos largos. Ve directo al punto de dolor."
+    "EXPORT": {
+        pronoun: "ustedes / vosotros / tú",
+        greetings: ["Hola [Nombre],", "Qué tal [Nombre],"],
+        banned_words: ["lucir", "espero que te encuentres bien", "saludos cordiales", "atentamente", "equipo", "estimado", "cordial saludo"],
+        preferred_words: ["ROI", "operación", "leads", "conversión", "rentabilidad", "flujo de clientes"],
+        grammar_rules: "Tono pragmático, profesional y directo. Habla en español internacional/neutro. Ve directo al punto de dolor sin formalismos excesivos como 'Estimado' o 'Cordial saludo'. IMPORTANTE: ESTÁ PERMITIDO el uso correcto de signos ortográficos (puedes usar '¿' y '¡' libremente). Mantén la asimetría comercial de un experto, no de un vendedor que suplica."
     }
 };

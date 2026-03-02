@@ -389,11 +389,11 @@ const LeadsTable = ({ leads, onRowClick, onStatusChange }) => {
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                             {lead.website && (
-                                                <a href={lead.website} target="_blank" rel="noreferrer" className="p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-600">
+                                                <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-indigo-400 transition-colors p-2 bg-white/5 rounded-lg border border-white/5 hover:border-indigo-500/30">
                                                     <Globe className="w-4 h-4" />
                                                 </a>
                                             )}
-                                            <a href={lead.googleMapsUrl} target="_blank" rel="noreferrer" className="p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-600">
+                                            <a href={lead.googleMapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lead.name} ${lead.address || ''}`)}`} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-emerald-400 transition-colors p-2 bg-white/5 rounded-lg border border-white/5 hover:border-emerald-500/30">
                                                 <ExternalLink className="w-4 h-4" />
                                             </a>
                                         </div>

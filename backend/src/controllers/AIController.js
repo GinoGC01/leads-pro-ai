@@ -179,6 +179,31 @@ class AIController {
                 return res.status(404).json({ error: 'Lead no encontrado' });
             }
 
+            // Detect Region from phone using libphonenumber-js or fallback
+            let region = 'LATAM'; // Default
+            if (lead.phone) {
+                try {
+                    // Try parsing dynamically
+                    const { parsePhoneNumberFromString } = await import('libphonenumber-js');
+                    const phoneNumber = parsePhoneNumberFromString(lead.phone);
+                    // Standard LATAM country codes logic (focusing heavily on Argentina rule +54)
+                    if (phoneNumber && phoneNumber.country) {
+                        if (['AR', 'UY', 'CL', 'BO', 'PY'].includes(phoneNumber.country)) {
+                            region = 'LATAM';
+                        } else {
+                            region = 'EXPORT';
+                        }
+                    } else if (lead.phone.startsWith('+54') || lead.phone.startsWith('549')) {
+                        region = 'LATAM';
+                    } else if (lead.phone.startsWith('+1') || lead.phone.startsWith('+34')) {
+                        region = 'EXPORT';
+                    }
+                } catch (e) {
+                    console.log(`[AIController] Error parsing phone ${lead.phone} for region. Defaulting to LATAM.`);
+                }
+            }
+            console.log(`[AIController] Detected Region For Prompt: ${region}`);
+
             // 1. Capa Simbólica (Determinista + ML) - Costo 0 Tokens
             const spiderVerdict = await SpiderEngine.analyzeLead(lead);
 
@@ -187,14 +212,15 @@ class AIController {
                 console.log(`[AIController] Spider Cache Hit (Tokens guardados) para Lead: ${leadId}`);
                 return res.status(200).json({
                     spider_verdict: spiderVerdict, // Veredicto fresh calculado
-                    mario_strategy: lead.spider_memory.generated_playbook
+                    mario_strategy: lead.spider_memory.generated_playbook,
+                    detected_region: region
                 });
             }
 
-            console.log(`[AIController] Spider Cache Miss/Force Refresh. LLM run para: ${leadId}`);
+            console.log(`[AIController] Spider Cache Miss/Force Refresh. LLM run para: ${leadId} en modo ${region}`);
 
-            // 2. Capa Neuronal (LLM Persona)
-            const marioResponse = await AIService.chatWithSpiderContext(spiderVerdict);
+            // 2. Capa Neuronal (LLM Persona) con perfil lingüístico inyectado
+            const marioResponse = await AIService.chatWithSpiderContext(spiderVerdict, region);
 
             // Persist the strategic tactical response and memory for future ML loops
             lead.spider_memory = {
@@ -209,7 +235,8 @@ class AIController {
 
             return res.status(200).json({
                 spider_verdict: spiderVerdict,
-                mario_strategy: marioResponse
+                mario_strategy: marioResponse,
+                detected_region: region
             });
 
         } catch (error) {

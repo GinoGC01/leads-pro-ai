@@ -21,7 +21,9 @@ El proyecto está dividido en un stack MERN moderno:
 **Propósito:** Extraer la radiografía técnica y comercial del prospecto antes de emitir cualquier palabra.
 
 **Flujo de Funciones:**
-1. **Adquisición:** Consume la Nueva Google Places API V1 (`X-Goog-FieldMask`) enfocándose estricamente en números nacionales y URIs de sitios web. Pasa por un filtro de higiene (si no tiene ni web ni teléfono, el lead se descarta para no ensuciar la base).
+1. **Adquisición a Costo Cero (API V1):** Consume la Nueva Google Places API V1 (`POST /v1/places:searchText`) con un `X-Goog-FieldMask` restrictivo anclado al SKU "Basic Data" ($0.00). Extrae masivamente números nacionales y URIs de sitios web **sin caer en el problema de N+1 peticiones**.
+   - **Zombie Filter Nativo:** Filtra en el mismo bucle de ingesta usando `places.businessStatus === 'OPERATIONAL'`, descartando negocios inactivos.
+   - **Cuarentena Automática:** Si el negocio no tiene web ni teléfono, el lead se clasifica bajo el estado de "En Espera" para no ensuciar la base de operaciones principal.
 2. **Raspado Profundo (Firecrawl):** Si el prospecto tiene un sitio web, VORTEX envía un worker en segundo plano que extrae el contenido semántico en formato Markdown para entender a qué se dedica realmente la empresa.
 3. **Métricas Heurísticas (Lighthouse):** Analiza la velocidad (Core Web Vitals: LCP, TTFB), la salud del SEO (H1, Meta Titles) y la pila tecnológica subyacente (Wappalyzer: WordPress, React, Meta Pixels).
 

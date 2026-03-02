@@ -24,7 +24,9 @@ class SettingsController {
 
             res.status(200).json({
                 success: true,
-                context: settings.agencyContext
+                context: settings.agencyContext,
+                senderName: settings.senderName,
+                agencyName: settings.agencyName
             });
         } catch (error) {
             console.error('[SettingsController] Error fetching agency context:', error);
@@ -37,15 +39,24 @@ class SettingsController {
      */
     static async updateAgencyContext(req, res) {
         try {
-            const { context } = req.body;
+            const { context, senderName, agencyName } = req.body;
             if (typeof context !== 'string') {
                 return res.status(400).json({ success: false, message: 'El contexto debe ser un texto válido.' });
             }
 
+            // Exctract fallback variables just in case
+            const finalSender = senderName || 'Gino';
+            const finalAgency = agencyName || 'Mariosweb';
+
             // Upsert the singleton record
             const settings = await Settings.findOneAndUpdate(
                 { isSingleton: true },
-                { agencyContext: context, updatedAt: Date.now() },
+                {
+                    agencyContext: context,
+                    senderName: finalSender,
+                    agencyName: finalAgency,
+                    updatedAt: Date.now()
+                },
                 { new: true, upsert: true }
             );
 
@@ -58,7 +69,9 @@ class SettingsController {
 
             res.status(200).json({
                 success: true,
-                context: settings.agencyContext
+                context: settings.agencyContext,
+                senderName: settings.senderName,
+                agencyName: settings.agencyName
             });
         } catch (error) {
             console.error('[SettingsController] Error updating agency context:', error);
