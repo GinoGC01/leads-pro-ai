@@ -313,7 +313,7 @@ const DataIntelligencePanel = () => {
                                             </h3>
                                         </div>
                                         <div className="h-64 w-full">
-                                            <ResponsiveContainer width="100%" height="100%">
+                                            <ResponsiveContainer width="100%" height={256}>
                                                 <BarChart data={usage.dailyBreakdown.slice(-14)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0a" vertical={false} />
                                                     <XAxis dataKey="date" tickFormatter={(v) => v.slice(8) + ' ' + usage.month.slice(5, 7)} stroke="#666" fontSize={10} tickLine={false} axisLine={false} dy={10} />
@@ -338,7 +338,7 @@ const DataIntelligencePanel = () => {
                                                 Volumen de Búsquedas (Google)
                                             </h3>
                                             <div className="h-40 w-full">
-                                                <ResponsiveContainer width="100%" height="100%">
+                                                <ResponsiveContainer width="100%" height={160}>
                                                     <AreaChart data={usage.dailyBreakdown.slice(-14)}>
                                                         <defs>
                                                             <linearGradient id="colorGoogle" x1="0" y1="0" x2="0" y2="1">
@@ -361,7 +361,7 @@ const DataIntelligencePanel = () => {
                                                 Invocaciones IA (OpenAI)
                                             </h3>
                                             <div className="h-40 w-full">
-                                                <ResponsiveContainer width="100%" height="100%">
+                                                <ResponsiveContainer width="100%" height={160}>
                                                     <AreaChart data={usage.dailyBreakdown.slice(-14)}>
                                                         <defs>
                                                             <linearGradient id="colorOpenAI" x1="0" y1="0" x2="0" y2="1">

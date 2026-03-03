@@ -294,6 +294,14 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                             AlertService.errorUpdate(vortexToastIdRef.current, 'Vortex Audit falló o fue bloqueado.');
                             vortexToastIdRef.current = null;
                         }
+                    } else if (data.status === 'skipped_rented_land') {
+                        setLead(prev => ({ ...prev, enrichmentStatus: 'skipped_rented_land' }));
+                        clearInterval(interval);
+
+                        if (vortexToastIdRef.current) {
+                            AlertService.errorUpdate(vortexToastIdRef.current, 'Auditoría omitida (Tierra Alquilada).');
+                            vortexToastIdRef.current = null;
+                        }
                     }
                 } catch (err) {
                     console.error("Polling error:", err);
@@ -350,6 +358,7 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
     const isProcessing = lead.enrichmentStatus === 'pending';
     const isCompleted = lead.enrichmentStatus === 'completed';
     const isFailed = lead.enrichmentStatus === 'failed';
+    const isSkippedRentedLand = lead.enrichmentStatus === 'skipped_rented_land';
 
     const renderInteligencia = () => {
         const sharedHeader = (
@@ -404,6 +413,34 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
             );
         }
 
+        if (isSkippedRentedLand) {
+            return (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    {sharedHeader}
+                    <div className="rounded-2xl p-6 border bg-[#151720] border-yellow-500/20 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full blur-[40px] pointer-events-none"></div>
+                        <div className="flex items-center gap-3 mb-6 relative z-10">
+                            <div className="p-2 rounded-xl border bg-yellow-500/20 border-yellow-500/30 text-yellow-500">
+                                <AlertTriangle className="w-5 h-5" />
+                            </div>
+                            <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Tierra Alquilada (Skipped)</h3>
+                        </div>
+                        <div className="space-y-4 mb-2 relative z-10">
+                            <div className="p-3 bg-yellow-500/5 border border-yellow-500/20 rounded-xl text-yellow-400 text-xs flex gap-3 items-start shadow-sm backdrop-blur-sm">
+                                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-yellow-500" />
+                                <div>
+                                    <p className="font-bold text-yellow-500 mb-1 text-[11px] uppercase tracking-widest">Auditoría Omitida</p>
+                                    <p className="text-yellow-400/80 leading-relaxed font-medium text-[11px]">
+                                        El prospecto depende de plataformas de "tierra alquilada" (Instagram, Linktree) y carece de infraestructura propia evaluable.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
         if (!isCompleted) {
             return (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -422,7 +459,7 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                             <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Vortex Audit</h3>
                         </div>
 
-                        {(isFailed || lead.enrichmentStatus === 'unprocessed') && (
+                        {(isFailed || !lead.enrichmentStatus || lead.enrichmentStatus === 'unprocessed') && (
                             <div className="space-y-4 mb-2 relative z-10">
                                 {isFailed && (
                                     <div className="p-3 bg-red-500/5 border border-red-500/20 rounded-xl text-red-400 text-xs flex gap-3 items-start shadow-sm backdrop-blur-sm">

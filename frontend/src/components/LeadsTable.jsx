@@ -353,6 +353,11 @@ const LeadsTable = ({ leads, onRowClick, onStatusChange }) => {
                                                     Vortex
                                                 </span>
                                             )}
+                                            {lead.enrichmentStatus === 'skipped_rented_land' && (
+                                                <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 text-[9px] font-bold rounded uppercase flex items-center">
+                                                    Skipped 
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="text-sm text-slate-500 mt-0.5">{lead.address}</div>
                                         {lead.email && <div className="text-xs text-accent-blue font-medium mt-1 uppercase tracking-wider">{lead.email}</div>}

@@ -69,7 +69,7 @@ const Charts = ({ stats }) => {
                 </div>
 
                 <div className="flex-1 w-full relative z-10 h-[220px]">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height={220}>
                         <BarChart data={chartData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0a" vertical={false} />
                             <XAxis dataKey="month" stroke="#666" fontSize={10} tickLine={false} axisLine={false} dy={5} />

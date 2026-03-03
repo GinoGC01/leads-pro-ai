@@ -26,7 +26,7 @@ const LeadSchema = new mongoose.Schema({
     },
     enrichmentStatus: {
         type: String,
-        enum: ['unprocessed', 'pending', 'completed', 'failed', 'not_found'],
+        enum: ['unprocessed', 'pending', 'completed', 'failed', 'not_found', 'skipped_rented_land'],
         default: 'unprocessed'
     },
     enrichmentError: {
