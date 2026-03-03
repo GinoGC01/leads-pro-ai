@@ -53,6 +53,32 @@ const SearchHistorySchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    searchMode: {
+        type: String,
+        enum: ['single', 'grid'],
+        default: 'single'
+    },
+    gridCellsCompleted: {
+        type: Number,
+        default: 0
+    },
+    gridCellsTotal: {
+        type: Number,
+        default: 1
+    },
+    gridSize: {
+        type: Number,
+        default: 0 // 3 for 3x3, 5 for 5x5, etc.
+    },
+    campaignStatus: {
+        type: String,
+        enum: ['nueva', 'en_proceso', 'en_seguimiento', 'completada', 'archivada'],
+        default: 'nueva'
+    },
+    campaignVolume: {
+        type: Number,
+        default: 1
+    },
     createdAt: {
         type: Date,
         default: Date.now

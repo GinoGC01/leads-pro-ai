@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
 
-const Tooltip = ({ text, children, position = 'left' }) => {
+const Tooltip = ({ text, children, position = 'left', className = "flex items-center", disabled = false }) => {
     const [isVisible, setIsVisible] = useState(false);
     const timeoutRef = useRef(null);
 
     const handleMouseEnter = () => {
+        if (disabled) return;
         timeoutRef.current = setTimeout(() => {
             setIsVisible(true);
         }, 200);
@@ -25,10 +26,10 @@ const Tooltip = ({ text, children, position = 'left' }) => {
     };
 
     return (
-        <div className="relative flex items-center group/tooltip" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+        <div className={`relative group/tooltip ${className}`} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
             {children}
             {isVisible && (
-                <div className={`absolute z-[100] px-3 py-2 bg-slate-950 text-white text-[10px] font-bold rounded-xl shadow-2xl border border-white/10 w-max max-w-[180px] break-words leading-relaxed animate-in fade-in zoom-in duration-200 ${positionClasses[position]}`}>
+                <div className={`absolute z-[100] px-3 py-2 bg-slate-950 text-white text-[10px] font-bold rounded-xl shadow-2xl border border-white/10 w-max max-w-[240px] break-words leading-relaxed animate-in fade-in zoom-in duration-200 ${positionClasses[position]}`}>
                     {text}
                     {/* Arrow (Hidden on very small tooltips to avoid misalignment) */}
                     <div className="absolute w-1.5 h-1.5 bg-slate-950 border-r border-b border-white/10 rotate-45 hidden group-hover/tooltip:block"

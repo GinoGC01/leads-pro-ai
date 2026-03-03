@@ -91,9 +91,48 @@ const ActionCard = ({ title, textContent, whatsAppText, icon, colorClass, lead }
     );
 };
 
+const RotatingLoader = () => {
+    const steps = [
+        "Inicializando Araña...",
+        "Resolviendo DNS y escaneando red...",
+        "Bypass de Firewalls (WAF)...",
+        "Descargando código fuente HTML...",
+        "Buscando píxeles y analíticas...",
+        "Extrayendo emails y teléfonos ocultos...",
+        "Perforando estructura SEO...",
+        "Generando Radiografía SPIDER..."
+    ];
+    const [index, setIndex] = React.useState(0);
+
+    React.useEffect(() => {
+        const interval = setInterval(() => {
+            setIndex((prev) => (prev + 1 < steps.length ? prev + 1 : prev));
+        }, 2500);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <div className="space-y-4 py-8 text-center relative z-10 animate-in fade-in duration-300">
+            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mx-auto" />
+            <div className="h-6 relative overflow-hidden flex items-center justify-center mt-2">
+                <p key={index} className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.25em] animate-in slide-in-from-bottom-2 fade-in duration-300 absolute">
+                    {steps[index]}
+                </p>
+            </div>
+            <div className="w-48 h-1 bg-indigo-500/10 mx-auto rounded-full overflow-hidden mt-6">
+                <div
+                    className="h-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)] transition-all duration-500 ease-out"
+                    style={{ width: `${((index + 1) / steps.length) * 100}%` }}
+                />
+            </div>
+        </div>
+    );
+};
+
 const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
     const [lead, setLead] = useState(initialLead);
     const [activeTab, setActiveTab] = useState('inteligencia');
+    const [isSpiderHelpActive, setIsSpiderHelpActive] = useState(false);
     const [isActivating, setIsActivating] = useState(false);
     const [error, setError] = useState(null);
     const [aiResponse, setAiResponse] = useState(lead.tactical_response || '');
@@ -313,31 +352,35 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
     const isFailed = lead.enrichmentStatus === 'failed';
 
     const renderInteligencia = () => {
+        const sharedHeader = (
+            <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-app-card p-4 rounded-xl border border-white/5 relative overflow-hidden group">
+                    <div className="absolute top-0 inset-x-0 h-[40%] bg-pastel-orange/20 transition-colors group-hover:bg-pastel-orange/30"></div>
+                    <div className="relative z-10 pt-4">
+                        <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Rating Maps</p>
+                        <div className="flex items-center gap-1">
+                            <span className="text-2xl font-bold text-white tracking-tight">{lead.rating || 'N/A'}</span>
+                            <Star className="w-4 h-4 text-pastel-orange fill-pastel-orange" />
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-app-card p-4 rounded-xl border border-white/5 relative overflow-hidden group">
+                    <div className="absolute top-0 inset-x-0 h-[40%] bg-pastel-blue/20 transition-colors group-hover:bg-pastel-blue/30"></div>
+                    <div className="relative z-10 pt-4">
+                        <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Reseñas Totales</p>
+                        <p className="text-2xl font-bold text-white tracking-tight">{lead.userRatingsTotal || 0}</p>
+                    </div>
+                </div>
+            </div>
+        );
+
         if (!lead.website) {
             return (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    {sharedHeader}
+
                     <div className="bg-slate-100 p-4 rounded-xl border border-slate-200 text-center">
                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sin Presencia Web Detectada</span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-app-card p-4 rounded-xl border border-white/5 relative overflow-hidden group">
-                            <div className="absolute top-0 inset-x-0 h-[40%] bg-pastel-orange/20 transition-colors group-hover:bg-pastel-orange/30"></div>
-                            <div className="relative z-10 pt-4">
-                                <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Rating Maps</p>
-                                <div className="flex items-center gap-1">
-                                    <span className="text-2xl font-bold text-white tracking-tight">{lead.rating || 'N/A'}</span>
-                                    <Star className="w-4 h-4 text-pastel-orange fill-pastel-orange" />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="bg-app-card p-4 rounded-xl border border-white/5 relative overflow-hidden group">
-                            <div className="absolute top-0 inset-x-0 h-[40%] bg-pastel-blue/20 transition-colors group-hover:bg-pastel-blue/30"></div>
-                            <div className="relative z-10 pt-4">
-                                <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Reseñas Totales</p>
-                                <p className="text-2xl font-bold text-white tracking-tight">{lead.userRatingsTotal || 0}</p>
-                            </div>
-                        </div>
                     </div>
 
                     <div className="space-y-3 bg-app-card p-5 rounded-2xl border border-white/5 mt-6">
@@ -363,182 +406,276 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
 
         if (!isCompleted) {
             return (
-                <div className={`rounded-2xl p-6 border transition-all duration-500 relative overflow-hidden ${isProcessing ? 'bg-indigo-900/10 border-indigo-500/20' : isFailed ? 'bg-red-900/10 border-red-500/20' : 'bg-[#151720] border-white/5'}`}>
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    {sharedHeader}
+                    <div className={`rounded-2xl p-6 border transition-all duration-500 relative overflow-hidden ${isProcessing ? 'bg-indigo-900/10 border-indigo-500/20' : isFailed ? 'bg-red-900/10 border-red-500/20' : 'bg-[#151720] border-white/5'}`}>
 
-                    {/* Background glow effects */}
-                    {isProcessing && <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-[40px] pointer-events-none"></div>}
-                    {isFailed && <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-[40px] pointer-events-none"></div>}
-                    {!isProcessing && !isFailed && <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[40px] pointer-events-none"></div>}
+                        {/* Background glow effects */}
+                        {isProcessing && <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-[40px] pointer-events-none"></div>}
+                        {isFailed && <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-[40px] pointer-events-none"></div>}
+                        {!isProcessing && !isFailed && <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[40px] pointer-events-none"></div>}
 
-                    <div className="flex items-center gap-3 mb-6 relative z-10">
-                        <div className={`p-2 rounded-xl border ${isProcessing ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400 animate-pulse' : isFailed ? 'bg-red-500/20 border-red-500/30 text-red-500' : 'bg-white/5 border-white/10 text-slate-300'}`}>
-                            <Activity className="w-5 h-5" />
+                        <div className="flex items-center gap-3 mb-6 relative z-10">
+                            <div className={`p-2 rounded-xl border ${isProcessing ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400 animate-pulse' : isFailed ? 'bg-red-500/20 border-red-500/30 text-red-500' : 'bg-white/5 border-white/10 text-slate-300'}`}>
+                                <Activity className="w-5 h-5" />
+                            </div>
+                            <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Vortex Audit</h3>
                         </div>
-                        <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Vortex Audit</h3>
-                    </div>
 
-                    {(isFailed || lead.enrichmentStatus === 'unprocessed') && (
-                        <div className="space-y-4 mb-2 relative z-10">
-                            {isFailed && (
-                                <div className="p-3 bg-red-500/5 border border-red-500/20 rounded-xl text-red-400 text-xs flex gap-3 items-start shadow-sm backdrop-blur-sm">
-                                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-500" />
-                                    <div>
-                                        <p className="font-bold text-red-500 mb-1 text-[11px] uppercase tracking-widest">Fallo de Análisis Web</p>
-                                        <p className="text-red-400/80 leading-relaxed font-medium text-[11px]">{getFriendlyErrorMessage(lead.enrichmentError)}</p>
+                        {(isFailed || lead.enrichmentStatus === 'unprocessed') && (
+                            <div className="space-y-4 mb-2 relative z-10">
+                                {isFailed && (
+                                    <div className="p-3 bg-red-500/5 border border-red-500/20 rounded-xl text-red-400 text-xs flex gap-3 items-start shadow-sm backdrop-blur-sm">
+                                        <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-500" />
+                                        <div>
+                                            <p className="font-bold text-red-500 mb-1 text-[11px] uppercase tracking-widest">Fallo de Análisis Web</p>
+                                            <p className="text-red-400/80 leading-relaxed font-medium text-[11px]">{getFriendlyErrorMessage(lead.enrichmentError)}</p>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                            <button
-                                onClick={handleActivateVortex}
-                                disabled={isActivating}
-                                className="w-full py-4 bg-white/5 text-white border border-white/10 hover:bg-white/10 hover:border-white/20 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all flex justify-center items-center shadow-lg active:scale-[0.98] group"
-                            >
-                                {isActivating ? <Loader2 className="w-4 h-4 animate-spin mx-auto text-accent-blue" /> :
-                                    <span className="flex items-center gap-2">Run Technical Audit <Activity className="w-3 h-3 text-slate-400 group-hover:text-accent-blue transition-colors" /></span>}
-                            </button>
-                        </div>
-                    )}
-                    {isProcessing && (
-                        <div className="space-y-4 py-8 text-center relative z-10">
-                            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mx-auto" />
-                            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.25em]">Escaneando Infraestructura...</p>
-                        </div>
-                    )}
+                                )}
+                                <button
+                                    onClick={handleActivateVortex}
+                                    disabled={isActivating}
+                                    className="w-full py-4 bg-white/5 text-white border border-white/10 hover:bg-white/10 hover:border-white/20 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all flex justify-center items-center shadow-lg active:scale-[0.98] group"
+                                >
+                                    {isActivating ? <Loader2 className="w-4 h-4 animate-spin mx-auto text-accent-blue" /> :
+                                        <span className="flex items-center gap-2">Run Technical Audit <Activity className="w-3 h-3 text-slate-400 group-hover:text-accent-blue transition-colors" /></span>}
+                                </button>
+                            </div>
+                        )}
+                        {isProcessing && (
+                            <RotatingLoader />
+                        )}
+                    </div>
                 </div>
             );
         }
 
         return (
             <div className="space-y-6 animate-in fade-in duration-300">
+                {sharedHeader}
+
+                <div className="flex items-center justify-between mt-4 mb-2">
+                    <h3 className="text-[12px] font-black tracking-widest text-white uppercase flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-accent-blue" />
+                        Radiografía SPIDER
+                    </h3>
+                    <button
+                        onClick={() => setIsSpiderHelpActive(!isSpiderHelpActive)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-bold transition-all ${isSpiderHelpActive
+                            ? 'bg-accent-blue/20 text-accent-blue border-accent-blue/50 shadow-[0_0_15px_rgba(56,189,248,0.3)]'
+                            : 'bg-white/5 text-slate-500 border-white/10 hover:border-white/20 hover:text-slate-400'
+                            }`}
+                    >
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        {isSpiderHelpActive ? 'Ayuda Activada' : 'Activar Ayuda'}
+                    </button>
+                </div>
+
                 {/* ---------- Tarjeta 1: Core Web Vitals (Rendimiento) ---------- */}
-                <div className="bg-app-card rounded-2xl border border-white/5 overflow-hidden">
-                    <div className="p-4 border-b border-white/5 bg-slate-900/50 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Zap className="w-4 h-4 text-amber-400" />
-                            <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Rendimiento (Lighthouse)</h4>
-                        </div>
-                        {/* Indicador General (Mini Dona Lógica) */}
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">Score:</span>
-                            <span className={`px-2 py-0.5 rounded textxs font-black
+                <Tooltip
+                    className="block w-full"
+                    position="top"
+                    disabled={!isSpiderHelpActive}
+                    text="Mide la velocidad real. Un sitio lento (LCP > 2.5s) o con mala respuesta (TTFB) frustra a los clientes y penaliza en Google. Ángulo: 'Tu página tarda tanto en abrir que los clientes se van a la competencia'."
+                >
+                    <div className="bg-app-card rounded-2xl border border-white/5 overflow-hidden">
+                        <div className="p-4 border-b border-white/5 bg-slate-900/50 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Zap className="w-4 h-4 text-amber-400" />
+                                <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Rendimiento (Lighthouse)</h4>
+                            </div>
+                            {/* Indicador General (Mini Dona Lógica) */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase">Score:</span>
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-black
                                 ${(!lead.performance_metrics?.performanceScore) ? 'bg-slate-800 text-slate-500' :
-                                    lead.performance_metrics.performanceScore >= 80 ? 'bg-emerald-500/20 text-emerald-400' :
-                                        lead.performance_metrics.performanceScore >= 50 ? 'bg-amber-500/20 text-amber-400' :
-                                            'bg-red-500/20 text-red-500'
-                                }
+                                        lead.performance_metrics.performanceScore >= 80 ? 'bg-emerald-500/20 text-emerald-400' :
+                                            lead.performance_metrics.performanceScore >= 50 ? 'bg-amber-500/20 text-amber-400' :
+                                                'bg-red-500/20 text-red-500'
+                                    }
                             `}>
-                                {typeof lead.performance_metrics?.performanceScore === 'number' ? lead.performance_metrics.performanceScore.toFixed(2) : (lead.performance_metrics?.performanceScore ?? 'N/A')}
-                            </span>
+                                    {typeof lead.performance_metrics?.performanceScore === 'number' ? lead.performance_metrics.performanceScore.toFixed(2) : (lead.performance_metrics?.performanceScore ?? 'N/A')}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="p-4 grid grid-cols-2 gap-4 bg-[#0B0B0C]">
+                            {/* LCP Metric */}
+                            <div className="space-y-1">
+                                <p className="text-[9px] font-black text-slate-500 uppercase">Largest Contentful Paint</p>
+                                <div className="flex items-end gap-2">
+                                    <p className="text-xl font-mono font-bold text-slate-200">
+                                        {lead.performance_metrics?.lcp || '---'}
+                                    </p>
+                                    {lead.performance_metrics?.lcp && parseFloat(lead.performance_metrics.lcp) > 2.5 && (
+                                        <span className="text-[9px] font-bold text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded uppercase mb-1">Lento</span>
+                                    )}
+                                </div>
+                            </div>
+                            {/* TTFB Metric */}
+                            <div className="space-y-1 p-4 bg-slate-900/40 rounded-xl border border-white/5">
+                                <p className="text-[9px] font-black text-slate-500 uppercase">Time To First Byte</p>
+                                <p className="text-xl font-mono font-bold text-slate-200">
+                                    {lead.performance_metrics?.ttfb !== undefined ? `${lead.performance_metrics.ttfb} ms` : '---'}
+                                </p>
+                            </div>
                         </div>
                     </div>
+                </Tooltip>
 
-                    <div className="p-4 grid grid-cols-2 gap-4 bg-[#0B0B0C]">
-                        {/* LCP Metric */}
-                        <div className="space-y-1">
-                            <p className="text-[9px] font-black text-slate-500 uppercase">Largest Contentful Paint</p>
-                            <div className="flex items-end gap-2">
-                                <p className="text-xl font-mono font-bold text-slate-200">
-                                    {lead.performance_metrics?.lcp || '---'}
-                                </p>
-                                {lead.performance_metrics?.lcp && parseFloat(lead.performance_metrics.lcp) > 2.5 && (
-                                    <span className="text-[9px] font-bold text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded uppercase mb-1">Lento</span>
+                {/* ---------- Tarjeta 2: Salud SEO (Estructura) ---------- */}
+                <Tooltip
+                    className="block w-full"
+                    position="top"
+                    disabled={!isSpiderHelpActive}
+                    text="Verifica la estructura orgánica. Si omiten la Etiqueta Title o Meta Description, Google no los mostrará correctamente en búsquedas. Ángulo: 'La gente busca tu servicio, pero Google está escondiendo tu página porque internamente está incompleta'."
+                >
+                    <div className="bg-app-card rounded-2xl border border-white/5 overflow-hidden">
+                        <div className="p-4 border-b border-white/5 bg-slate-900/50 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Globe className="w-4 h-4 text-emerald-400" />
+                                <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Estructura SEO</h4>
+                            </div>
+                        </div>
+
+                        <div className="p-4 space-y-3 bg-[#0B0B0C]">
+                            {/* H1 Check */}
+                            <div className="flex items-start justify-between p-3 rounded-lg border border-white/5 bg-white/5">
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-bold text-slate-300">Etiquetas H1</p>
+                                    <p className={`text-[9px] italic ${!lead.seo_audit?.h1Count ? 'text-red-400' : 'text-slate-500'}`}>
+                                        {!lead.seo_audit?.h1Count ? 'Falta H1 (Penalización severa en Google)' : `${lead.seo_audit.h1Count} Encontrados`}
+                                    </p>
+                                </div>
+                                {lead.seo_audit?.h1Count ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <X className="w-4 h-4 text-red-500" />}
+                            </div>
+
+                            {/* Meta Description Check */}
+                            <div className="flex items-start justify-between p-3 rounded-lg border border-white/5 bg-white/5">
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-bold text-slate-300">Meta Descripción</p>
+                                    <p className={`text-[9px] italic ${!lead.seo_audit?.hasMetaDescription ? 'text-amber-400' : 'text-slate-500'}`}>
+                                        {!lead.seo_audit?.hasMetaDescription ? 'Sin descripción configurada para resultados de búsqueda.' : 'Configurada correctamente'}
+                                    </p>
+                                </div>
+                                {lead.seo_audit?.hasMetaDescription ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <AlertCircle className="w-4 h-4 text-amber-500" />}
+                            </div>
+
+                            {/* Title Check */}
+                            <div className="flex items-start justify-between p-3 rounded-lg border border-white/5 bg-white/5">
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-bold text-slate-300">Etiqueta Title</p>
+                                    <p className="text-[9px] text-slate-500 max-w-[200px] truncate" title={lead.seo_audit?.titleText}>
+                                        {lead.seo_audit?.hasTitle ? lead.seo_audit.titleText : 'No posee título estructurado'}
+                                    </p>
+                                </div>
+                                {lead.seo_audit?.hasTitle ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <X className="w-4 h-4 text-red-500" />}
+                            </div>
+                        </div>
+                    </div>
+                </Tooltip>
+
+                {/* ---------- Tarjeta 3: Tech Stack (Wappalyzer Clásico) ---------- */}
+                <Tooltip
+                    className="block w-full"
+                    position="top"
+                    disabled={!isSpiderHelpActive}
+                    text="Detecta la tecnología subyacente. Usar CMS anticuados revela abandono digital, y no poseer píxeles de Analytics significa que giran a ciegas sin medir conversiones. Ángulo: 'Tu infraestructura luce vieja y no estás midiendo si la inversión en anuncios te da retorno'."
+                >
+                    <div className="bg-app-card rounded-2xl border border-white/5 overflow-hidden">
+                        <div className="p-4 border-b border-white/5 bg-slate-900/50 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Server className="w-4 h-4 text-indigo-400" />
+                                <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Tecnologías Base</h4>
+                            </div>
+                        </div>
+
+                        <div className="p-5 bg-[#0B0B0C]">
+                            {lead.tech_stack && lead.tech_stack.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {lead.tech_stack.map(tech => (
+                                        <span key={tech} className="px-2.5 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-black rounded-lg border border-indigo-500/20 uppercase shadow-sm">
+                                            {tech}
+                                        </span>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center py-4 text-center space-y-2">
+                                    <div className="p-2 bg-slate-800 rounded-full">
+                                        <AlertCircle className="w-4 h-4 text-slate-500" />
+                                    </div>
+                                    <p className="text-xs font-bold text-slate-400">Tecnología Oculta / No Detectada</p>
+                                    <p className="text-[10px] text-slate-500">El sitio no expone librerías conocidas públicamente.</p>
+                                </div>
+                            )}
+
+                            {/* Advertencias Heurísticas (Ej: Ads / Pixeles) */}
+                            {lead.tech_stack && !lead.tech_stack.some(t => t.toLowerCase().includes('analytics') || t.toLowerCase().includes('tag')) && (
+                                <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2">
+                                    <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+                                    <p className="text-[10px] text-amber-400/90 leading-relaxed font-medium">
+                                        <span className="font-bold text-amber-500">Oportunidad Ads:</span> No se detectaron píxeles analíticos (Google/Meta). Pobre medición de tráfico evidenciada.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </Tooltip>
+
+                {/* ---------- Contactos Extraídos ---------- */}
+                {lead.extracted_contacts && (lead.extracted_contacts.emails?.length > 0 || lead.extracted_contacts.phones?.length > 0 || lead.extracted_contacts.social_links?.length > 0) && (
+                    <Tooltip
+                        className="block w-full"
+                        position="top"
+                        disabled={!isSpiderHelpActive}
+                        text="Contactos capturados automáticamente del código fuente. Útil para evitar el filtro de recepción y apuntar a los tomadores de decisión mediante canales directos."
+                    >
+                        <div className="border border-white/5 rounded-2xl overflow-hidden">
+                            <div className="px-5 py-3 bg-emerald-500/5 border-b border-white/5">
+                                <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Contactos Extraídos del Sitio Web</h4>
+                            </div>
+                            <div className="p-5 bg-[#0B0B0C] space-y-3">
+                                {lead.extracted_contacts.emails?.length > 0 && (
+                                    <div>
+                                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Emails</span>
+                                        <div className="flex flex-wrap gap-1.5 mt-1">
+                                            {lead.extracted_contacts.emails.map((email, i) => (
+                                                <a key={i} href={`mailto:${email}`} className="px-2.5 py-1 bg-blue-500/10 text-blue-400 text-[10px] font-bold rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-colors">
+                                                    {email}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {lead.extracted_contacts.phones?.length > 0 && (
+                                    <div>
+                                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Teléfonos</span>
+                                        <div className="flex flex-wrap gap-1.5 mt-1">
+                                            {lead.extracted_contacts.phones.map((phone, i) => (
+                                                <a key={i} href={`tel:${phone}`} className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded-lg border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
+                                                    {phone}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {lead.extracted_contacts.social_links?.length > 0 && (
+                                    <div>
+                                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Redes Sociales</span>
+                                        <div className="flex flex-wrap gap-1.5 mt-1">
+                                            {lead.extracted_contacts.social_links.map((social, i) => (
+                                                <a key={i} href={social.url} target="_blank" rel="noreferrer" className="px-2.5 py-1 bg-purple-500/10 text-purple-400 text-[10px] font-bold rounded-lg border border-purple-500/20 hover:bg-purple-500/20 transition-colors capitalize">
+                                                    {social.platform}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         </div>
-                        {/* TTFB Metric */}
-                        <div className="space-y-1 p-4 bg-slate-900/40 rounded-xl border border-white/5">
-                            <p className="text-[9px] font-black text-slate-500 uppercase">Time To First Byte</p>
-                            <p className="text-xl font-mono font-bold text-slate-200">
-                                {lead.performance_metrics?.ttfb !== undefined ? `${lead.performance_metrics.ttfb} ms` : '---'}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ---------- Tarjeta 2: Salud SEO (Estructura) ---------- */}
-                <div className="bg-app-card rounded-2xl border border-white/5 overflow-hidden">
-                    <div className="p-4 border-b border-white/5 bg-slate-900/50 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Globe className="w-4 h-4 text-emerald-400" />
-                            <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Estructura SEO</h4>
-                        </div>
-                    </div>
-
-                    <div className="p-4 space-y-3 bg-[#0B0B0C]">
-                        {/* H1 Check */}
-                        <div className="flex items-start justify-between p-3 rounded-lg border border-white/5 bg-white/5">
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-bold text-slate-300">Etiquetas H1</p>
-                                <p className={`text-[9px] italic ${!lead.seo_audit?.h1Count ? 'text-red-400' : 'text-slate-500'}`}>
-                                    {!lead.seo_audit?.h1Count ? 'Falta H1 (Penalización severa en Google)' : `${lead.seo_audit.h1Count} Encontrados`}
-                                </p>
-                            </div>
-                            {lead.seo_audit?.h1Count ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <X className="w-4 h-4 text-red-500" />}
-                        </div>
-
-                        {/* Meta Description Check */}
-                        <div className="flex items-start justify-between p-3 rounded-lg border border-white/5 bg-white/5">
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-bold text-slate-300">Meta Descripción</p>
-                                <p className={`text-[9px] italic ${!lead.seo_audit?.hasMetaDescription ? 'text-amber-400' : 'text-slate-500'}`}>
-                                    {!lead.seo_audit?.hasMetaDescription ? 'Sin descripción configurada para resultados de búsqueda.' : 'Configurada correctamente'}
-                                </p>
-                            </div>
-                            {lead.seo_audit?.hasMetaDescription ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <AlertCircle className="w-4 h-4 text-amber-500" />}
-                        </div>
-
-                        {/* Title Check */}
-                        <div className="flex items-start justify-between p-3 rounded-lg border border-white/5 bg-white/5">
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-bold text-slate-300">Etiqueta Title</p>
-                                <p className="text-[9px] text-slate-500 max-w-[200px] truncate" title={lead.seo_audit?.titleText}>
-                                    {lead.seo_audit?.hasTitle ? lead.seo_audit.titleText : 'No posee título estructurado'}
-                                </p>
-                            </div>
-                            {lead.seo_audit?.hasTitle ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <X className="w-4 h-4 text-red-500" />}
-                        </div>
-                    </div>
-                </div>
-
-                {/* ---------- Tarjeta 3: Tech Stack (Wappalyzer Clásico) ---------- */}
-                <div className="bg-app-card rounded-2xl border border-white/5 overflow-hidden">
-                    <div className="p-4 border-b border-white/5 bg-slate-900/50 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Server className="w-4 h-4 text-indigo-400" />
-                            <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Tecnologías Base</h4>
-                        </div>
-                    </div>
-
-                    <div className="p-5 bg-[#0B0B0C]">
-                        {lead.tech_stack && lead.tech_stack.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
-                                {lead.tech_stack.map(tech => (
-                                    <span key={tech} className="px-2.5 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-black rounded-lg border border-indigo-500/20 uppercase shadow-sm">
-                                        {tech}
-                                    </span>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center py-4 text-center space-y-2">
-                                <div className="p-2 bg-slate-800 rounded-full">
-                                    <AlertCircle className="w-4 h-4 text-slate-500" />
-                                </div>
-                                <p className="text-xs font-bold text-slate-400">Tecnología Oculta / No Detectada</p>
-                                <p className="text-[10px] text-slate-500">El sitio no expone librerías conocidas públicamente.</p>
-                            </div>
-                        )}
-
-                        {/* Advertencias Heurísticas (Ej: Ads / Pixeles) */}
-                        {lead.tech_stack && !lead.tech_stack.some(t => t.toLowerCase().includes('analytics') || t.toLowerCase().includes('tag')) && (
-                            <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2">
-                                <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-                                <p className="text-[10px] text-amber-400/90 leading-relaxed font-medium">
-                                    <span className="font-bold text-amber-500">Oportunidad Ads:</span> No se detectaron píxeles analíticos (Google/Meta). Pobre medición de tráfico evidenciada.
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                    </Tooltip>
+                )}
 
                 {/* ---------- Acordeón JSON Raw (Para Debugeo o Data Cruda) ---------- */}
                 <details className="group cursor-pointer">

@@ -6,9 +6,10 @@ import LeadsTable from './components/LeadsTable';
 import AIChat from './components/AIChat';
 import LeadDetailsPanel from './components/LeadDetailsPanel';
 import DataIntelligence from './components/DataIntelligence';
+import ManualLeadModal from './components/ManualLeadModal';
 import { getHistoryItem, getLeadsBySearch, getGlobalStats, exportUrl } from './services/api';
 import AlertService from './services/AlertService';
-import { Download, Database, Star, Phone, Search, BarChart3, X as CloseIcon, Bell, Settings, MapPin, Globe, ChevronRight, FileJson, FileText, FileSpreadsheet } from 'lucide-react';
+import { Download, Database, Star, Phone, Search, BarChart3, X as CloseIcon, Bell, Settings, MapPin, Globe, ChevronRight, FileJson, FileText, FileSpreadsheet, UserPlus } from 'lucide-react';
 import axios from 'axios';
 
 const api = axios.create({
@@ -31,6 +32,7 @@ const Dashboard = () => {
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [selectedLead, setSelectedLead] = useState(null);
     const [campaignMetadata, setCampaignMetadata] = useState(null);
+    const [isManualLeadOpen, setIsManualLeadOpen] = useState(false);
 
     useEffect(() => {
         fetchGlobalStats();
@@ -47,14 +49,6 @@ const Dashboard = () => {
         }
     }, [campaignId]);
 
-    const fetchHistory = async () => {
-        try {
-            const { data } = await getHistory();
-            setHistory(data);
-        } catch (error) {
-            console.error('Error fetching history:', error);
-        }
-    };
 
     const fetchGlobalStats = async () => {
         try {
@@ -68,13 +62,15 @@ const Dashboard = () => {
     const fetchSearchDetails = async (searchId) => {
         setIsLoading(true);
         try {
-            const [historyRes, leadsRes] = await Promise.all([
+            const [historyRes, leadsRes, globalStatsRes] = await Promise.all([
                 getHistoryItem(searchId),
-                getLeadsBySearch(searchId)
+                getLeadsBySearch(searchId),
+                getGlobalStats()
             ]);
 
             const historyItem = historyRes.data;
             const leadsData = leadsRes.data;
+            const fetchedGlobalStats = globalStatsRes.data;
             const pipelineStatus = { new: 0, contacted: 0, in_progress: 0, closed: 0, en_espera: 0, descartados: 0 };
             const monthlyAcquisition = Array(12).fill(0);
             const exactDates = Array(12).fill(null).map(() => []);
@@ -130,7 +126,9 @@ const Dashboard = () => {
                 },
                 charts: {
                     pipelineStatus,
-                    monthlyAcquisition: globalStats?.charts?.monthlyAcquisition || monthlyAcquisition,
+                    monthlyAcquisitionCampaign: monthlyAcquisition,
+                    monthlyAcquisitionGlobal: fetchedGlobalStats?.charts?.monthlyAcquisition || monthlyAcquisition,
+                    isGlobalView: !campaignId,
                     exactDates
                 }
             });
@@ -477,6 +475,13 @@ const Dashboard = () => {
                                             </button>
                                         )}
                                     </div>
+                                    <button
+                                        onClick={() => setIsManualLeadOpen(true)}
+                                        className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-emerald-900/30"
+                                    >
+                                        <UserPlus className="w-4 h-4" />
+                                        Agregar Lead
+                                    </button>
                                 </div>
 
                                 {filteredLeads.length > 0 ? (
@@ -555,6 +560,14 @@ const Dashboard = () => {
                     />
                 )
             }
+            <ManualLeadModal
+                isOpen={isManualLeadOpen}
+                onClose={() => setIsManualLeadOpen(false)}
+                onLeadCreated={(newLead) => {
+                    setLeads(prev => [newLead, ...prev]);
+                    AlertService.success(`Lead "${newLead.name}" agregado a la lista.`);
+                }}
+            />
         </div >
     );
 };

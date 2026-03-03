@@ -1,11 +1,29 @@
 import React from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const Charts = ({ stats }) => {
-    // Math to get percentages for bar chart heights
-    const barData = stats?.charts?.monthlyAcquisition || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    const isGlobal = stats?.charts?.isGlobalView;
+    const barCampaign = stats?.charts?.monthlyAcquisitionCampaign || Array(12).fill(0);
+    const barGlobal = stats?.charts?.monthlyAcquisitionGlobal || Array(12).fill(0);
     const exactDates = stats?.charts?.exactDates || Array(12).fill(null).map(() => []);
-    const maxVal = Math.max(...barData, 1);
-    const barHeights = barData.map(val => (val / maxVal) * 100);
+
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    const chartData = monthNames.map((month, i) => {
+        const campaignLeads = barCampaign[i] || 0;
+        let otherLeads = barGlobal[i] || 0;
+
+        if (!isGlobal) {
+            otherLeads = Math.max(0, otherLeads - campaignLeads);
+        }
+
+        return {
+            month,
+            "Campaña Actual": isGlobal ? 0 : campaignLeads,
+            "Otras Campañas": isGlobal ? (barGlobal[i] || 0) : otherLeads,
+            exactDates: exactDates[i] || []
+        };
+    });
 
     // Math for Donut Chart
     const pipelineData = stats?.charts?.pipelineStatus || { new: 0, contacted: 0, in_progress: 0, closed: 0, en_espera: 0, descartados: 0 };
@@ -39,66 +57,35 @@ const Charts = ({ stats }) => {
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full mb-8">
-            {/* Acquisition Velocity Chart */}
+            {/* Acquisition Velocity Chart (Recharts Stacked Bar) */}
             <div className="bg-app-card rounded-3xl p-8 min-h-[340px] flex flex-col border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors">
-                {/* Background Grid Lines */}
-                <div className="absolute inset-0 pointer-events-none p-8 pt-24 pb-12 flex flex-col justify-between opacity-10">
-                    <div className="w-full h-px bg-white"></div>
-                    <div className="w-full h-px bg-white"></div>
-                    <div className="w-full h-px bg-white"></div>
-                    <div className="w-full h-px bg-white"></div>
-                </div>
-
-                <div className="flex justify-between items-start mb-8 relative z-10">
+                <div className="flex justify-between items-start mb-4 relative z-10 w-full">
                     <div>
                         <h3 className="text-white font-black text-xl flex items-center gap-2 tracking-tight">
                             Acquisition Velocity
                         </h3>
                         <p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest mt-1">Leads captured over time</p>
                     </div>
-                    <div className="bg-white/5 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg border border-white/10">
-                        This Year
-                    </div>
                 </div>
 
-                {/* Animated Bars */}
-                <div className="flex-1 flex items-end justify-between gap-3 relative z-10 mt-auto h-[180px]">
-                    {barHeights.map((height, i) => (
-                        <div key={i} className="w-full flex flex-col justify-end h-full group/bar cursor-pointer relative">
-                            {/* Hover Tooltip */}
-                            <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-900 border border-white/10 text-white text-[10px] font-bold px-3 py-2 rounded-xl opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none z-20 shadow-2xl flex flex-col items-center gap-1 whitespace-nowrap">
-                                <span className="text-accent-blue text-xs">{barData[i]} Leads</span>
-                                {exactDates[i]?.length > 0 && (
-                                    <span className="text-[9px] text-slate-400 font-mono font-medium">
-                                        {exactDates[i][0]} {exactDates[i].length > 1 ? `y +${exactDates[i].length - 1}` : ''}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="w-full bg-white/5 rounded-t-lg relative overflow-hidden transition-all duration-300 group-hover/bar:bg-white/10" style={{ height: '100%' }}>
-                                <div
-                                    className="absolute bottom-0 w-full rounded-t-md transition-all duration-700 ease-out bg-accent-blue group-hover/bar:bg-blue-400 group-hover/bar:shadow-[0_0_15px_rgba(56,189,248,0.5)]"
-                                    style={{ height: `${height}%` }}
-                                >
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-                {/* X Axis Labels */}
-                <div className="flex justify-between mt-3 text-[9px] font-bold text-slate-500 uppercase px-1">
-                    <span>Jan</span>
-                    <span>Feb</span>
-                    <span>Mar</span>
-                    <span>Apr</span>
-                    <span>May</span>
-                    <span>Jun</span>
-                    <span>Jul</span>
-                    <span>Aug</span>
-                    <span>Sep</span>
-                    <span>Oct</span>
-                    <span>Nov</span>
-                    <span>Dec</span>
+                <div className="flex-1 w-full relative z-10 h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0a" vertical={false} />
+                            <XAxis dataKey="month" stroke="#666" fontSize={10} tickLine={false} axisLine={false} dy={5} />
+                            <YAxis stroke="#666" fontSize={10} tickLine={false} axisLine={false} />
+                            <RechartsTooltip
+                                cursor={{ fill: '#ffffff0a' }}
+                                contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold' }}
+                                itemStyle={{ color: '#fff' }}
+                            />
+                            <Legend wrapperStyle={{ fontSize: '10px' }} iconType="circle" />
+                            {!isGlobal && (
+                                <Bar dataKey="Campaña Actual" stackId="a" fill="#00e57c" radius={[0, 0, 4, 4]} />
+                            )}
+                            <Bar dataKey="Otras Campañas" stackId="a" fill={isGlobal ? "#3b82f6" : "#334155"} radius={isGlobal ? [4, 4, 4, 4] : [4, 4, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
                 </div>
             </div>
 

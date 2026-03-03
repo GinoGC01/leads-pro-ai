@@ -494,7 +494,7 @@ export const SPIDER_CODEX = {
             {
                 step: 1,
                 channel: "WhatsApp",
-                intent_psicologico: "Ataque al pain point: '[Nombre], en una emergencia de cerrajería el cliente llama al primero que aparece en Google Maps. Si su ficha está por debajo de una operación fantasma con reseñas falsas, pierden el cash call en los primeros 30 segundos. ¿Dónde aparecen ahora mismo si busco cerrajero de emergencia en su zona?'",
+                intent_psicologico: "Ataque al pain point: '[Nombre], en una emergencia de cerrajería el cliente llama al primero que aparece en Google Maps. Si su ficha está por debajo de una operación fantasma con reseñas falsas, pierden el cash call en los primeros 30 segundos. ¿Dónde aparecen ustedes si busco un cerrajero de emergencia en su zona?'",
                 delay: "Día 1"
             },
             {
@@ -563,7 +563,7 @@ export const SPIDER_CODEX = {
             {
                 step: 1,
                 channel: "WhatsApp",
-                intent_psicologico: "Ataque al pain point: '[Nombre], un competidor directo en tu código postal sin tu calidad de servicio está capturando a los clientes que buscan en Google Maps ahora mismo por un error en la presentación de tu negocio.'"
+                intent_psicologico: "Ataque al pain point: '[Nombre], un competidor directo en tu código postal sin tu calidad de servicio está capturando a los clientes que buscan en Google Maps por un error visual en tu ficha de negocio.'"
             },
             {
                 step: 2,
@@ -586,12 +586,12 @@ export const GEO_LOCALIZATION = {
         banned_words: [
             "lucir", "atrapar", "discutirlo", "potencial", "presencia digital sólida",
             "espero que te guste", "espero que te encuentres bien", "brindar", "soluciones",
-            "saludos cordiales", "atentamente", "quedo atento", "equipo", "oportunidad", "otorgar", ":",
+            "saludos cordiales", "atentamente", "quedo atento", "equipo", "oportunidad", "otorgar", ":", "ahora mismo",
             "[Nombre]", "<title>", "<h1>", "SEO", "LCP", "Lighthouse", "HTML", "etiqueta", "indexación",
             "rendimiento", "score", "performance", "meta", "tag"
         ],
         preferred_words: ["armar", "tener", "clientes", "facturar", "negocio", "revisar", "pasar"],
-        grammar_rules: "Háblale a la empresa en plural ('Ustedes tienen excelentes reviews', 'No tienen página web'). Usa un tono directo, callejero, astuto, ESTRICTAMENTE ARGENTINO / PORTEÑO. ESTRICTAMENTE PROHIBIDO: NUNCA uses el signo de interrogación de apertura ('¿') ni el de exclamación de apertura ('¡'). Solo usa los de cierre correspondientes a chats de WhatsApp informal ('?' o '!'). NUNCA suenes como un doblaje de película ni uses español neutro mexicano."
+        grammar_rules: "Háblale a la empresa en plural ('Ustedes tienen un negocio', 'Están perdiendo clientes'). Usa un tono directo, callejero, astuto, ESTRICTAMENTE ARGENTINO / PORTEÑO. ESTRICTAMENTE PROHIBIDO: NUNCA uses el signo de interrogación de apertura ('¿') ni el de exclamación de apertura ('¡'). Solo usa los de cierre correspondientes a chats de WhatsApp informal ('?' o '!'). NUNCA suenes como un doblaje de película ni uses español neutro mexicano."
     },
     "EXPORT": {
         pronoun: "ustedes / vosotros / tú",

@@ -3,8 +3,8 @@ import mongoose from 'mongoose';
 const LeadSchema = new mongoose.Schema({
     placeId: {
         type: String,
-        required: true,
-        unique: true
+        unique: true,
+        sparse: true
     },
     name: {
         type: String,
@@ -87,6 +87,23 @@ const LeadSchema = new mongoose.Schema({
     searchId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'SearchHistory'
+    },
+    source: {
+        type: String,
+        enum: ['google_maps', 'manual', 'referido', 'red_social', 'evento', 'otro'],
+        default: 'google_maps'
+    },
+    sourceLabel: {
+        type: String,
+        default: null
+    },
+    extracted_contacts: {
+        emails: [String],
+        phones: [String],
+        social_links: [{
+            platform: String,
+            url: String
+        }]
     },
     tactical_response: {
         type: String,

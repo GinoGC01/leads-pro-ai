@@ -1,13 +1,21 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
 import ApiUsage from '../models/ApiUsage.js';
+import SystemConfig from '../models/SystemConfig.js';
+import { decrypt } from '../utils/encryptionVault.js';
 
 dotenv.config();
 
-const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
-
-if (!GOOGLE_API_KEY || GOOGLE_API_KEY.length < 10) {
-    console.error('CRITICAL: GOOGLE_PLACES_API_KEY is missing or invalid in .env file!');
+/**
+ * Resolve Google API key dynamically: vault first, then .env fallback.
+ */
+async function getGoogleApiKey() {
+    try {
+        const config = await SystemConfig.getInstance();
+        const vaultKey = decrypt(config.api_keys?.google_places_encrypted);
+        if (vaultKey) return vaultKey;
+    } catch (e) { /* SystemConfig not ready yet, use env */ }
+    return process.env.GOOGLE_PLACES_API_KEY;
 }
 
 const BASE_URL = 'https://maps.googleapis.com/maps/api/place';
@@ -57,9 +65,11 @@ class GooglePlacesService {
                 }
 
                 // FASE 1: Inyección del FieldMask Correcto
+                const apiKey = await getGoogleApiKey();
+                if (!apiKey) throw new Error('No hay API Key de Google Places configurada (ni en Vault ni en .env)');
                 const headers = {
                     'Content-Type': 'application/json',
-                    'X-Goog-Api-Key': GOOGLE_API_KEY,
+                    'X-Goog-Api-Key': apiKey,
                     'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.rating,places.userRatingCount,places.types,places.businessStatus,nextPageToken'
                 };
 
@@ -90,9 +100,7 @@ class GooglePlacesService {
 
                     dataIsValid = true;
                     try {
-                        const usage = await ApiUsage.getCurrentMonth();
-                        usage.textSearchCount += 1;
-                        await usage.save();
+                        await ApiUsage.trackGoogleCall('textSearch');
                     } catch (usageErr) { }
                     break;
                 }

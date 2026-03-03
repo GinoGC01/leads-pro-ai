@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, MapPin, Navigation, Globe, Zap } from 'lucide-react';
+import { Search, MapPin, Navigation, Globe, Zap, Grid3X3 } from 'lucide-react';
 
 const SearchForm = ({ onSearch, isLoading }) => {
     const [formData, setFormData] = useState({
@@ -7,8 +7,17 @@ const SearchForm = ({ onSearch, isLoading }) => {
         location: '',
         radius: 5000,
         maxResults: 60,
-        countryCode: 'AR'
+        countryCode: 'AR',
+        gridMode: false,
+        gridSize: 3
     });
+
+    // Grid cost estimation
+    const gridCost = formData.gridMode ? {
+        cells: formData.gridSize * formData.gridSize,
+        maxRequests: formData.gridSize * formData.gridSize * 3,
+        maxUSD: (formData.gridSize * formData.gridSize * 3 * 0.032).toFixed(2)
+    } : null;
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -115,6 +124,43 @@ const SearchForm = ({ onSearch, isLoading }) => {
                             </>
                         )}
                     </button>
+                </div>
+            </div>
+
+            {/* Grid Search Toggle */}
+            <div className="mt-5 relative z-10">
+                <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-5 py-3">
+                    <div className="flex items-center gap-3">
+                        <Grid3X3 className={`w-5 h-5 ${formData.gridMode ? 'text-amber-400' : 'text-slate-500'}`} />
+                        <div>
+                            <span className="text-sm font-bold text-white">Grid Search</span>
+                            <p className="text-[10px] text-slate-400 mt-0.5">Busca en zonas diferentes para encontrar leads que la búsqueda normal no alcanza</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        {formData.gridMode && (
+                            <div className="flex items-center gap-2">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase">Densidad:</label>
+                                <select
+                                    className="bg-[#2a2a2e] border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white appearance-none"
+                                    value={formData.gridSize}
+                                    onChange={(e) => setFormData({ ...formData, gridSize: parseInt(e.target.value) })}
+                                >
+                                    <option value={3}>3×3 (9 celdas)</option>
+                                    <option value={5}>5×5 (25 celdas)</option>
+                                    <option value={7}>7×7 (49 celdas)</option>
+                                </select>
+                                <span className="text-[10px] font-bold text-amber-400">~${gridCost?.maxUSD} USD máx</span>
+                            </div>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, gridMode: !formData.gridMode })}
+                            className={`relative w-11 h-6 rounded-full transition-all ${formData.gridMode ? 'bg-amber-500' : 'bg-white/10'}`}
+                        >
+                            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${formData.gridMode ? 'left-[22px]' : 'left-0.5'}`} />
+                        </button>
+                    </div>
                 </div>
             </div>
         </form>

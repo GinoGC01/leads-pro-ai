@@ -6,6 +6,7 @@ import SearchView from './SearchView';
 import Sidebar from './components/Sidebar';
 import Settings from './components/Settings';
 import SalesRepModal from './components/SalesRepModal';
+import DataIntelligencePanel from './components/DataIntelligencePanel';
 
 function App() {
   return (
@@ -25,13 +26,8 @@ function App() {
             {/* The CRM Execution Dashboard */}
             <Route path="/dashboard" element={<Dashboard />} />
 
-            {/* Intelligence Section */}
-            <Route path="/intelligence" element={
-              <div className="p-10">
-                <h1 className="text-3xl font-bold text-white mb-4">Data Intelligence</h1>
-                <p className="text-slate-400">Panel reserved for API quote and cost tracking. (Coming Soon)</p>
-              </div>
-            } />
+            {/* Data Intelligence Command Center */}
+            <Route path="/intelligence" element={<DataIntelligencePanel />} />
 
             {/* Settings Section */}
             <Route path="/settings" element={<Settings />} />

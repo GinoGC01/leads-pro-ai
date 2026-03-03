@@ -8,6 +8,8 @@ import ragConfig from '../config/rag.config.js';
 import AIService from '../services/AIService.js';
 import SupabaseService from '../services/SupabaseService.js';
 import { RENTED_LAND_DOMAINS } from '../services/SpiderEngine.js';
+import GridService from '../services/GridService.js';
+import CampaignService from '../services/CampaignService.js';
 
 /**
  * Controller for Lead Generation logic
@@ -17,7 +19,7 @@ class SearchController {
      * Start a new search and process results
      */
     static async startSearch(req, res) {
-        const { keyword, location, radius, maxResults, filters, countryCode } = req.body;
+        const { keyword, location, radius, maxResults, filters, countryCode, gridMode, gridSize } = req.body;
 
         try {
             // 0. Quota Check (Hard-limit 50 High-Qualified leads/week)
@@ -43,7 +45,11 @@ class SearchController {
                 countryCode,
                 filters,
                 status: 'processing',
-                logs: [{ message: '🚀 Iniciando motor de búsqueda Leads Pro AI...', type: 'info' }]
+                searchMode: gridMode ? 'grid' : 'single',
+                gridSize: gridMode ? (gridSize || 3) : 0,
+                gridCellsTotal: gridMode ? ((gridSize || 3) * (gridSize || 3)) : 1,
+                gridCellsCompleted: 0,
+                logs: [{ message: gridMode ? `🗺️ Iniciando Grid Search ${gridSize || 3}×${gridSize || 3} — Expansión Geográfica...` : '🚀 Iniciando motor de búsqueda Leads Pro AI...', type: 'info' }]
             });
 
             // 2. Return immediately to allow polling
@@ -52,8 +58,8 @@ class SearchController {
                 searchId: search._id
             });
 
-            // 3. Start processing in background (No await to keep it async)
-            SearchController.runProcessing(search, keyword, location, radius, maxResults, countryCode);
+            // 3. Start processing in background
+            SearchController.runProcessing(search, keyword, location, radius, maxResults, countryCode, gridMode, gridSize);
 
         } catch (error) {
             console.error('Search initiation error:', error);
@@ -67,7 +73,7 @@ class SearchController {
     /**
      * Intensive background processing for leads
      */
-    static async runProcessing(search, keyword, location, radius, maxResults, countryCode) {
+    static async runProcessing(search, keyword, location, radius, maxResults, countryCode, gridMode = false, gridSize = 3) {
         const pushStatus = async (message, type = 'info') => {
             console.log(`[Search: ${search._id}] ${message}`);
             await SearchHistory.findByIdAndUpdate(search._id, {
@@ -76,9 +82,69 @@ class SearchController {
         };
 
         try {
-            // 2. Search for places
-            await pushStatus(`📡 Conectando con Google Places API (${countryCode || 'Global'}) para localizar profesionales...`);
-            const rawGoogleResults = await GooglePlacesService.searchPlaces(keyword, location, radius, 20, maxResults || 60, countryCode);
+            let rawGoogleResults = [];
+
+            if (gridMode) {
+                // === GRID SEARCH MODE ===
+                const isCoords = /^-?\d+\.?\d*,\s*-?\d+\.?\d*$/.test(location);
+                if (!isCoords) {
+                    await pushStatus('⚠️ Grid Search requiere coordenadas (lat,lng). Ejecutando búsqueda estándar...', 'warn');
+                    // Fallback to standard search
+                    rawGoogleResults = await GooglePlacesService.searchPlaces(keyword, location, radius, 20, maxResults || 60, countryCode);
+                } else {
+                    const [lat, lng] = location.split(',').map(Number);
+                    const cells = GridService.generateGrid(lat, lng, parseInt(radius) || 50000, gridSize);
+                    const costEstimate = GridService.estimateCost(gridSize);
+                    await pushStatus(`🗺️ Grid ${gridSize}×${gridSize} generado: ${cells.length} celdas, radio/celda: ${cells[0].cellRadius}m. Costo máx estimado: $${costEstimate.maxCostUSD} USD`);
+
+                    const seenPlaceIds = new Set();
+                    // Pre-populate with existing placeIds from DB for this keyword/location
+                    const existingLeads = await Lead.find({ searchId: { $exists: true } }, { placeId: 1 }).lean();
+                    existingLeads.forEach(l => { if (l.placeId) seenPlaceIds.add(l.placeId); });
+
+                    for (let i = 0; i < cells.length; i++) {
+                        const cell = cells[i];
+                        await pushStatus(`📡 ${cell.label} (${i + 1}/${cells.length}) — Centro: ${cell.lat}, ${cell.lng} — Radio: ${cell.cellRadius}m`);
+
+                        try {
+                            const cellResults = await GooglePlacesService.searchPlaces(
+                                keyword,
+                                `${cell.lat},${cell.lng}`,
+                                cell.cellRadius,
+                                20,
+                                60, // max per cell
+                                countryCode
+                            );
+
+                            // Dedup: only keep results NOT seen before
+                            let newInCell = 0;
+                            for (const place of cellResults) {
+                                if (!seenPlaceIds.has(place.id)) {
+                                    seenPlaceIds.add(place.id);
+                                    rawGoogleResults.push(place);
+                                    newInCell++;
+                                }
+                            }
+
+                            await pushStatus(`✅ ${cell.label} completada: ${cellResults.length} encontrados, ${newInCell} nuevos (${cellResults.length - newInCell} duplicados filtrados)`);
+
+                            // Update grid progress
+                            await SearchHistory.findByIdAndUpdate(search._id, {
+                                gridCellsCompleted: i + 1
+                            });
+
+                        } catch (cellErr) {
+                            await pushStatus(`⚠️ Error en ${cell.label}: ${cellErr.message}`, 'error');
+                        }
+                    }
+
+                    await pushStatus(`🏁 Grid Search completado: ${rawGoogleResults.length} leads únicos encontrados en ${cells.length} celdas.`);
+                }
+            } else {
+                // === STANDARD SEARCH MODE ===
+                await pushStatus(`📡 Conectando con Google Places API (${countryCode || 'Global'}) para localizar profesionales...`);
+                rawGoogleResults = await GooglePlacesService.searchPlaces(keyword, location, radius, 20, maxResults || 60, countryCode);
+            }
 
             if (rawGoogleResults.length > 0) {
                 console.log("=== RAW GOOGLE PLACE OBJECT (SAMPLE) ===");
@@ -172,6 +238,7 @@ class SearchController {
                         is_zombie: false, // Handled by businessStatus filter above
                         is_advertising: false, // Ad logic may vary in V1, fallback false
                         status: (!place.nationalPhoneNumber && !place.websiteUri) ? 'En Espera' : 'Nuevo',
+                        source: 'google_maps',
                     };
 
                     leadData.enrichmentStatus = 'unprocessed';
@@ -459,6 +526,13 @@ class SearchController {
             );
 
             if (!updatedLead) return res.status(404).json({ success: false, message: 'Lead no encontrado' });
+
+            // Trigger campaign state machine evaluation
+            if (updatedLead.searchId) {
+                CampaignService.evaluateCampaignStatus(updatedLead.searchId).catch(err =>
+                    console.error('[CampaignService] Async eval error:', err.message)
+                );
+            }
 
             res.status(200).json(updatedLead);
         } catch (error) {

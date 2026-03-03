@@ -329,6 +329,19 @@ const LeadsTable = ({ leads, onRowClick, onStatusChange }) => {
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
                                             <div className="font-bold text-white tracking-tight">{lead.name}</div>
+                                            {lead.source === 'google_maps' && (
+                                                <span className="flex items-center justify-center p-1 bg-white/5 rounded border border-white/10" title="Google Maps" aria-label="Google Maps Source">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16"><g fill="none" fillRule="evenodd" clipRule="evenodd"><path fill="#f44336" d="M7.209 1.061c.725-.081 1.154-.081 1.933 0a6.57 6.57 0 0 1 3.65 1.82a100 100 0 0 0-1.986 1.93q-1.876-1.59-4.188-.734q-1.696.78-2.362 2.528a78 78 0 0 1-2.148-1.658a.26.26 0 0 0-.16-.027q1.683-3.245 5.26-3.86" opacity=".987" /><path fill="#ffc107" d="M1.946 4.92q.085-.013.161.027a78 78 0 0 0 2.148 1.658A7.6 7.6 0 0 0 4.04 7.99q.037.678.215 1.331L2 11.116Q.527 8.038 1.946 4.92" opacity=".997" /><path fill="#448aff" d="M12.685 13.29a26 26 0 0 0-2.202-1.74q1.15-.812 1.396-2.228H8.122V6.713q3.25-.027 6.497.055q.616 3.345-1.423 6.032a7 7 0 0 1-.51.49" opacity=".999" /><path fill="#43a047" d="M4.255 9.322q1.23 3.057 4.51 2.854a3.94 3.94 0 0 0 1.718-.626q1.148.812 2.202 1.74a6.62 6.62 0 0 1-4.027 1.684a6.4 6.4 0 0 1-1.02 0Q3.82 14.524 2 11.116z" opacity=".993" /></g></svg>
+                                                </span>
+                                            )}
+                                            {lead.source === 'manual' && (
+                                                <span className="flex items-center justify-center p-1 bg-white/5 rounded border border-white/10 text-slate-300" title={lead.sourceLabel || 'Manual'} aria-label="Manual Source">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 1664 1664"><path fill="currentColor" d="M832 0Q673 0 560.5 112.5T448 384t112.5 271.5T832 768t271.5-112.5T1216 384t-112.5-271.5T832 0m0 896q112 0 227 22t224 69.5t193.5 114t136 162.5t51.5 208q0 75-57 133.5t-135 58.5H192q-78 0-135-58.5T0 1472q0-112 51.5-208t136-162.5t193.5-114T605 918t227-22" /></svg>
+                                                </span>
+                                            )}
+                                            {lead.source && !['google_maps', 'manual'].includes(lead.source) && (
+                                                <span className="px-1.5 py-0.5 bg-purple-500/10 text-purple-400 text-[9px] font-black rounded border border-purple-500/20" title={lead.sourceLabel || lead.source}>EXT</span>
+                                            )}
                                             {lead.is_advertising && (
                                                 <span className="px-2 py-0.5 bg-red-600 text-white text-[9px] font-bold rounded uppercase">Ads</span>
                                             )}

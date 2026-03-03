@@ -35,26 +35,62 @@ class SpiderEngine {
      */
     static async analyzeLead(lead) {
         // 1. CORTAFUEGOS DE EXISTENCIA WEB
+        // 0. GLOBALIZE REPUTATION CONTEXT SO MARIO NEVER HALLUCINATES
+        const rating = lead.rating || 0;
+        const reviews = lead.userRatingsTotal || 0;
+        let reputation_context = "";
+
+        if (reviews === 0) {
+            reputation_context = "Invisibilidad digital absoluta. Cero reseñas en Google Maps.";
+        } else if (rating >= 4.5) {
+            reputation_context = `Excelente reputación validada en Google Maps.`;
+        } else if (rating >= 4.0) {
+            reputation_context = `Buena reputación en Google Maps, pero estándar/mejorable.`;
+        } else {
+            reputation_context = `MALA REPUTACIÓN O CRISIS DE CONFIANZA en Google Maps.`;
+        }
+
+        // 1. CORTAFUEGOS DE EXISTENCIA WEB
         const hasWebsite = !!(lead.website || lead.websiteUri);
 
         if (!hasWebsite) {
+
+
+            let reputationContext = "";
+            let intentString = "";
+
+            if (reviews === 0) {
+                reputationContext = "Invisibilidad digital y cero validación social en Google Maps.";
+                intentString = "Ruptura de patrón: 'Vi que no tienen página web ni suficientes reseñas en Google para generar confianza. La competencia se está llevando a los clientes que buscan su servicio'.";
+            } else if (rating >= 4.5) {
+                reputationContext = "Atrapados por falta de ecosistema, a pesar de tener excelente validación social.";
+                intentString = `Ruptura de patrón: 'Vi que tienen excelentes calificaciones en Google Maps pero al no tener página web, están perdiendo a los clientes premium que buscan más validación'.`;
+            } else if (rating >= 4.0) {
+                reputationContext = "Validación social buena pero estándar. Sin web pierden autoridad frente al top 1%.";
+                intentString = `Ruptura de patrón: 'Vi que tienen buenas referencias en Google Maps, pero al no tener página web profesional, se están quedando atrás y perdiendo clientes premium ante la competencia'.`;
+            } else {
+                reputationContext = "Crisis de confianza: Mala reputación en Maps combinada con inexistencia de página web que los defienda.";
+                intentString = `Ruptura de patrón: 'Asumo que están sintiendo la baja de volumen. Teniendo una baja puntuación en Maps y sin una página web profesional que eleve su autoridad, están regalando los clientes a la competencia'.`;
+            }
+
             return {
                 status: "GO",
                 isRentable: true,
                 tier: 2,
-                pain: "Invisibilidad digital absoluta. La competencia se lleva todo por Google Maps.",
+                pain: reputationContext,
                 service: "Creación de Identidad Digital (Web + SEO Local)",
                 tactic_name: "NO_WEB_FOMO",
                 cadence: [
-                    { step: 1, channel: "WhatsApp", intent: "Ruptura de patrón: 'Vi tus excelentes reviews en Google pero no tienes página web para atrapar a los clientes que te buscan'." },
+                    { step: 1, channel: "WhatsApp", intent: intentString },
                     { step: 2, channel: "Email", intent: "Mockup de cómo luciría su web frente a su competencia directa." },
-                    { step: 3, channel: "WhatsApp", intent: "Takeaway/Breakup: 'Asumo que estás a reventar de clientes en el local y no necesitas presencia digital'." }
+                    { step: 3, channel: "WhatsApp", intent: "Takeaway/Breakup: 'Asumo que están a reventar de clientes en el local y no necesitan presencia digital'." }
                 ],
                 technical_flaw: "No poseen dominio web ni infraestructura detectable.",
                 friction_score: "N/A",
                 friction_angle: "No tienen web. Cero costo hundido. Es un lienzo en blanco.",
                 historical_confidence: 90,
-                has_website_flag: false
+                has_website_flag: false,
+                reputation_context: reputation_context
             };
         }
 
@@ -78,7 +114,8 @@ class SpiderEngine {
                 friction_angle: "Están alquilando su presencia digital. Cero costo hundido en código propio.",
                 historical_confidence: 85,
                 has_website_flag: true,
-                is_rented_land_flag: true // CRÍTICO PARA MARIO
+                is_rented_land_flag: true, // CRÍTICO PARA MARIO
+                reputation_context: reputation_context
             };
         }
 
@@ -124,18 +161,26 @@ class SpiderEngine {
             let flaws = [];
 
             if (performance_metrics?.lcp > 3000) {
-                flaws.push(`La web tarda demasiado en abrir desde el celular, los clientes se van antes de verla`);
+                flaws.push("la web tarda demasiado en abrir desde el celular");
             } else if (performance_metrics?.performanceScore < 50) {
-                flaws.push(`La web funciona muy mal en celulares, los clientes la abandonan antes de contactarlos`);
+                flaws.push("la web funciona muy mal en celulares");
             }
 
             if (seo_audit) {
-                if (seo_audit.h1_tags && seo_audit.h1_tags.length === 0) flaws.push(`Google no puede leer bien la web, así que no la muestra a los clientes que buscan su servicio`);
-                if (!seo_audit.title) flaws.push(`La web no tiene identificación para Google, es como un local sin cartel en la calle`);
+                if (!seo_audit.title) {
+                    flaws.push("la web no tiene identificación para Google (es como un local sin cartel en la calle)");
+                }
+                if (seo_audit.h1_tags && seo_audit.h1_tags.length === 0) {
+                    flaws.push("Google no puede leer bien la web y no la muestra a los clientes que buscan su servicio");
+                }
             }
 
-            if (flaws.length > 0) {
-                technical_flaw = flaws.join(" | ");
+            // Implement Hierarchy & Natural Aggregation
+            if (flaws.length === 1) {
+                technical_flaw = flaws[0];
+            } else if (flaws.length > 1) {
+                // Take the most severe flaw (the first one pushed) and aggregate the rest naturally
+                technical_flaw = `${flaws[0]}, y otros puntos débiles más`;
             }
         }
 
@@ -186,22 +231,56 @@ class SpiderEngine {
 
         // 5. Friction Scoring
         const techStack = lead.tech_stack || [];
-        const friction = this.calculateFriction(techStack);
+        const frictionData = SpiderEngine.calculateFriction(lead.tech_stack);
+
+        // Safe destructuring of strategy context
+        const strategyObj = codexMatch.estrategia_spider || {};
+        const safeWinRateExpected = (codexMatch.rendimiento_historico && codexMatch.rendimiento_historico.win_rate_esperado)
+            ? codexMatch.rendimiento_historico.win_rate_esperado
+            : 50;
+
+        const finalTacticName = codexMatch.nombre || strategyObj.tactic_name || 'Estrategia Genérica';
+        const finalCadence = codexMatch.cadencia_sugerida || codexMatch.cadence_structure || [];
+        const finalConfidence = winRate > 0 ? winRate : safeWinRateExpected;
+
+        // --- HARD OVERRIDE FOR PERFORMANCE FLAWS ---
+        // If technical flaw mentions LCP/TTFB, we MUST rewrite the step 1 intent 
+        // to prevent MARIO from hallucinating the generic "error visual en tu ficha"
+        let overriddenCadence = JSON.parse(JSON.stringify(finalCadence)); // Deep copy to avoid mutating the codex
+
+        if (technical_flaw.includes('tarda demasiado') || technical_flaw.includes('funciona muy mal')) {
+            if (Array.isArray(overriddenCadence) && overriddenCadence.length > 0) {
+                const aggregationSuffix = technical_flaw.includes('y otros puntos débiles más') ? ', y otros puntos débiles más' : '';
+                overriddenCadence[0].intent_psicologico = `Ataque al pain point: '[Nombre], un competidor directo en tu código postal sin tu calidad de servicio está capturando a los clientes premium que buscan en Google Maps porque tu página web tarda una infinidad en cargar desde el celular${aggregationSuffix}. El cliente se frustra, cierra tu web y llama al consultorio de tu competencia que carga más rápido.'`;
+            }
+        } else {
+            // If it's a generic flaw (e.g. SEO) but has multiple issues, append the suffix to the default codex intent
+            if (technical_flaw.includes('y otros puntos débiles más') && Array.isArray(overriddenCadence) && overriddenCadence.length > 0) {
+                // Append it right before the final period or at the end of the sentence
+                if (overriddenCadence[0].intent_psicologico.endsWith(".'\"") || overriddenCadence[0].intent_psicologico.endsWith(".'")) {
+                    overriddenCadence[0].intent_psicologico = overriddenCadence[0].intent_psicologico.replace(/\.'"?$/, ", y otros puntos débiles más.'\"");
+                } else {
+                    overriddenCadence[0].intent_psicologico += ", y otros puntos débiles más";
+                }
+            }
+        }
 
         // 6. Return pure JSON Veridict
         return {
             status: "GO",
             isRentable: true,
             tier: matchedTier,
+            pain: codexMatch.psicologia_de_venta.pain_point_real,
+            service: codexMatch.psicologia_de_venta.solucion_agencia,
+            tactic_name: finalTacticName,
+            cadence: overriddenCadence,
+            technical_flaw,
+            friction_score: frictionData.score,
+            friction_angle: frictionData.angle,
+            historical_confidence: finalConfidence,
             has_website_flag: true,
-            pain: codexMatch.psicologia_de_venta?.pain_point_real || "Pérdida de tráfico a manos de competidores locales",
-            service: activeService,
-            tactic_name: theoreticalTactic,
-            cadence: activeCadence,
-            technical_flaw: technical_flaw,
-            friction_score: friction.score,
-            friction_angle: friction.angle,
-            historical_confidence: winRate
+            is_rented_land_flag: false,
+            reputation_context: reputation_context
         };
     }
 }

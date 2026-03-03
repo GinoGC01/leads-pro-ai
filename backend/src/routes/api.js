@@ -6,6 +6,8 @@ import AIController from '../controllers/AIController.js';
 import VortexController from '../controllers/VortexController.js';
 import SettingsController from '../controllers/SettingsController.js';
 import ChatController from '../controllers/ChatController.js';
+import ManualLeadController from '../controllers/ManualLeadController.js';
+import DataIntelligenceController from '../controllers/DataIntelligenceController.js';
 
 // Search Routes
 router.use((req, res, next) => {
@@ -22,6 +24,14 @@ router.get('/history/:searchId/leads', SearchController.getLeadsBySearch);
 router.get('/leads/:id', SearchController.getLeadById);
 router.patch('/leads/:id/status', SearchController.updateLeadStatus);
 router.delete('/leads', SearchController.bulkDeleteLeads);
+router.post('/leads/manual', ManualLeadController.createManualLead);
+
+// Data Intelligence Routes
+router.get('/intelligence/usage', DataIntelligenceController.getUsage);
+router.get('/intelligence/alerts', DataIntelligenceController.getAlerts);
+router.get('/intelligence/config', DataIntelligenceController.getConfig);
+router.put('/intelligence/config', DataIntelligenceController.updateConfig);
+router.post('/intelligence/sync-stats', DataIntelligenceController.syncRetroactiveStats);
 
 // Vortex Intelligence Engine (On-Demand)
 router.post('/vortex/enrich/:leadId', VortexController.enrichLead);

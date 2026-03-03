@@ -2,22 +2,86 @@ import { OpenAI } from 'openai';
 import ragConfig from '../config/rag.config.js';
 import { GEO_LOCALIZATION } from '../config/spider_codex.js';
 import Lead from '../models/Lead.js';
+import ApiUsage from '../models/ApiUsage.js';
+import SystemConfig from '../models/SystemConfig.js';
+import { decrypt } from '../utils/encryptionVault.js';
+import { LLM_PRICING } from '../config/llm_pricing.js';
 
-if (!process.env.OPENAI_API_KEY) {
-    console.error('CRITICAL: OPENAI_API_KEY missing in .env');
+// Fallback static client (used only if vault is empty)
+let _fallbackClient = null;
+function getFallbackClient() {
+    if (!_fallbackClient && process.env.OPENAI_API_KEY) {
+        _fallbackClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    }
+    return _fallbackClient;
 }
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
-
 class AIService {
+    /**
+     * Get the OpenAI client dynamically — vault key takes priority over .env.
+     * Also returns the active SystemConfig for model/temperature.
+     */
+    static async getEngine() {
+        const config = await SystemConfig.getInstance();
+
+        // Resolve API key: vault first, then .env
+        const vaultKey = decrypt(config.api_keys?.openai_key_encrypted);
+        const activeKey = vaultKey || process.env.OPENAI_API_KEY;
+        if (!activeKey) throw new Error('[AIService] No hay API Key de OpenAI configurada (ni en Vault ni en .env)');
+
+        const client = vaultKey ? new OpenAI({ apiKey: vaultKey }) : getFallbackClient();
+        if (!client) throw new Error('[AIService] No se pudo inicializar el cliente OpenAI');
+
+        const modelName = config.ai_engine?.model_name || 'gpt-4o-mini';
+        const temperature = config.ai_engine?.temperature ?? 0.7;
+        const maxTokens = config.ai_engine?.max_tokens || 1500;
+        const pricing = LLM_PRICING[modelName] || LLM_PRICING['gpt-4o-mini'];
+
+        return { client, modelName, temperature, maxTokens, pricing };
+    }
+
+    /**
+     * Track usage with dynamic per-model pricing.
+     */
+    static async trackUsage(response, pricing) {
+        try {
+            const promptTokens = response.usage?.prompt_tokens || 0;
+            const completionTokens = response.usage?.completion_tokens || 0;
+            const costUSD = ((promptTokens / 1_000_000) * pricing.input) + ((completionTokens / 1_000_000) * pricing.output);
+
+            // Use the dynamic cost instead of static rate
+            const today = new Date().toISOString().slice(0, 10);
+            const usage = await ApiUsage.getCurrentMonth();
+            usage.openaiCalls += 1;
+            usage.openaiTokensInput += promptTokens;
+            usage.openaiTokensOutput += completionTokens;
+            usage.openaiTokens += (promptTokens + completionTokens);
+            usage.openaiCostUSD = parseFloat((usage.openaiCostUSD + costUSD).toFixed(6));
+
+            let dayEntry = usage.dailyBreakdown.find(d => d.date === today);
+            if (!dayEntry) {
+                usage.dailyBreakdown.push({ date: today, googleCalls: 0, googleCostUSD: 0, openaiCalls: 0, openaiTokens: 0, openaiCostUSD: 0 });
+                dayEntry = usage.dailyBreakdown[usage.dailyBreakdown.length - 1];
+            }
+            dayEntry.openaiCalls += 1;
+            dayEntry.openaiTokens += (promptTokens + completionTokens);
+            dayEntry.openaiCostUSD = parseFloat((dayEntry.openaiCostUSD + costUSD).toFixed(6));
+
+            usage.updatedAt = new Date();
+            await usage.save();
+        } catch (e) {
+            console.error('[AIService] Token tracking error:', e.message);
+        }
+    }
+
+
     /**
      * Generate embedding vector for a piece of text
      */
     static async generateEmbedding(text) {
         try {
-            const response = await openai.embeddings.create({
+            const { client } = await AIService.getEngine();
+            const response = await client.embeddings.create({
                 model: ragConfig.vector.model,
                 input: text,
                 encoding_format: "float",
@@ -70,12 +134,17 @@ class AIService {
                 { role: "user", content: query }
             ];
 
-            const response = await openai.chat.completions.create({
-                model: ragConfig.llm.model,
+            const { client, modelName, temperature, maxTokens, pricing } = await AIService.getEngine();
+
+            const response = await client.chat.completions.create({
+                model: modelName,
                 messages: messages,
-                temperature: ragConfig.llm.temperature,
-                max_tokens: ragConfig.llm.max_tokens,
+                temperature: temperature,
+                max_tokens: maxTokens,
             });
+
+            // Track with dynamic pricing
+            await AIService.trackUsage(response, pricing);
 
             return response.choices[0].message.content;
         } catch (err) {
@@ -144,12 +213,17 @@ REGLAS ESTRICTAS:
                 { role: "user", content: query }
             ];
 
-            const response = await openai.chat.completions.create({
-                model: ragConfig.llm.model,
+            const { client, modelName, temperature, maxTokens, pricing } = await AIService.getEngine();
+
+            const response = await client.chat.completions.create({
+                model: modelName,
                 messages: messages,
-                temperature: ragConfig.llm.temperature,
-                max_tokens: ragConfig.llm.max_tokens,
+                temperature: temperature,
+                max_tokens: maxTokens,
             });
+
+            // Track with dynamic pricing
+            await AIService.trackUsage(response, pricing);
 
             return response.choices[0].message.content;
         } catch (err) {
@@ -163,16 +237,20 @@ REGLAS ESTRICTAS:
      */
     static async chatWithSpiderContext(spiderVerdict, region = 'LATAM', leadName = 'Empresa') {
         try {
-            let dynamicConstraints = "";
+            let dynamicConstraints = `
+[CONTEXTO DE REPUTACIÓN EN GOOGLE MAPS]:
+SPIDER ha detectado lo siguiente sobre este lead: "${spiderVerdict.reputation_context}"
+DEBES incorporar esta realidad en tu argumento. NUNCA inventes que tienen "excelentes reseñas" si el reporte dice textualmente "Mala Reputación".
+`;
 
             if (spiderVerdict.has_website_flag === false) {
-                dynamicConstraints = `
+                dynamicConstraints += `
 [ALERTA ROJA - RESTRICCIÓN ABSOLUTA]:
 ESTE LEAD NO TIENE SITIO WEB ACTUALMENTE. 
 TIENES ESTRICTAMENTE PROHIBIDO:
 - Mencionar "tu página actual", "tu sitio es lento", o "diseño obsoleto".
 - Hablar de auditorías, tiempos de carga, o código.
-TU ÚNICO ÁNGULO ES: "Vi que tienes excelente reputación, pero al no tener página web, le estás regalando los clientes premium a tu competencia".
+TU ÚNICO ÁNGULO ES USAR LA ESTRATEGIA EXACTA DADA POR SPIDER. NO ASUMAS NADA SOBRE SU REPUTACIÓN SI NO ESTÁ EN EL VEREDICTO DE SPIDER.
 `;
             } else if (spiderVerdict.is_rented_land_flag) {
                 dynamicConstraints = `
@@ -183,9 +261,11 @@ TIENES ESTRICTAMENTE PROHIBIDO:
 TU ÚNICO ÁNGULO ES: Dile que mandar tráfico a un link genérico destruye su autoridad, hace que parezcan un negocio amateur frente a los clientes premium, y que le regalan sus datos y SEO a esa empresa externa.
 `;
             } else {
-                dynamicConstraints = `
-[CONTEXTO TÉCNICO]:
-El lead posee una web activa y propia. Usa los datos de fricción para atacarla.
+                dynamicConstraints += `
+[CONTEXTO TÉCNICO VITAL]:
+El lead posee una web activa y propia. 
+ATENCIÓN: Si "Falla Técnica Real del Prospecto" menciona que "la web tarda demasiado" o "funciona muy mal en celulares" (LCP o TTFB alto), ESTE ES TU ÁNGULO DE ATAQUE PRINCIPAL.
+Debes usar este fallo para decirle EXPLÍCITAMENTE que su lentitud hace que la gente cierre la página y se vaya a la competencia, perdiendo clientes premium. Si menciona lentitud, ignora otros fallos menores como SEO o etiquetas.
 `;
             }
 
@@ -216,13 +296,19 @@ Tu trabajo es redactar los mensajes exactos que tu socio humano, ${senderProfile
 - Confianza Histórica de esta táctica: ${spiderVerdict.historical_confidence || 0}%
 - Cadencia Estructurada: ${JSON.stringify(spiderVerdict.cadence || [])}
 
+[DIRECTRICES DE APRENDIZAJE Y MUTACIÓN (A/B TESTING)]:
+El sistema evoluciona basándose en la "Confianza Histórica" (Win Rate). Tienes PERMISO EXPLÍCITO para alterar, mejorar y mutar la forma de entregar el mensaje (el gancho, la longitud, las palabras persuasivas, el orden de la Disonancia) para intentar subir la tasa de cierre.
+SIN EMBARGO, TIENES TERMINANTEMENTE PROHIBIDO MUTAR LOS HECHOS EMPÍRICOS:
+❌ Inmutable: La cantidad de reseñas, el puntaje exacto de Google Maps, la existencia o no de una página web, y la "Falla Técnica Real" (ej. si la web es lenta, ES lenta. No inventes que le falta diseño).
+✅ Mutable: Las palabras que usas para atacar ese dolor, cómo te presentas, cómo haces la pregunta de cierre, y qué tan agresivo o sutil eres.
+
 ${dynamicConstraints}
 
 [REGLAS DE FORMATO Y REDACCIÓN - TOLERANCIA CERO]:
 1. NUNCA firmes el mensaje. NUNCA uses "Saludos, Mario", ni "Atentamente". El mensaje debe terminar abruptamente en el Call to Action o pregunta final.
 2. NUNCA uses "Español de Película" (cero clichés de marketing, cero lenguaje corporativo). Habla como un empresario real en WhatsApp o en un correo rápido de 2 líneas.
 3. El saludo debe ser natural y rápido. (Ej: ${geoProfile.greetings[0]}).
-4. A menos que conozcas al dueño, háblale a la EMPRESA en plural ("Vi que *tienen* buenas reseñas...").
+4. A menos que conozcas al dueño, háblale a la EMPRESA en plural ("Tienen un negocio...", "Están perdiendo clientes...").
 5. CERO FORMALIDAD CLÁSICA: Elimina por completo palabras como "brindar", "ofrecer", "otorgar", "soluciones", "requerimiento". Habla en jerga comercial de negocios.
 
 [PERFIL LINGÜÍSTICO ASIGNADO: ${region}]:
@@ -253,9 +339,12 @@ El lead es un dueño de negocio, NO un programador. ESTÁ TERMINANTEMENTE PROHIB
 - Cualquier término técnico (SEO, LCP, Lighthouse, H1, indexación, rendimiento, score, performance, meta, tag, etiqueta, código, markup)
 - Cualquier placeholder como [Nombre] o similares entre corchetes
 - Cualquier número de puntaje o score
-Si la falla técnica del lead es un problema de velocidad de carga, TRADÚCELO como "la web tarda en abrir y los clientes se van".
-Si la falla técnica es de visibilidad, TRADÚCELO como "Google no los muestra a los clientes que buscan su servicio".
-Si la falla técnica es de estructura web, TRADÚCELO como "la web no está preparada para captar clientes que buscan desde el celular".
+[REGLA DE VIDA O MUERTE SOBRE EL DOLOR TÉCNICO]:
+La "Falla Técnica Real" ya viene traducida a un lenguaje para dueños de negocio. DEBES USARLA EXACTAMENTE COMO TE LA ENVIAMOS. NO LA RESUMAS NI LA TRADUZCAS.
+Si la falla dice "la web funciona muy mal en celulares", usa esa frase textual. Si dice "la web tarda demasiado", usa esa. NO INVENTES TUS PROPIAS EXPLICACIONES TÉCNICAS.
+[REGLA DE AGREGACIÓN NATURAL (MUY IMPORTANTE)]: 
+Si el texto de "Falla Técnica Real" o la "Cadencia Estructurada" que recibes termina con la frase exacta ", y otros puntos débiles más", TIENES QUE PEGAR ESA FRASE 100% TEXTUAL al final de tu queja técnica. 
+Esto hace que suenes como un humano restándole importancia a los detalles técnicos menores para enfocarte en la pérdida de clientes. No listes todos los errores robóticamente. Si omites esta frase, la redacción se considerará un fracaso.
 Cualquier violación de esta regla invalida todo el mensaje.
 
 [FORMATO DE SALIDA ESTRICTO - DEBES RESPONDER EN FORMATO JSON]:
@@ -283,13 +372,18 @@ ${region === 'LATAM' ? "1. DESTRUCCIÓN DEL SIGNO DE APERTURA: Revisa cada frase
                 { role: "user", content: "Mario, por favor dame la estrategia de ataque para este lead basada en el veredicto de SPIDER que acabas de recibir." }
             ];
 
-            const response = await openai.chat.completions.create({
-                model: ragConfig.llm.model,
+            const { client, modelName, maxTokens, pricing } = await AIService.getEngine();
+
+            const response = await client.chat.completions.create({
+                model: modelName,
                 messages: messages,
-                temperature: 0.7, // A bit of creativity for the cold outreach
-                max_tokens: ragConfig.llm.max_tokens,
+                temperature: 0.7, // Fixed for MARIO creative outreach
+                max_tokens: maxTokens,
                 response_format: { type: "json_object" }
             });
+
+            // Track with dynamic pricing (MARIO)
+            await AIService.trackUsage(response, pricing);
 
             let finalContent = response.choices[0].message.content;
 

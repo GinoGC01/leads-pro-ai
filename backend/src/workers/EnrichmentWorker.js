@@ -48,6 +48,25 @@ const enrichmentWorker = new Worker('enrichmentQueue', async (job) => {
         const { seoAudit, markdown } = ParserService.parse(rawHtml);
         console.log(`[EnrichmentWorker] [FASE 2] SEO Audit y Markdown finalizados.`);
 
+        // FASE 2.5: Extracción de Contactos (Emails, Teléfonos, Redes Sociales)
+        console.log(`[EnrichmentWorker] [FASE 2.5] Extrayendo datos de contacto...`);
+        const contacts = ParserService.extractContacts(rawHtml);
+        lead.extracted_contacts = {
+            emails: contacts.emails,
+            phones: contacts.phones,
+            social_links: contacts.socialLinks
+        };
+        // Auto-fill missing contact data
+        if (!lead.email && contacts.emails.length > 0) {
+            lead.email = contacts.emails[0];
+            console.log(`[EnrichmentWorker] [FASE 2.5] Email auto-asignado: ${lead.email}`);
+        }
+        if (!lead.phoneNumber && contacts.phones.length > 0) {
+            lead.phoneNumber = contacts.phones[0];
+            console.log(`[EnrichmentWorker] [FASE 2.5] Teléfono auto-asignado: ${lead.phoneNumber}`);
+        }
+        console.log(`[EnrichmentWorker] [FASE 2.5] Contactos: ${contacts.emails.length} emails, ${contacts.phones.length} phones, ${contacts.socialLinks.length} social.`);
+
         // FASE 3: Perfilado Empírico (Tech + Performance)
         console.log(`[EnrichmentWorker] [FASE 3] Detectando tecnologías y rendimiento...`);
         const techStack = ProfilerService.detectTechFromHtml(rawHtml);
