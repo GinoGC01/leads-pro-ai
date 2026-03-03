@@ -66,4 +66,8 @@ export const getChatSession = (sessionId) => api.get(`/chat/sessions/${sessionId
 export const renameChatSession = (sessionId, title) => api.patch(`/chat/sessions/${sessionId}`, { title });
 export const deleteChatSession = (sessionId) => api.delete(`/chat/sessions/${sessionId}`);
 
+// Agency Settings
+export const getAgencyContext = () => api.get('/settings/agency-context');
+export const saveAgencyContext = (data) => api.post('/settings/agency-context', data);
+
 export default api;

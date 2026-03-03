@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import Dashboard from './Dashboard';
 import SearchView from './SearchView';
 import Sidebar from './components/Sidebar';
-import Settings from './components/Settings';
+import Settings from './components/Settings/SettingsPanel';
 import { SalesRepModal } from './components/Modals';
 import DataIntelligencePanel from './components/DataIntelligence/DataIntelligencePanel';
 
