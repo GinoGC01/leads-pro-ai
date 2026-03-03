@@ -286,13 +286,14 @@ const SearchView = () => {
                             </div>
                         </div>
 
-                        <div className="p-4 flex-1 overflow-y-auto minimal-scrollbar flex flex-col gap-4">
+                        <ul className="p-4 flex-1 overflow-y-auto minimal-scrollbar flex flex-col gap-4">
                             {filteredHistory.map((item) => (
                                 console.log(item),
-                                <div key={item._id}
+                                <li key={item._id}
                                     onClick={() => handleHistoryClick(item._id)}
-                                    className="group p-5 rounded-2xl border bg-app-bg border-white/5 hover:border-indigo-500/50 hover:bg-white/5 transition-all duration-300 relative flex flex-col cursor-pointer min-h-[200px]">
+                                    className="group p-5 rounded-2xl border bg-app-bg border-white/5 hover:border-indigo-500/50 hover:bg-white/5 transition-all duration-300 relative flex flex-col cursor-pointer ">
 
+                                    {/* delete button */}
                                     <button
                                         onClick={(e) => handleDeleteHistory(e, item._id)}
                                         className="absolute top-3 right-3 p-1.5 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all rounded-lg hover:bg-red-500/10 z-10 bg-app-bg shadow-sm"
@@ -355,7 +356,7 @@ const SearchView = () => {
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                </li>
                             ))}
                             {history.length === 0 && (
                                 <div className="text-xs text-slate-500 italic text-center py-12 flex flex-col items-center">
@@ -363,7 +364,7 @@ const SearchView = () => {
                                     No hay campañas estructuradas.
                                 </div>
                             )}
-                        </div>
+                        </ul>
                     </div>
                 </div>
 
