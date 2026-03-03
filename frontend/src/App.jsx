@@ -2,8 +2,8 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Dashboard from './Dashboard';
-import SearchView from './SearchView';
-import Sidebar from './components/Sidebar';
+import AcquisitionHub from './features/AcquisitionHub/AcquisitionHub';
+import Sidebar from './components/Sidebar/Sidebar';
 import Settings from './components/Settings/SettingsPanel';
 import { SalesRepModal } from './components/Modals';
 import DataIntelligencePanel from './components/DataIntelligence/DataIntelligencePanel';
@@ -21,7 +21,7 @@ function App() {
             <Route path="/" element={<Navigate to="/search" replace />} />
 
             {/* The Acquisition Hub */}
-            <Route path="/search" element={<SearchView />} />
+            <Route path="/search" element={<AcquisitionHub />} />
 
             {/* The CRM Execution Dashboard */}
             <Route path="/dashboard" element={<Dashboard />} />
