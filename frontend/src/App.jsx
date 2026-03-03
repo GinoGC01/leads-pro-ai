@@ -6,7 +6,7 @@ import SearchView from './SearchView';
 import Sidebar from './components/Sidebar';
 import Settings from './components/Settings';
 import SalesRepModal from './components/SalesRepModal';
-import DataIntelligencePanel from './components/DataIntelligencePanel';
+import DataIntelligencePanel from './components/DataIntelligence/DataIntelligencePanel';
 
 function App() {
   return (
