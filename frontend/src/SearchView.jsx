@@ -1,4 +1,4 @@
-import SearchForm from './components/SearchForm';
+import SearchForm from './components/SearchForm/SearchForm';
 import { History, Search, Trash2, MapPin, Database, X as CloseIcon } from 'lucide-react';
 import useSearchView from './hooks/useSearchView';
 
