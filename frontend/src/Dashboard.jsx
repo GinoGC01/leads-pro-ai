@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import Metrics from './components/Metrics';
 import Charts from './components/Charts';
 import LeadsTable from './components/LeadsTable';
-import AIChat from './components/AIChat';
+import AIChat from './components/AIChat/AIChat';
 import LeadDetailsPanel from './components/LeadDetails/LeadDetailsPanel';
 import DataIntelligence from './components/DataIntelligenceWidget/DataIntelligenceWidget';
 import ManualLeadModal from './components/ManualLeadModal';
