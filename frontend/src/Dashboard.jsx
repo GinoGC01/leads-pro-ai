@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import Metrics from './components/Metrics';
+import Metrics from './components/Metrics/MetricsGrid';
 import Charts from './components/Charts/DashboardCharts';
 import LeadsTable from './components/LeadsTable/LeadsTable';
 import AIChat from './components/AIChat/AIChat';
