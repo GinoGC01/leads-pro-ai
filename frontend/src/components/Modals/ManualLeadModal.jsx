@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, UserPlus, Phone, Globe, Mail, MapPin, FileText } from 'lucide-react';
 import axios from 'axios';
-import AlertService from '../services/AlertService';
+import AlertService from '../../services/AlertService';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',

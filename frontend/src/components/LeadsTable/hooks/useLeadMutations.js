@@ -1,21 +1,20 @@
 import { useState, useCallback } from 'react';
 import { updateLeadStatus, bulkDeleteLeads } from '../../../services/api';
 import AlertService from '../../../services/AlertService';
+import useModal from '../../../hooks/useModal';
 
 /**
  * Hook: useLeadMutations
  * Isolates all network calls (status update, bulk delete) and their
  * associated modal state from the rendering layer.
+ * Uses the standardized useModal hook for state management.
  */
 const useLeadMutations = ({ onLocalLeadsUpdate, onParentStatusChange, clearSelection }) => {
     const [isDeleting, setIsDeleting] = useState(false);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [statusModal, setStatusModal] = useState({ isOpen: false, leadId: null, newStatus: null });
+    const deleteModal = useModal();
+    const statusModal = useModal();
 
     // --- Bulk Delete ---
-    const openDeleteModal = useCallback(() => setIsDeleteModalOpen(true), []);
-    const closeDeleteModal = useCallback(() => setIsDeleteModalOpen(false), []);
-
     const handleBulkDelete = useCallback(async (selectedIds) => {
         setIsDeleting(true);
         const deleteReq = bulkDeleteLeads(selectedIds);
@@ -27,24 +26,16 @@ const useLeadMutations = ({ onLocalLeadsUpdate, onParentStatusChange, clearSelec
         }).then(() => {
             onLocalLeadsUpdate(prev => prev.filter(l => !selectedIds.includes(l._id)));
             clearSelection();
-            setIsDeleteModalOpen(false);
+            deleteModal.closeModal();
         }).finally(() => {
             setIsDeleting(false);
         });
-    }, [onLocalLeadsUpdate, clearSelection]);
+    }, [onLocalLeadsUpdate, clearSelection, deleteModal]);
 
     // --- Status Change ---
-    const openStatusModal = useCallback((leadId, newStatus) => {
-        setStatusModal({ isOpen: true, leadId, newStatus });
-    }, []);
-
-    const closeStatusModal = useCallback(() => {
-        setStatusModal({ isOpen: false, leadId: null, newStatus: null });
-    }, []);
-
     const confirmStatusChange = useCallback(async (note) => {
-        const { leadId, newStatus } = statusModal;
-        setStatusModal({ isOpen: false, leadId: null, newStatus: null });
+        const { leadId, newStatus } = statusModal.data || {};
+        statusModal.closeModal();
 
         const updateReq = updateLeadStatus(leadId, newStatus, note);
 
@@ -62,13 +53,9 @@ const useLeadMutations = ({ onLocalLeadsUpdate, onParentStatusChange, clearSelec
 
     return {
         isDeleting,
-        isDeleteModalOpen,
+        deleteModal,
         statusModal,
-        openDeleteModal,
-        closeDeleteModal,
         handleBulkDelete,
-        openStatusModal,
-        closeStatusModal,
         confirmStatusChange,
     };
 };

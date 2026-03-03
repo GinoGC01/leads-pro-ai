@@ -6,7 +6,7 @@ import LeadsTable from './components/LeadsTable/LeadsTable';
 import AIChat from './components/AIChat/AIChat';
 import LeadDetailsPanel from './components/LeadDetails/LeadDetailsPanel';
 import DataIntelligence from './components/DataIntelligenceWidget/DataIntelligenceWidget';
-import ManualLeadModal from './components/ManualLeadModal';
+import { ManualLeadModal } from './components/Modals';
 import { getHistoryItem, getLeadsBySearch, getGlobalStats, exportUrl } from './services/api';
 import AlertService from './services/AlertService';
 import { Download, Database, Star, Phone, Search, BarChart3, X as CloseIcon, Bell, Settings, MapPin, Globe, ChevronRight, FileJson, FileText, FileSpreadsheet, UserPlus } from 'lucide-react';

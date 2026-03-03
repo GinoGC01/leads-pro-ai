@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ExternalLink, AlertCircle } from 'lucide-react';
-import StatusUpdateModal from '../StatusUpdateModal';
+import { StatusUpdateModal } from '../Modals';
 
 // Custom Hooks (all API logic lives here)
 import useLeadData from './hooks/useLeadData';

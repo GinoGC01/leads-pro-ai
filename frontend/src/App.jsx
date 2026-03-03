@@ -5,7 +5,7 @@ import Dashboard from './Dashboard';
 import SearchView from './SearchView';
 import Sidebar from './components/Sidebar';
 import Settings from './components/Settings';
-import SalesRepModal from './components/SalesRepModal';
+import { SalesRepModal } from './components/Modals';
 import DataIntelligencePanel from './components/DataIntelligence/DataIntelligencePanel';
 
 function App() {

@@ -12,8 +12,7 @@ import TableHeader from './components/TableHeader';
 import LeadRow from './components/LeadRow';
 
 // External Modals (pre-existing)
-import DeleteConfirmationModal from '../DeleteConfirmationModal';
-import StatusUpdateModal from '../StatusUpdateModal';
+import { DeleteConfirmationModal, StatusUpdateModal } from '../Modals';
 
 /**
  * LeadsTable — Thin Orchestrator
@@ -37,11 +36,10 @@ const LeadsTable = ({ leads, onRowClick, onStatusChange }) => {
     const { selectedIds, toggleSelection, selectAll, clearSelection } =
         useRowSelection(leads);
 
-    // 3. Mutations — network + modals
+    // 3. Mutations — network + modals (uses standardized useModal)
     const {
-        isDeleting, isDeleteModalOpen, statusModal,
-        openDeleteModal, closeDeleteModal, handleBulkDelete,
-        openStatusModal, closeStatusModal, confirmStatusChange
+        isDeleting, deleteModal, statusModal,
+        handleBulkDelete, confirmStatusChange
     } = useLeadMutations({
         onLocalLeadsUpdate: setLocalLeads,
         onParentStatusChange: onStatusChange,
@@ -54,8 +52,8 @@ const LeadsTable = ({ leads, onRowClick, onStatusChange }) => {
     }, [toggleSelection]);
 
     const handleStatusChange = useCallback((leadId, newStatus) => {
-        openStatusModal(leadId, newStatus);
-    }, [openStatusModal]);
+        statusModal.openModal({ leadId, newStatus });
+    }, [statusModal]);
 
     const handleRowClick = useCallback((lead) => {
         if (onRowClick) onRowClick(lead);
@@ -73,7 +71,7 @@ const LeadsTable = ({ leads, onRowClick, onStatusChange }) => {
                 <BulkActionBar
                     selectedCount={selectedIds.length}
                     onClear={clearSelection}
-                    onDelete={openDeleteModal}
+                    onDelete={deleteModal.openModal}
                 />
 
                 <FilterToolbar
@@ -110,16 +108,16 @@ const LeadsTable = ({ leads, onRowClick, onStatusChange }) => {
             </div>
 
             <DeleteConfirmationModal
-                isOpen={isDeleteModalOpen}
-                onClose={closeDeleteModal}
+                isOpen={deleteModal.isOpen}
+                onClose={deleteModal.closeModal}
                 onConfirm={() => handleBulkDelete(selectedIds)}
                 count={selectedIds.length}
                 isDeleting={isDeleting}
             />
             <StatusUpdateModal
                 isOpen={statusModal.isOpen}
-                newStatus={statusModal.newStatus}
-                onClose={closeStatusModal}
+                newStatus={statusModal.data?.newStatus}
+                onClose={statusModal.closeModal}
                 onConfirm={confirmStatusChange}
             />
         </>
