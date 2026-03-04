@@ -96,7 +96,7 @@ class VortexController {
             const lead = await Lead.findOneAndUpdate(
                 { _id: id, vortex_status: 'base_completed' },
                 { $set: { vortex_status: 'vision_processing' } },
-                { new: true }
+                { returnDocument: 'after' }
             );
 
             if (!lead) {

@@ -12,6 +12,9 @@ connectDB();
 // Phase 0: Start Asynchronous Enrichment Engine Worker
 import './workers/EnrichmentWorker.js';
 
+// Phase 2: Start Deep Vision Worker
+import './workers/VisionWorker.js';
+
 // Start Server
 const server = app.listen(PORT, () => {
     console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
