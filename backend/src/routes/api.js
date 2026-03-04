@@ -1,6 +1,10 @@
 import express from 'express';
 const router = express.Router();
-import SearchController from '../controllers/SearchController.js';
+
+// --- Domain Route Modules ---
+import searchRoutes from './search.routes.js';
+
+// --- Legacy Controllers (pending future domain extraction) ---
 import ExportController from '../controllers/ExportController.js';
 import AIController from '../controllers/AIController.js';
 import VortexController from '../controllers/VortexController.js';
@@ -9,22 +13,23 @@ import ChatController from '../controllers/ChatController.js';
 import ManualLeadController from '../controllers/ManualLeadController.js';
 import DataIntelligenceController from '../controllers/DataIntelligenceController.js';
 
-// Search Routes
+// Global request logger
 router.use((req, res, next) => {
     console.log(`[Router] ${req.method} ${req.originalUrl}`);
     next();
 });
 
-router.get('/stats', SearchController.getGlobalStats);
-router.post('/search', SearchController.startSearch);
-router.delete('/history/:id', SearchController.deleteSearch);
-router.get('/history/:id', SearchController.getHistoryById);
-router.get('/history', SearchController.getHistory);
-router.get('/history/:searchId/leads', SearchController.getLeadsBySearch);
-router.get('/leads/:id', SearchController.getLeadById);
-router.patch('/leads/:id/status', SearchController.updateLeadStatus);
-router.delete('/leads', SearchController.bulkDeleteLeads);
+// =====================================================
+// SEARCH DOMAIN (Refactored to 3-Tier Modular Monolith)
+// =====================================================
+router.use('/', searchRoutes);
+
+// Manual Lead Creation (will move to leads.routes.js in Iteration 2)
 router.post('/leads/manual', ManualLeadController.createManualLead);
+
+// =====================================================
+// LEGACY DOMAINS (Pending future iterations)
+// =====================================================
 
 // Data Intelligence Routes
 router.get('/intelligence/usage', DataIntelligenceController.getUsage);

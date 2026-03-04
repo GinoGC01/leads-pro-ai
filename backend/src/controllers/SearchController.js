@@ -1,343 +1,86 @@
+import LeadSearchService from '../services/LeadSearchService.js';
+
+// =====================================================================
+// TEMPORARY DOMAIN IMPORTS (will be extracted in future iterations)
+// These imports exist ONLY for methods that belong to other domains
+// (Leads, Dashboard, CRM) but still live here pending their refactoring.
+// =====================================================================
 import Lead from '../models/Lead.js';
 import SearchHistory from '../models/SearchHistory.js';
 import ApiUsage from '../models/ApiUsage.js';
-import GooglePlacesService from '../services/GooglePlacesService.js';
 import ScoringService from '../services/ScoringService.js';
-import * as QueueService from '../services/QueueService.js';
-import ragConfig from '../config/rag.config.js';
-import AIService from '../services/AIService.js';
 import SupabaseService from '../services/SupabaseService.js';
-import { RENTED_LAND_DOMAINS } from '../services/SpiderEngine.js';
-import GridService from '../services/GridService.js';
 import CampaignService from '../services/CampaignService.js';
 
 /**
- * Controller for Lead Generation logic
+ * SearchController — The Bouncer (Search Domain).
+ * 
+ * REFACTORED METHODS (3-Tier Clean):
+ *   startSearch, getHistory, getHistoryById, deleteSearch
+ *   → Zero model imports, pure delegation to LeadSearchService.
+ * 
+ * LEGACY METHODS (Pending future iteration):
+ *   getGlobalStats, getLeadsBySearch, getLeadById, updateLeadStatus, bulkDeleteLeads
+ *   → Still contain direct model access. Will be extracted to
+ *     LeadController + DashboardController in Iteration 2.
  */
 class SearchController {
-    /**
-     * Start a new search and process results
-     */
+
+    // =================================================================
+    // REFACTORED METHODS (3-Tier: Router → Controller → Service)
+    // =================================================================
+
+    /** POST /api/search — Launch a new search campaign */
     static async startSearch(req, res) {
-        const { keyword, location, radius, maxResults, filters, countryCode, gridMode, gridSize } = req.body;
-
         try {
-            // 0. Quota Check (Hard-limit 50 High-Qualified leads/week)
-            const oneWeekAgo = new Date();
-            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-            const weeklyHighQualifiedCount = await Lead.countDocuments({
-                isHighTicket: true,
-                createdAt: { $gte: oneWeekAgo }
-            });
-
-            if (weeklyHighQualifiedCount >= 50) {
-                return res.status(403).json({
-                    success: false,
-                    message: "Quota semanal de leads High-Ticket alcanzada (50/50). El sistema se detiene para optimizar costes."
-                });
-            }
-
-            // 1. Create search history record
-            const search = await SearchHistory.create({
-                keyword,
-                location,
-                radius: parseInt(radius),
-                countryCode,
-                filters,
-                status: 'processing',
-                searchMode: gridMode ? 'grid' : 'single',
-                gridSize: gridMode ? (gridSize || 3) : 0,
-                gridCellsTotal: gridMode ? ((gridSize || 3) * (gridSize || 3)) : 1,
-                gridCellsCompleted: 0,
-                logs: [{ message: gridMode ? `🗺️ Iniciando Grid Search ${gridSize || 3}×${gridSize || 3} — Expansión Geográfica...` : '🚀 Iniciando motor de búsqueda Leads Pro AI...', type: 'info' }]
-            });
-
-            // 2. Return immediately to allow polling
-            res.status(200).json({
-                success: true,
-                searchId: search._id
-            });
-
-            // 3. Start processing in background
-            SearchController.runProcessing(search, keyword, location, radius, maxResults, countryCode, gridMode, gridSize);
-
+            const result = await LeadSearchService.initiate(req.body);
+            res.status(200).json({ success: true, searchId: result.searchId });
         } catch (error) {
-            console.error('Search initiation error:', error);
-            // Evitar crash si los headers ya fueron enviados por el res.json exitoso
+            const status = error.statusCode || 500;
             if (!res.headersSent) {
-                res.status(500).json({ success: false, message: error.message });
+                res.status(status).json({ success: false, message: error.message });
             }
         }
     }
 
-    /**
-     * Intensive background processing for leads
-     */
-    static async runProcessing(search, keyword, location, radius, maxResults, countryCode, gridMode = false, gridSize = 3) {
-        const pushStatus = async (message, type = 'info') => {
-            console.log(`[Search: ${search._id}] ${message}`);
-            await SearchHistory.findByIdAndUpdate(search._id, {
-                $push: { logs: { message, type, timestamp: new Date() } }
-            });
-        };
-
-        try {
-            let rawGoogleResults = [];
-
-            if (gridMode) {
-                // === GRID SEARCH MODE ===
-                const isCoords = /^-?\d+\.?\d*,\s*-?\d+\.?\d*$/.test(location);
-                if (!isCoords) {
-                    await pushStatus('⚠️ Grid Search requiere coordenadas (lat,lng). Ejecutando búsqueda estándar...', 'warn');
-                    // Fallback to standard search
-                    rawGoogleResults = await GooglePlacesService.searchPlaces(keyword, location, radius, 20, maxResults || 60, countryCode);
-                } else {
-                    const [lat, lng] = location.split(',').map(Number);
-                    const cells = GridService.generateGrid(lat, lng, parseInt(radius) || 50000, gridSize);
-                    const costEstimate = GridService.estimateCost(gridSize);
-                    await pushStatus(`🗺️ Grid ${gridSize}×${gridSize} generado: ${cells.length} celdas, radio/celda: ${cells[0].cellRadius}m. Costo máx estimado: $${costEstimate.maxCostUSD} USD`);
-
-                    const seenPlaceIds = new Set();
-                    // Pre-populate with existing placeIds from DB for this keyword/location
-                    const existingLeads = await Lead.find({ searchId: { $exists: true } }, { placeId: 1 }).lean();
-                    existingLeads.forEach(l => { if (l.placeId) seenPlaceIds.add(l.placeId); });
-
-                    for (let i = 0; i < cells.length; i++) {
-                        const cell = cells[i];
-                        await pushStatus(`📡 ${cell.label} (${i + 1}/${cells.length}) — Centro: ${cell.lat}, ${cell.lng} — Radio: ${cell.cellRadius}m`);
-
-                        try {
-                            const cellResults = await GooglePlacesService.searchPlaces(
-                                keyword,
-                                `${cell.lat},${cell.lng}`,
-                                cell.cellRadius,
-                                20,
-                                60, // max per cell
-                                countryCode
-                            );
-
-                            // Dedup: only keep results NOT seen before
-                            let newInCell = 0;
-                            for (const place of cellResults) {
-                                if (!seenPlaceIds.has(place.id)) {
-                                    seenPlaceIds.add(place.id);
-                                    rawGoogleResults.push(place);
-                                    newInCell++;
-                                }
-                            }
-
-                            await pushStatus(`✅ ${cell.label} completada: ${cellResults.length} encontrados, ${newInCell} nuevos (${cellResults.length - newInCell} duplicados filtrados)`);
-
-                            // Update grid progress
-                            await SearchHistory.findByIdAndUpdate(search._id, {
-                                gridCellsCompleted: i + 1
-                            });
-
-                        } catch (cellErr) {
-                            await pushStatus(`⚠️ Error en ${cell.label}: ${cellErr.message}`, 'error');
-                        }
-                    }
-
-                    await pushStatus(`🏁 Grid Search completado: ${rawGoogleResults.length} leads únicos encontrados en ${cells.length} celdas.`);
-                }
-            } else {
-                // === STANDARD SEARCH MODE ===
-                await pushStatus(`📡 Conectando con Google Places API (${countryCode || 'Global'}) para localizar profesionales...`);
-                rawGoogleResults = await GooglePlacesService.searchPlaces(keyword, location, radius, 20, maxResults || 60, countryCode);
-            }
-
-            if (rawGoogleResults.length > 0) {
-                console.log("=== RAW GOOGLE PLACE OBJECT (SAMPLE) ===");
-                console.log(JSON.stringify(rawGoogleResults[0], null, 2));
-                console.log("========================================");
-            }
-
-            // Phase 0: Acquisition Filter (Data Hygiene)
-            const validLeads = rawGoogleResults.filter(place => {
-                // Las APIs nuevas usan camelCase (nationalPhoneNumber) en lugar de snake_case
-                const hasPhone = !!(place.nationalPhoneNumber || place.internationalPhoneNumber || place.formatted_phone_number);
-                const hasWebsite = !!(place.website || place.websiteUri);
-                return hasPhone || hasWebsite;
-            });
-
-            console.log(`[Vortex Ops] Filtro aplicado: Pasaron ${validLeads.length} de ${rawGoogleResults.length} leads.`);
-
-            // Phase 1: Prevention of Empty Database Insertion
-            if (validLeads.length === 0) {
-                await pushStatus(`❌ Se encontraron ${rawGoogleResults.length} negocios, pero ninguno poseía vías de contacto (web o teléfono). Búsqueda descartada.`, 'error');
-                await SearchHistory.findByIdAndUpdate(search._id, {
-                    status: 'failed',
-                    resultsCount: 0,
-                    totalCost: 0.032 // Include base query cost
-                });
-                return; // Abort processing
-            }
-
-            const places = validLeads;
-
-            let totalCost = 0.00; // API V1 with Basic FieldMasks + BusinessStatus is strictly $0
-            await pushStatus(`✅ Google API V1 devolvió ${rawGoogleResults.length} entidades a $0 costo. Filtro Heurístico aprobó ${places.length} candidatos viables.`, 'success');
-            await pushStatus('🔍 Validando y depurando Base de Datos de Leads locales...');
-
-            // 3. Process Leads in Parallel
-            const leadPromises = places.map(async (place, index) => {
-                try {
-                    // Check if lead already exists
-                    let existingLead = await Lead.findOne({ placeId: place.id });
-                    if (existingLead) {
-                        await pushStatus(`⏭️ Omitiendo duplicado: ${place.name}`, 'info');
-                        return existingLead;
-                    }
-
-                    await pushStatus(`📎 Procesando: ${place.name}...`, 'info');
-
-                    // 1. ZOMBIE FILTER ($0 Cost): Ignore non-operational locations
-                    if (place.businessStatus && place.businessStatus !== 'OPERATIONAL') {
-                        await pushStatus(`⏭️ Omitiendo negocio inactivo (Zombie): ${place.name}`, 'info');
-                        return null;
-                    }
-
-                    // 2. Deduplication by domain, Sinkhole Check, and Rented Land Filter
-                    if (place.websiteUri) {
-                        const domain = new URL(place.websiteUri).hostname.replace('www.', '');
-                        const urlLower = place.websiteUri.toLowerCase();
-
-                        // 2a. Domain Parking / For-Sale Sinkhole
-                        const sinkholes = ['hugedomains.com', 'dan.com', 'sedo.com', 'afternic.com', 'domainmarket.com', 'godaddy.com/forsale'];
-                        if (sinkholes.some(sink => domain.toLowerCase().includes(sink) || urlLower.includes(sink))) {
-                            await pushStatus(`🚧 Dominio en venta detectado (${domain}). Removiendo URL fantasma...`, 'info');
-                            place.websiteUri = null;
-                            // 2b. Rented Land Filter (subdomains of agendapro, linktr.ee, etc.)
-                        } else if (RENTED_LAND_DOMAINS.some(rl => urlLower.includes(rl))) {
-                            await pushStatus(`🏚️ Tierra Alquilada detectada (${domain}). Marcando como sin web propia...`, 'info');
-                            // Keep websiteUri for Spider to classify, but flag it
-                        } else {
-                            const duplicateByDomain = await Lead.findOne({ website: new RegExp(domain, 'i') });
-                            if (duplicateByDomain) return duplicateByDomain;
-                        }
-                    }
-
-                    // 3. Direct Mapping from V1 FieldMask (No N+1 Loop)
-                    const leadData = {
-                        placeId: place.id,
-                        name: place.name,
-                        address: place.formatted_address,
-                        phoneNumber: place.nationalPhoneNumber,
-                        website: place.websiteUri,
-                        rating: place.rating,
-                        userRatingsTotal: place.user_ratings_total,
-                        // Note: V1 geometry requires adding places.location to the mask, 
-                        // fallback to empty if missing to save costs.
-                        location: {
-                            lat: place.location?.latitude || 0,
-                            lng: place.location?.longitude || 0
-                        },
-                        googleMapsUrl: place.googleMapsUri, // Google Places API V1 Map Link
-                        searchId: search._id,
-                        reviews: [], // Dropped API SKU
-                        is_zombie: false, // Handled by businessStatus filter above
-                        is_advertising: false, // Ad logic may vary in V1, fallback false
-                        status: (!place.nationalPhoneNumber && !place.websiteUri) ? 'En Espera' : 'Nuevo',
-                        source: 'google_maps',
-                    };
-
-                    leadData.enrichmentStatus = 'unprocessed';
-
-                    // Scoring & NLP (Bulletproof Implementation)
-                    try {
-                        console.log(`[INGESTION] Iniciando scoring para: ${leadData.name}`);
-                        leadData.leadOpportunityScore = ScoringService.calculateScore(leadData) || 0;
-                        leadData.opportunityLevel = ScoringService.getOpportunityLevel(leadData.leadOpportunityScore, leadData) || 'Low';
-                        leadData.sales_angle = ScoringService.generateRefinedAngle(leadData, leadData.reviews) || 'Análisis estándar';
-                        leadData.isHighTicket = leadData.opportunityLevel === 'Critical';
-                    } catch (scoringErr) {
-                        console.error(`[CRITICAL] Error en scoring para ${leadData.name}:`, scoringErr.message);
-                        leadData.leadOpportunityScore = 0;
-                        leadData.opportunityLevel = 'Low';
-                        leadData.sales_angle = 'Error en procesador de inteligencia';
-                    }
-
-                    const created = await Lead.create(leadData);
-
-                    // NOTA: El enriquecimiento (FASE 0-4) ahora es manual vía VortexController
-                    // if (leadData.website) {
-                    //     await QueueService.addLeadToEnrichment(created);
-                    // }
-
-                    return created;
-                } catch (err) {
-                    console.error(`[SearchController] Error lead:`, err.message);
-                    return null;
-                }
-            });
-
-            const results = await Promise.all(leadPromises);
-            const processedLeads = results.filter(l => l !== null);
-
-            await pushStatus(`✅ Enriquecimiento finalizado. Se han guardado ${processedLeads.length} leads.`, 'success');
-
-            // Stats calculation
-            let leadsWithWeb = 0;
-            let leadsWithEmail = 0;
-            let totalRating = 0;
-            let ratedLeadsCount = 0;
-
-            processedLeads.forEach(l => {
-                if (l.website) leadsWithWeb++;
-                if (l.email) leadsWithEmail++;
-                if (l.rating) {
-                    totalRating += l.rating;
-                    ratedLeadsCount++;
-                }
-            });
-
-            // 6. Update Search History Stats
-            await SearchHistory.findByIdAndUpdate(search._id, {
-                resultsCount: processedLeads.length,
-                leadsWithWeb,
-                leadsWithEmail,
-                averageRating: ratedLeadsCount > 0 ? totalRating / ratedLeadsCount : 0,
-                totalCost,
-                status: 'completed'
-            });
-
-        } catch (error) {
-            console.error('Background search error:', error);
-            await SearchHistory.findByIdAndUpdate(search._id, {
-                status: 'failed',
-                $push: { logs: { message: `❌ Error en el proceso: ${error.message}`, type: 'error' } }
-            });
-        }
-    }
-
-    /**
-     * Get a single history item
-     */
-    static async getHistoryById(req, res) {
-        try {
-            const history = await SearchHistory.findById(req.params.id);
-            if (!history) return res.status(404).json({ success: false, message: 'No encontrado' });
-            res.status(200).json(history);
-        } catch (error) {
-            res.status(500).json({ success: false, message: error.message });
-        }
-    }
-
-    /**
-     * Get search history
-     */
+    /** GET /api/history — Get all campaign history */
     static async getHistory(req, res) {
         try {
-            const history = await SearchHistory.find().sort({ createdAt: -1 });
+            const history = await LeadSearchService.getHistory();
             res.status(200).json(history);
         } catch (error) {
             res.status(500).json({ success: false, message: error.message });
         }
     }
 
-    /**
-     * Get leads for a specific search
-     */
+    /** GET /api/history/:id — Get single campaign details */
+    static async getHistoryById(req, res) {
+        try {
+            const history = await LeadSearchService.getHistoryById(req.params.id);
+            res.status(200).json(history);
+        } catch (error) {
+            const status = error.statusCode || 500;
+            res.status(status).json({ success: false, message: error.message });
+        }
+    }
+
+    /** DELETE /api/history/:id — Purge a campaign and its leads */
+    static async deleteSearch(req, res) {
+        try {
+            const result = await LeadSearchService.deleteCampaign(req.params.id);
+            res.status(200).json({ success: true, message: 'Búsqueda y leads asociados eliminados con éxito', ...result });
+        } catch (error) {
+            const status = error.statusCode || 500;
+            res.status(status).json({ success: false, message: error.message });
+        }
+    }
+
+    // =================================================================
+    // LEGACY METHODS — Pending Iteration 2 (Lead + Dashboard domains)
+    // DO NOT add new logic here. These will be moved out.
+    // =================================================================
+
+    /** GET /api/history/:searchId/leads */
     static async getLeadsBySearch(req, res) {
         try {
             const leads = await Lead.find({ searchId: req.params.searchId });
@@ -347,163 +90,18 @@ class SearchController {
         }
     }
 
-    /**
-     * Get aggregate statistics for the dashboard (Data Intelligence v2.0)
-     */
-    static async getGlobalStats(req, res) {
+    /** GET /api/leads/:id */
+    static async getLeadById(req, res) {
         try {
-            const histories = await SearchHistory.find();
-            const totalLeads = await Lead.countDocuments();
-            const leadsWithWeb = await Lead.countDocuments({ website: { $ne: null, $exists: true } });
-            const leadsWithEmail = await Lead.countDocuments({ email: { $ne: null, $exists: true } });
-            const highTicketLeads = await Lead.countDocuments({ isHighTicket: true });
-
-            // Calculate Avg Score across all leads
-            const scoreAggregate = await Lead.aggregate([
-                { $group: { _id: null, avgScore: { $avg: "$leadOpportunityScore" } } }
-            ]);
-
-            // Dashboard Charts: Acquisition Velocity (Current Year Monthly Aggregation)
-            const currentYear = new Date().getFullYear();
-            const acquisitionVelocityData = await Lead.aggregate([
-                {
-                    $match: {
-                        createdAt: {
-                            $gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
-                            $lt: new Date(`${currentYear + 1}-01-01T00:00:00.000Z`)
-                        }
-                    }
-                },
-                {
-                    $group: {
-                        _id: { $month: "$createdAt" },
-                        count: { $sum: 1 }
-                    }
-                }
-            ]);
-
-            // Format into an array of 12 numbers for Jan-Dec
-            const monthlyLeads = new Array(12).fill(0);
-            acquisitionVelocityData.forEach(item => {
-                if (item._id >= 1 && item._id <= 12) {
-                    monthlyLeads[item._id - 1] = item.count;
-                }
-            });
-
-            // Dashboard Charts: Pipeline Distribution (Leads by CRM Status)
-            const statusDistributionData = await Lead.aggregate([
-                {
-                    $group: {
-                        _id: "$status",
-                        count: { $sum: 1 }
-                    }
-                }
-            ]);
-
-            const statusDistribution = {
-                new: 0,
-                contacted: 0,
-                in_progress: 0,
-                closed: 0,
-                en_espera: 0,
-                descartados: 0
-            };
-            statusDistributionData.forEach(item => {
-                const normalizedId = String(item._id || '').toLowerCase().trim();
-
-                if (['nuevo', 'new'].includes(normalizedId)) {
-                    statusDistribution.new += item.count;
-                } else if (['contactado', 'contacted'].includes(normalizedId)) {
-                    statusDistribution.contacted += item.count;
-                } else if (['en espera'].includes(normalizedId)) {
-                    statusDistribution.en_espera += item.count;
-                } else if (['cita agendada', 'propuesta enviada', 'in_progress'].includes(normalizedId)) {
-                    statusDistribution.in_progress += item.count;
-                } else if (['cerrado ganado', 'cerrado perdido', 'closed', 'sin whatsapp'].includes(normalizedId)) {
-                    statusDistribution.closed += item.count;
-                } else if (['descartados'].includes(normalizedId)) {
-                    statusDistribution.descartados += item.count;
-                } else {
-                    // Fallback para leads sin estado o estados no reconocidos
-                    statusDistribution.new += item.count;
-                }
-            });
-
-            console.log('[DEBUG Stats] currentYear:', new Date().getFullYear(), 'monthlyLeads:', monthlyLeads);
-
-            // Billing Reconciliation Engine (SKU-based Free Tiers)
-            const currentUsage = await ApiUsage.getCurrentMonth();
-
-            const TEXT_SEARCH_FREE_TIER = 5000;
-            const DETAILS_FREE_TIER = 1000;
-            const TEXT_SEARCH_PRICE = 0.032;
-            const DETAILS_PRICE = 0.025;
-
-            const billableTextSearch = Math.max(0, currentUsage.textSearchCount - TEXT_SEARCH_FREE_TIER);
-            const billableDetails = Math.max(0, currentUsage.placeDetailsCount - DETAILS_FREE_TIER);
-
-            const realBillableCost = (billableTextSearch * TEXT_SEARCH_PRICE) + (billableDetails * DETAILS_PRICE);
-            const theoreticalSavings = (currentUsage.textSearchCount * TEXT_SEARCH_PRICE) + (currentUsage.placeDetailsCount * DETAILS_PRICE) - realBillableCost;
-
-            const billingMetrics = {
-                textSearchUsage: currentUsage.textSearchCount,
-                detailsUsage: currentUsage.placeDetailsCount,
-                textSearchLimit: TEXT_SEARCH_FREE_TIER,
-                detailsLimit: DETAILS_FREE_TIER,
-                realBillableCost,
-                theoreticalSavings,
-                totalEstimatedSnapshot: histories.reduce((sum, h) => sum + (h.totalCost || 0), 0)
-            };
-
-            // Category Analysis (Top 5 keywords)
-            const categories = await SearchHistory.aggregate([
-                { $group: { _id: "$keyword", count: { $sum: "$resultsCount" } } },
-                { $sort: { count: -1 } },
-                { $limit: 5 }
-            ]);
-
-            // Efficiency Metrics
-            const efficiency = {
-                costPerLead: totalLeads > 0 ? billingMetrics.realBillableCost / totalLeads : 0,
-                costPerEmail: leadsWithEmail > 0 ? billingMetrics.realBillableCost / leadsWithEmail : 0,
-                roiPotential: highTicketLeads * 500 // Arbitrary $500 potential value per Critical lead
-            };
-
-            const stats = {
-                summary: {
-                    totalSearches: histories.length,
-                    totalInvested: billingMetrics.realBillableCost,
-                    totalLeads: totalLeads,
-                    totalHighTicket: highTicketLeads,
-                    uniqueLocations: [...new Set(histories.map(h => h.location))].length,
-                    avgScore: scoreAggregate[0]?.avgScore || 0
-                },
-                charts: {
-                    monthlyAcquisition: monthlyLeads,
-                    pipelineStatus: statusDistribution
-                },
-                coverage: {
-                    email: totalLeads > 0 ? (leadsWithEmail / totalLeads) * 100 : 0,
-                    web: totalLeads > 0 ? (leadsWithWeb / totalLeads) * 100 : 0
-                },
-                billing: billingMetrics,
-                categories: categories.map(c => ({ name: c._id, count: c.count })),
-                efficiency,
-                projection: {
-                    monthlyEstimated: (billingMetrics.totalEstimated / Math.max(1, histories.length)) * 30
-                }
-            };
-
-            res.status(200).json(stats);
+            const lead = await Lead.findById(req.params.id);
+            if (!lead) return res.status(404).json({ success: false, message: 'Lead no encontrado' });
+            res.status(200).json(lead);
         } catch (error) {
-            console.error('[Stats] Error:', error);
             res.status(500).json({ success: false, message: error.message });
         }
     }
 
-    /**
-     * Update lead CRM status and add interaction log
-     */
+    /** PATCH /api/leads/:id/status */
     static async updateLeadStatus(req, res) {
         try {
             const { id } = req.params;
@@ -540,9 +138,7 @@ class SearchController {
         }
     }
 
-    /**
-     * Bulk delete leads from both MongoDB and Supabase
-     */
+    /** DELETE /api/leads — Bulk delete */
     static async bulkDeleteLeads(req, res) {
         try {
             const { leadIds } = req.body;
@@ -553,16 +149,13 @@ class SearchController {
 
             console.log(`[SearchController] Iniciando borrado masivo de ${leadIds.length} leads.`);
 
-            // 1. Delete from Supabase (pgvector)
             try {
                 await SupabaseService.deleteLeadVectors(leadIds);
                 console.log(`[SearchController] Vectores eliminados en Supabase.`);
             } catch (vdbError) {
                 console.warn(`[SearchController] Advertencia: Error borrando vectores en Supabase:`, vdbError.message);
-                // We continue to ensure Mongo stays in sync if vectors are missing or already gone
             }
 
-            // 2. Delete from MongoDB
             const mongoResult = await Lead.deleteMany({ _id: { $in: leadIds } });
             console.log(`[SearchController] Leads eliminados en MongoDB: ${mongoResult.deletedCount}`);
 
@@ -577,42 +170,117 @@ class SearchController {
         }
     }
 
-    /**
-     * Delete a search and its associated leads
-     */
-    static async deleteSearch(req, res) {
+    /** GET /api/stats — Dashboard global stats */
+    static async getGlobalStats(req, res) {
         try {
-            const { id: searchId } = req.params;
-            console.log(`[SearchController] Attempting to delete search: ${searchId}`);
+            const histories = await SearchHistory.find();
+            const totalLeads = await Lead.countDocuments();
+            const leadsWithWeb = await Lead.countDocuments({ website: { $ne: null, $exists: true } });
+            const leadsWithEmail = await Lead.countDocuments({ email: { $ne: null, $exists: true } });
+            const highTicketLeads = await Lead.countDocuments({ isHighTicket: true });
 
-            // Delete associated leads first
-            const leadsDeleted = await Lead.deleteMany({ searchId });
-            console.log(`[SearchController] Leads deleted: ${leadsDeleted.deletedCount}`);
+            const scoreAggregate = await Lead.aggregate([
+                { $group: { _id: null, avgScore: { $avg: "$leadOpportunityScore" } } }
+            ]);
 
-            // Delete search history record
-            const deletedSearch = await SearchHistory.findByIdAndDelete(searchId);
+            const currentYear = new Date().getFullYear();
+            const acquisitionVelocityData = await Lead.aggregate([
+                {
+                    $match: {
+                        createdAt: {
+                            $gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
+                            $lt: new Date(`${currentYear + 1}-01-01T00:00:00.000Z`)
+                        }
+                    }
+                },
+                { $group: { _id: { $month: "$createdAt" }, count: { $sum: 1 } } }
+            ]);
 
-            if (!deletedSearch) {
-                console.warn(`[SearchController] Search history record not found for ID: ${searchId}`);
-                return res.status(404).json({ success: false, message: 'Búsqueda no encontrada en el historial' });
-            }
+            const monthlyLeads = new Array(12).fill(0);
+            acquisitionVelocityData.forEach(item => {
+                if (item._id >= 1 && item._id <= 12) {
+                    monthlyLeads[item._id - 1] = item.count;
+                }
+            });
 
-            console.log(`[SearchController] Search history record deleted successfully`);
-            res.status(200).json({ success: true, message: 'Búsqueda y leads asociados eliminados con éxito' });
+            const statusDistributionData = await Lead.aggregate([
+                { $group: { _id: "$status", count: { $sum: 1 } } }
+            ]);
+
+            const statusDistribution = {
+                new: 0, contacted: 0, in_progress: 0,
+                closed: 0, en_espera: 0, descartados: 0
+            };
+            statusDistributionData.forEach(item => {
+                const normalizedId = String(item._id || '').toLowerCase().trim();
+                if (['nuevo', 'new'].includes(normalizedId)) statusDistribution.new += item.count;
+                else if (['contactado', 'contacted'].includes(normalizedId)) statusDistribution.contacted += item.count;
+                else if (['en espera'].includes(normalizedId)) statusDistribution.en_espera += item.count;
+                else if (['cita agendada', 'propuesta enviada', 'in_progress'].includes(normalizedId)) statusDistribution.in_progress += item.count;
+                else if (['cerrado ganado', 'cerrado perdido', 'closed', 'sin whatsapp'].includes(normalizedId)) statusDistribution.closed += item.count;
+                else if (['descartados'].includes(normalizedId)) statusDistribution.descartados += item.count;
+                else statusDistribution.new += item.count;
+            });
+
+            const currentUsage = await ApiUsage.getCurrentMonth();
+
+            const TEXT_SEARCH_FREE_TIER = 5000;
+            const DETAILS_FREE_TIER = 1000;
+            const TEXT_SEARCH_PRICE = 0.032;
+            const DETAILS_PRICE = 0.025;
+
+            const billableTextSearch = Math.max(0, currentUsage.textSearchCount - TEXT_SEARCH_FREE_TIER);
+            const billableDetails = Math.max(0, currentUsage.placeDetailsCount - DETAILS_FREE_TIER);
+            const realBillableCost = (billableTextSearch * TEXT_SEARCH_PRICE) + (billableDetails * DETAILS_PRICE);
+            const theoreticalSavings = (currentUsage.textSearchCount * TEXT_SEARCH_PRICE) + (currentUsage.placeDetailsCount * DETAILS_PRICE) - realBillableCost;
+
+            const billingMetrics = {
+                textSearchUsage: currentUsage.textSearchCount,
+                detailsUsage: currentUsage.placeDetailsCount,
+                textSearchLimit: TEXT_SEARCH_FREE_TIER,
+                detailsLimit: DETAILS_FREE_TIER,
+                realBillableCost,
+                theoreticalSavings,
+                totalEstimatedSnapshot: histories.reduce((sum, h) => sum + (h.totalCost || 0), 0)
+            };
+
+            const categories = await SearchHistory.aggregate([
+                { $group: { _id: "$keyword", count: { $sum: "$resultsCount" } } },
+                { $sort: { count: -1 } },
+                { $limit: 5 }
+            ]);
+
+            const efficiency = {
+                costPerLead: totalLeads > 0 ? billingMetrics.realBillableCost / totalLeads : 0,
+                costPerEmail: leadsWithEmail > 0 ? billingMetrics.realBillableCost / leadsWithEmail : 0,
+                roiPotential: highTicketLeads * 500
+            };
+
+            const stats = {
+                summary: {
+                    totalSearches: histories.length,
+                    totalInvested: billingMetrics.realBillableCost,
+                    totalLeads,
+                    totalHighTicket: highTicketLeads,
+                    uniqueLocations: [...new Set(histories.map(h => h.location))].length,
+                    avgScore: scoreAggregate[0]?.avgScore || 0
+                },
+                charts: { monthlyAcquisition: monthlyLeads, pipelineStatus: statusDistribution },
+                coverage: {
+                    email: totalLeads > 0 ? (leadsWithEmail / totalLeads) * 100 : 0,
+                    web: totalLeads > 0 ? (leadsWithWeb / totalLeads) * 100 : 0
+                },
+                billing: billingMetrics,
+                categories: categories.map(c => ({ name: c._id, count: c.count })),
+                efficiency,
+                projection: {
+                    monthlyEstimated: (billingMetrics.totalEstimatedSnapshot / Math.max(1, histories.length)) * 30
+                }
+            };
+
+            res.status(200).json(stats);
         } catch (error) {
-            console.error(`[SearchController] Error deleting search:`, error);
-            res.status(500).json({ success: false, message: error.message });
-        }
-    }
-    /**
-     * Get a single lead by ID
-     */
-    static async getLeadById(req, res) {
-        try {
-            const lead = await Lead.findById(req.params.id);
-            if (!lead) return res.status(404).json({ success: false, message: 'Lead no encontrado' });
-            res.status(200).json(lead);
-        } catch (error) {
+            console.error('[Stats] Error:', error);
             res.status(500).json({ success: false, message: error.message });
         }
     }
