@@ -29,8 +29,9 @@ El proyecto está dividido en un stack MERN moderno:
 - **Backend:** Node.js con Express, ESM Modules.
 - **Base de Datos:** MongoDB (almacenamiento de Leads, Historial, Sesiones de Chat AI y Configuración).
 - **Vector DB:** Supabase/pgvector para búsqueda semántica y RAG.
-- **Micro-servicios:** BullMQ/Redis para procesamiento asíncrono y tolerante a fallos.
-- **Telecomunicaciones:** `libphonenumber-js` para sanitización matemática de números crudos.
+- **Micro-servicios:** BullMQ/Redis para procesamiento asíncrono y tolerante a fallos, implementando un bus de eventos en la nube para streaming en vivo.
+- **Telecomunicaciones:** `libphonenumber-js` para sanitización matemática estricta de números de teléfono (formato E.164, rechazo de basura y duplicados).
+- **Telemetría en Vivo:** Integración nativa de Server-Sent Events (SSE) para emitir los logs asíncronos de BullMQ directamente a una consola "Vantablack" (Mac-Style) en el cliente.
 
 ```text
 ┌──────────────────────────────────────────────────────┐
@@ -66,11 +67,18 @@ El proyecto está dividido en un stack MERN moderno:
 
 **Propósito:** Motor asíncrono, concurrente (BullMQ/Redis) y tolerante a fallos para el enriquecimiento automatizado. Ingiere el lead crudo de Google y le inyecta metadatos técnicos.
 
-- **FASE 1: Evación WAF y Extracción:** Usa `got-scraping` para bypassear barreras. Si falla (Cloudflare 403, etc.), hace fallback a Puppeteer Stealth (Chromium headless) bloqueando CSS/Imágenes para ahorrar RAM.
-- **FASE 2: Parsing & Extracción (Cheerio):** Verifica SEO básico (H1, meta descriptions). Extrae contactos (emails, teléfonos, redes sociales) y convierte todo a Markdown crudo para ahorrar tokens de IA.
-- **FASE 3: Análisis (PageSpeed & Wappalyzer):** Llama a Google PageSpeed API para medir LCP y TTFB. Usa regex y firmas para descubrir el Tech Stack (WordPress, Wix, React).
-- **FASE 4: Vectorización (OpenAI & Supabase):** Llama a `text-embedding-3-small`, crea un vector flotante gigante y lo inserta en Supabase (pgvector) para memoria semántica.
-- **FASE 5: Almacenamiento:** Inyecta todo al documento en MongoDB.
+- **FASE 1: Evasión WAF y Extracción Base:** Usa `got-scraping` para bypassear barreras. Si falla (Cloudflare 403, etc.), hace fallback a Puppeteer Stealth (Chromium headless) bloqueando CSS/Imágenes para ahorrar RAM.
+- **FASE 2: Sanitización de Datos Crudos:** Verifica SEO básico (H1, meta descriptions). Extrae contactos y plica filtros de limpieza y deduplicación profunda (ignorando fechas, píxeles o IPs capturadas erróneamente en el HTML).
+- **FASE 3: Análisis de Performance:** Llama a Google PageSpeed API para medir LCP y TTFB. Usa regex y firmas para descubrir el Tech Stack (WordPress, Wix, React).
+- **FASE 4: Vectorización Híbrida:** Llama a `text-embedding-3-small` de OpenAI y guarda un resumen técnico en Supabase (pgvector) para memoria semántica de RAG.
+
+**Nivel 2: DEEP VISION (Auditoría Multimodal Avanzada)**
+Si el usuario lo requiere (o si la automatización lo exige), VORTEX lanza un segundo worker que implementa:
+
+1. **Fotografía B2B Headless**: Instancia Puppeteer, emula un iPhone 13, inyecta pausas deliberadas (3 segundos) para purgar alucinaciones de frameworks "Asíncronos" y captura la página en formato JPEG optimizado.
+2. **Evaluación Estructural de Conversión**: Analiza paleta de colores, ubicaciones de CTAs, contraste y fricción de UX/UI mediante GPT-4o Multimodal. Redacta vulnerabilidades comprobables.
+
+_(Toda la actividad en el VORTEX Engine emite streams asíncronos al Frontend utilizando SSE: `job.updateProgress()` es volcado en real-time al usuario, suplantando los fallidos bucles de "Polling")._
 
 ### 🕷️ SPIDER Engine (Triaje Simbólico)
 
@@ -158,6 +166,7 @@ El usuario abre un Lead de la tabla:
 1. MARIO lee el Veredicto SPIDER en el backend, genera JSON y el frontend renderiza la `Battlecard`.
 2. Las Action Cards inyectan un link dinámico de `wa.me/` (habiendo antes sanitizado matemáticamente con `libphonenumber-js`).
 3. El Agente Humano hace click y envía la artillería en 1 segundo.
+4. Si los metadatos o las capturas están desfasadas por la latencia, el humano usa el protocolo **Hard Reset**, purgando el Lead y reencolando las 4 fases técnicas desde cero mediante telemetría SSE en vivo, emitiendo un JobID inmutable.
 
 ---
 
@@ -286,4 +295,7 @@ El backend usa un **3-Tier Modular Monolith** de Clean Architecture en varios do
 - **AI & Vortex:**
   - `POST /api/ai/chat` (Flujo RAG de MARIO)
   - `POST /api/vortex/enrich/:id`
+  - `POST /api/vortex/deep-vision/:id` (Trigger Nivel 2 Multimodal)
+  - `POST /api/vortex/reset/:id` (Hard Reset Engine)
   - `GET /api/vortex/status/:id`
+  - `GET /api/vortex/stream/:jobId` (EventSource API con anti-buffering de proxies)
