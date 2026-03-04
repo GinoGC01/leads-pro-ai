@@ -20,6 +20,20 @@ const enrichmentQueue = new Queue('enrichmentQueue', {
     }
 });
 
+// Inicialización de la cola de visión profunda (Deep Vision)
+const visionQueue = new Queue('visionQueue', {
+    connection,
+    defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+            type: 'exponential',
+            delay: 5000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false
+    }
+});
+
 /**
  * Agrega un lead a la cola de procesamiento asíncrono.
  * @param {Object} leadData - Datos básicos del lead extraídos por Google API.
@@ -37,8 +51,25 @@ const addLeadToEnrichment = async (leadData) => {
     }
 };
 
+/**
+ * Agrega un lead a la cola de Deep Vision.
+ * @param {Object} leadData - Datos del lead.
+ */
+const addLeadToVision = async (leadData) => {
+    try {
+        await visionQueue.add('process_vision', {
+            leadId: leadData._id
+        });
+        console.log(`[QueueService] Lead encolado a Deep Vision: ${leadData._id}`);
+    } catch (error) {
+        console.error('[QueueService] Error al encolar lead a Deep Vision:', error);
+    }
+};
+
 export {
     enrichmentQueue,
     addLeadToEnrichment,
+    visionQueue,
+    addLeadToVision,
     connection
 };

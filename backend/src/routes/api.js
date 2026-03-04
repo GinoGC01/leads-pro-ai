@@ -41,6 +41,7 @@ router.post('/intelligence/sync-stats', DataIntelligenceController.syncRetroacti
 // Vortex Intelligence Engine (On-Demand)
 router.post('/vortex/enrich/:leadId', VortexController.enrichLead);
 router.get('/vortex/status/:leadId', VortexController.getLeadStatus);
+router.post('/vortex/deep-vision/:id', VortexController.triggerDeepVision);
 
 // AI Routes
 router.post('/ai/chat', AIController.chat);

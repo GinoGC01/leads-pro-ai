@@ -9,7 +9,7 @@
     "clean:queue": "node scripts/flush-redis.js",
     "reset:db": "node scripts/factory-reset.js",
     "test-google": "node src/utils/testGoogleApi.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "keywords": [],
   "author": "",
@@ -37,5 +37,9 @@
     "turndown": "^7.2.2",
     "wappalyzer": "^7.0.3",
     "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "supertest": "^7.2.2"
   }
 }

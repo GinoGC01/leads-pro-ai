@@ -82,6 +82,67 @@ class VortexController {
             res.status(500).json({ success: false });
         }
     }
+
+    /**
+     * Trigger Phase 2: Deep Vision Engine
+     * POST /api/vortex/deep-vision/:id
+     */
+    static async triggerDeepVision(req, res) {
+        const { id } = req.params;
+
+        try {
+            // Atomic update to avoid race conditions
+            const lead = await Lead.findOneAndUpdate(
+                { _id: id, vortex_status: 'base_completed' },
+                { $set: { vortex_status: 'vision_processing' } },
+                { new: true }
+            );
+
+            if (!lead) {
+                // Determine why the atomic update failed
+                const existingLead = await Lead.findById(id);
+                if (!existingLead) {
+                    return res.status(404).json({ success: false, message: 'Lead no encontrado.' });
+                }
+                
+                // If it exists but didn't match 'base_completed', it's a conflict/race condition
+                return res.status(409).json({
+                    success: false,
+                    message: `Conflicto de estado. El lead no está listo para Deep Vision. Estado actual: ${existingLead.vortex_status}`,
+                    lead: existingLead
+                });
+            }
+
+            // Encolamiento Seguro
+            try {
+                console.log(`[Vortex Controller] Triggering Deep Vision for: ${lead.name}`);
+                await QueueService.addLeadToVision(lead);
+            } catch (queueError) {
+                // ROLLBACK: Si Redis falla, devolvemos el lead a 'base_completed'
+                console.error('[Vortex Controller] Error encolando a BullMQ. Revertiendo estado...', queueError);
+                await Lead.findByIdAndUpdate(lead._id, { $set: { vortex_status: 'base_completed' } });
+                
+                return res.status(503).json({
+                    success: false,
+                    message: 'El servicio de procesamiento está temporalmente saturado. Por favor, intenta de nuevo.'
+                });
+            }
+
+            res.status(202).json({
+                success: true,
+                message: 'Deep Vision activado. Procesando...',
+                status: 'vision_processing',
+                leadId: lead._id
+            });
+
+        } catch (error) {
+            console.error('[Vortex Controller] Error Deep Vision:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Internal Server Error al activar Deep Vision'
+            });
+        }
+    }
 }
 
 export default VortexController;

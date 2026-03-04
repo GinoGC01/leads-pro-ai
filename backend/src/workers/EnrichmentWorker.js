@@ -88,6 +88,7 @@ const enrichmentWorker = new Worker('enrichmentQueue', async (job) => {
         lead.seo_audit = seoAudit;
         lead.markdown_content = markdown;
         lead.enrichmentStatus = 'completed';
+        lead.vortex_status = 'base_completed'; // Update Phase 1 state
         lead.enrichmentError = null;
         await lead.save();
 
@@ -117,6 +118,7 @@ const enrichmentWorker = new Worker('enrichmentQueue', async (job) => {
         // Actualizar estado a fallido en MongoDB
         if (lead) {
             lead.enrichmentStatus = 'failed';
+            lead.vortex_status = 'failed';
             lead.enrichmentError = error.message;
             await lead.save();
         }

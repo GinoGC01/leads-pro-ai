@@ -417,6 +417,54 @@ ${region === 'LATAM' ? "1. DESTRUCCIÓN DEL SIGNO DE APERTURA: Revisa cada frase
             throw new Error(`AI Spider Service failed: ${error.message}`);
         }
     }
+
+    /**
+     * Analyze UX/UI from a mobile base64 screenshot.
+     */
+    static async analyzeUX(base64Image, url) {
+        try {
+            const systemPrompt = "Eres un Director de CRO y experto en UX/UI. Analiza esta captura de pantalla móvil de un negocio B2B. Evalúa la fricción para que un cliente compre o contacte. Identifica si el diseño es obsoleto, si hay problemas de contraste, o si los llamados a la acción (CTAs) están ocultos o rotos. Responde ÚNICAMENTE con un JSON válido.";
+            
+            const expectedJsonTemplate = `{ "ux_score_1_to_10": number, "design_era": string, "critical_frictions": string[], "sales_angle_recommendation": string }`;
+
+            const messages = [
+                { role: "system", content: systemPrompt + " Las claves del JSON deben ser extrictamente iguales a lo definido: " + expectedJsonTemplate },
+                {
+                    role: "user",
+                    content: [
+                        { type: "text", text: `Por favor analiza la pantalla inicial del dominio: ${url}` },
+                        {
+                            type: "image_url",
+                            image_url: {
+                                url: `data:image/jpeg;base64,${base64Image}`,
+                                detail: "low" // Ahorro masivo de tokens
+                            }
+                        }
+                    ]
+                }
+            ];
+
+            const { client, modelName, maxTokens, pricing } = await AIService.getEngine();
+            // Fallback to explicitly supporting vision modeling if dynamic one isn't 4o based, but normally it defaults to 4o or 4o-mini
+            const forceVisionModel = /^gpt-4o(-\w+)?$/.test(modelName) ? modelName : "gpt-4o-mini";
+
+            const response = await client.chat.completions.create({
+                model: forceVisionModel,
+                messages: messages,
+                max_tokens: 1500, // UX report shouldn't exceed
+                response_format: { type: "json_object" }
+            });
+
+            await AIService.trackUsage(response, pricing);
+
+            const content = response.choices[0].message.content;
+            return JSON.parse(content);
+
+        } catch (error) {
+            console.error('[AIService] Error analyzeUX:', error.message);
+            throw new Error(`AI UX Analysis failed: ${error.message}`);
+        }
+    }
 }
 
 export default AIService;
