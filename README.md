@@ -8,16 +8,16 @@ Este documento consolida toda la documentación técnica, arquitectónica, opera
 
 ## 📑 Tabla de Contenidos
 
-1. [Arquitectura Técnica Global](#1-arquitectura-técnica-global)
-2. [Los Tres Motores de Inteligencia](#2-los-tres-motores-de-inteligencia-spider-vortex-mario)
-   - [VORTEX Engine (Auditoría Técnica)](#vortex-engine-auditoría-técnica)
-   - [SPIDER Engine (Triaje Simbólico)](#spider-engine-triaje-simbólico)
-   - [MARIO AI (Closer RAG)](#mario-ai-closer-rag)
-3. [Flujos de Datos Principales](#3-flujos-de-datos-principales)
-4. [Manual de Operaciones y CRM](#4-manual-de-operaciones-y-crm)
-5. [Configuración Inicial y Despliegue (Local Setup)](#5-configuración-inicial-y-despliegue)
-6. [Configuración de Google Cloud API](#6-configuración-de-google-cloud-api)
-7. [Referencia de API](#7-referencia-de-api)
+1. [Arquitectura Técnica Global](#%EF%B8%8F-1-arquitectura-t%C3%A9cnica-global)
+2. [Los Tres Motores de Inteligencia](#-2-los-tres-motores-de-inteligencia-spider-vortex-mario)
+   - [VORTEX Engine (Auditoría Técnica)](#%EF%B8%8F-vortex-engine-auditor%C3%ADa-t%C3%A9cnica)
+   - [SPIDER Engine (Triaje Simbólico)](#%EF%B8%8F-spider-engine-triaje-simb%C3%B3lico)
+   - [MARIO AI (Closer RAG)](#-mario-ai-closer-rag)
+3. [Flujos de Datos Principales](#-3-flujos-de-datos-principales)
+4. [Manual de Operaciones y CRM](#-4-manual-de-operaciones-y-crm)
+5. [Configuración Inicial y Despliegue (Local Setup)](#-5-configuraci%C3%B3n-inicial-y-despliegue)
+6. [Configuración de Google Cloud API](#-6-configuraci%C3%B3n-de-google-cloud-api)
+7. [Referencia de API](#-7-referencia-de-api)
 
 ---
 
