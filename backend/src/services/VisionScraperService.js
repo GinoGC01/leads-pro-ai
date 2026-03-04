@@ -8,9 +8,10 @@ class VisionScraperService {
     /**
      * Toma una captura de pantalla optimizada en móvil B2B.
      * @param {string} url La URL a analizar
+     * @param {Object} [job] Instancia del job de BullMQ para telemetría
      * @returns {Promise<string>} Imagen en base64
      */
-    static async takeMobileScreenshot(url) {
+    static async takeMobileScreenshot(url, job = null) {
         let browser = null;
 
         try {
@@ -48,12 +49,18 @@ class VisionScraperService {
                 }
             });
 
+            if (job) await job.updateProgress({ percent: 20, message: '> Navegando a la URL objetivo y evadiendo WAF...' });
             console.log(`[VisionScraper] Navegando a ${url}...`);
             // Navegación con timeout protegido de 20s
             await page.goto(url, {
                 waitUntil: 'networkidle2',
                 timeout: 20000
             });
+
+            // Deep Vision Hallucination Fix: 3s delay para permitir renderizado de SPAs/Animaciones/Modales
+            if (job) await job.updateProgress({ percent: 35, message: '> Esperando hidratación del DOM (3000ms)...' });
+            console.log(`[VisionScraper] Esperando 3 segundos para estabilización de UI...`);
+            await new Promise(resolve => setTimeout(resolve, 3000));
 
             // Extraer captura en calidad optimizada para GPT-4V / GPT-4o
             console.log(`[VisionScraper] Tomando screenshot base64 interactivo...`);

@@ -1,8 +1,9 @@
 import React from 'react';
-import { Globe, MapPin, Phone, AlertCircle, Loader2, CheckCircle2, X, Star, Zap, Server, Activity, AlertTriangle, Camera } from 'lucide-react';
+import { Globe, MapPin, Phone, AlertCircle, Loader2, CheckCircle2, X, Star, Zap, Server, Activity, AlertTriangle, Camera, RefreshCcw } from 'lucide-react';
 import Tooltip from '../../Tooltip';
 import RotatingLoader from './RotatingLoader';
 import VisionAnalysisCard from './VisionAnalysisCard';
+import VortexLiveConsole from './VortexLiveConsole';
 
 const getFriendlyErrorMessage = (errorString) => {
     if (!errorString) return 'Ocurrió un error técnico inesperado al analizar la infraestructura de este prospecto.';
@@ -42,7 +43,10 @@ const VortexRadiography = ({
     isVisionPending,
     isVisionProcessing,
     isVisionCompleted,
-    onActivateDeepVision
+    onActivateDeepVision,
+    onResetVortex,
+    activeJobId,
+    onStreamComplete
 }) => {
     const sharedHeader = (
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -165,7 +169,7 @@ const VortexRadiography = ({
                         </div>
                     )}
                     {isProcessing && (
-                        <RotatingLoader />
+                        activeJobId ? <VortexLiveConsole jobId={activeJobId} onComplete={onStreamComplete} /> : <RotatingLoader />
                     )}
                 </div>
             </div>
@@ -178,10 +182,19 @@ const VortexRadiography = ({
             {sharedHeader}
 
             <div className="flex items-center justify-between mt-4 mb-2">
-                <h3 className="text-[12px] font-black tracking-widest text-white uppercase flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-accent-blue" />
-                    Radiografía SPIDER
-                </h3>
+                <div className="flex items-center gap-3">
+                    <h3 className="text-[12px] font-black tracking-widest text-white uppercase flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-accent-blue" />
+                        Radiografía SPIDER
+                    </h3>
+                    <button
+                        onClick={onResetVortex}
+                        className="p-1.5 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 hover:border-white/20 transition-all ml-2"
+                        title="Re-escanear Lead (Hard Reset)"
+                    >
+                        <RefreshCcw className="w-3.5 h-3.5" />
+                    </button>
+                </div>
                 <button
                     onClick={onToggleSpiderHelp}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-bold transition-all ${isSpiderHelpActive
@@ -323,12 +336,14 @@ const VortexRadiography = ({
             {isVisionCompleted ? (
                 <VisionAnalysisCard analysis={lead.vision_analysis} />
             ) : isVisionProcessing ? (
-                <div className="bg-app-card rounded-2xl border border-indigo-500/20 p-6 flex flex-col items-center justify-center mt-6 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-[40px] pointer-events-none"></div>
-                    <Loader2 className="w-6 h-6 text-indigo-400 animate-spin mb-3 relative z-10" />
-                    <p className="text-xs font-bold text-indigo-300 uppercase tracking-widest relative z-10">Analizando UX/UI con IA Multimodal...</p>
-                    <p className="text-[10px] text-indigo-400/60 mt-2 relative z-10 text-center">OpenAI GPT-4o Vision está procesando la captura móvil del prospecto.</p>
-                </div>
+                activeJobId ? <VortexLiveConsole jobId={activeJobId} isVision={true} onComplete={onStreamComplete} /> : (
+                    <div className="bg-app-card rounded-2xl border border-indigo-500/20 p-6 flex flex-col items-center justify-center mt-6 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-[40px] pointer-events-none"></div>
+                        <Loader2 className="w-6 h-6 text-indigo-400 animate-spin mb-3 relative z-10" />
+                        <p className="text-xs font-bold text-indigo-300 uppercase tracking-widest relative z-10">Analizando UX/UI con IA Multimodal...</p>
+                        <p className="text-[10px] text-indigo-400/60 mt-2 relative z-10 text-center">OpenAI GPT-4o Vision está procesando la captura móvil del prospecto.</p>
+                    </div>
+                )
             ) : isVisionPending && !isSkippedRentedLand ? (
                 <div className="bg-[#151720] rounded-2xl border border-fuchsia-500/20 p-6 mt-6 relative overflow-hidden group">
                     <div className="absolute inset-0 bg-gradient-to-r from-fuchsia-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>

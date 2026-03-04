@@ -53,6 +53,7 @@ export const bulkDeleteLeads = (leadIds) => api.delete('/leads', { data: { leadI
 export const enrichLead = (leadId) => api.post(`/vortex/enrich/${leadId}`);
 export const triggerDeepVision = (leadId) => api.post(`/vortex/deep-vision/${leadId}`);
 export const getEnrichmentStatus = (leadId) => api.get(`/vortex/status/${leadId}`);
+export const resetVortex = (leadId) => api.post(`/vortex/reset/${leadId}`);
 
 export const exportUrl = (searchId, format) => `http://localhost:5000/api/export/${searchId}/${format}`;
 

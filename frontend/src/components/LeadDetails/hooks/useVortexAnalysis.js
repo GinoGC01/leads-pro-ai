@@ -14,6 +14,7 @@ const api = axios.create({
  */
 const useVortexAnalysis = (lead, setLead, onLeadUpdate) => {
     const [isActivating, setIsActivating] = useState(false);
+    const [activeJobId, setActiveJobId] = useState(null);
     const vortexToastIdRef = useRef(null);
 
     // Derived status flags (Tier 1)
@@ -28,9 +29,14 @@ const useVortexAnalysis = (lead, setLead, onLeadUpdate) => {
     const isVisionCompleted = lead.vortex_status === 'vision_completed';
 
     // Polling for vortex status when lead is processing
+    // CRITICAL: Polling is SUPPRESSED when activeJobId exists —
+    // in that case, SSE is the sole source of truth.
     useEffect(() => {
         let interval;
         const needsPolling = lead.enrichmentStatus === 'pending' || lead.vortex_status === 'vision_processing';
+
+        // If SSE stream is active, do NOT poll
+        if (activeJobId) return;
 
         if (needsPolling) {
             interval = setInterval(async () => {
@@ -56,7 +62,6 @@ const useVortexAnalysis = (lead, setLead, onLeadUpdate) => {
 
                     // Nivel 1: Base Enrichment Polling
                     if (data.status === 'completed' || data.vortex_status === 'base_completed') {
-                        // Re-fetch the full lead to get enriched data (tech_stack, seo_audit, etc.)
                         const { data: updatedLead } = await api.get(`/leads/${lead._id}`);
                         setLead(updatedLead);
                         if (onLeadUpdate) onLeadUpdate(updatedLead);
@@ -91,7 +96,35 @@ const useVortexAnalysis = (lead, setLead, onLeadUpdate) => {
             }, 3000);
         }
         return () => clearInterval(interval);
-    }, [lead.enrichmentStatus, lead.vortex_status, lead._id]);
+    }, [lead.enrichmentStatus, lead.vortex_status, lead._id, activeJobId]);
+
+    /**
+     * Callback fired by VortexLiveConsole when the SSE stream terminates.
+     * Refetches lead data and clears the activeJobId to allow polling fallback.
+     */
+    const handleStreamComplete = async () => {
+        setActiveJobId(null);
+        try {
+            const { data: updatedLead } = await api.get(`/leads/${lead._id}`);
+            setLead(updatedLead);
+            if (onLeadUpdate) onLeadUpdate(updatedLead);
+
+            if (updatedLead.vortex_status === 'vision_completed') {
+                AlertService.success('¡Auditoría UX/UI Deep Vision completada!');
+            } else if (updatedLead.vortex_status === 'base_completed' || updatedLead.enrichmentStatus === 'completed') {
+                if (vortexToastIdRef.current) {
+                    AlertService.successUpdate(vortexToastIdRef.current, '¡Auditoría Técnica Completada!');
+                    vortexToastIdRef.current = null;
+                } else {
+                    AlertService.success('Vortex Audit completado.');
+                }
+            } else if (updatedLead.vortex_status === 'failed' || updatedLead.enrichmentStatus === 'failed') {
+                AlertService.error('Vortex falló o fue bloqueado.');
+            }
+        } catch (err) {
+            console.error('[useVortexAnalysis] Error refetching after stream:', err);
+        }
+    };
 
     const handleActivateVortex = async () => {
         setIsActivating(true);
@@ -100,7 +133,9 @@ const useVortexAnalysis = (lead, setLead, onLeadUpdate) => {
         vortexToastIdRef.current = tid;
 
         try {
-            await api.post(`/vortex/enrich/${lead._id}`);
+            const { data } = await api.post(`/vortex/enrich/${lead._id}`);
+            if (data.jobId) setActiveJobId(data.jobId);
+            
             // Update canonical lead state → triggers polling useEffect
             setLead(prev => ({ ...prev, enrichmentStatus: 'pending' }));
             if (onLeadUpdate) onLeadUpdate({ ...lead, enrichmentStatus: 'pending' });
@@ -114,7 +149,9 @@ const useVortexAnalysis = (lead, setLead, onLeadUpdate) => {
 
     const handleActivateDeepVision = async () => {
         try {
-            await api.post(`/vortex/deep-vision/${lead._id}`);
+            const { data } = await api.post(`/vortex/deep-vision/${lead._id}`);
+            if (data.jobId) setActiveJobId(data.jobId);
+
             setLead(prev => ({ ...prev, vortex_status: 'vision_processing' }));
             if (onLeadUpdate) onLeadUpdate({ ...lead, vortex_status: 'vision_processing' });
             AlertService.success('Activando Deep Vision Engine...');
@@ -132,6 +169,31 @@ const useVortexAnalysis = (lead, setLead, onLeadUpdate) => {
         }
     };
 
+    const handleResetVortex = async () => {
+        const tid = AlertService.loading('Purgando memoria y reiniciando Vortex...');
+        vortexToastIdRef.current = tid;
+
+        try {
+            const { data } = await api.post(`/vortex/reset/${lead._id}`);
+            if (data.jobId) setActiveJobId(data.jobId);
+
+            // Optimistic update
+            const resetState = { 
+                vortex_status: 'pending', 
+                enrichmentStatus: 'pending', 
+                enrichmentError: null,
+                base_metrics: null,
+                vision_analysis: null,
+                spider_verdict: null 
+            };
+            setLead(prev => ({ ...prev, ...resetState }));
+            if (onLeadUpdate) onLeadUpdate({ ...lead, ...resetState });
+        } catch (err) {
+            AlertService.errorUpdate(tid, 'Fallo al resetear el lead. Reintente en unos segundos.');
+            vortexToastIdRef.current = null;
+        }
+    };
+
     return {
         isActivating,
         isProcessing,
@@ -142,7 +204,10 @@ const useVortexAnalysis = (lead, setLead, onLeadUpdate) => {
         isVisionProcessing,
         isVisionCompleted,
         handleActivateVortex,
-        handleActivateDeepVision
+        handleActivateDeepVision,
+        handleResetVortex,
+        activeJobId,
+        handleStreamComplete
     };
 };
 

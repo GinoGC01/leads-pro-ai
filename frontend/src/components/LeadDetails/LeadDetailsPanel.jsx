@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ExternalLink, AlertCircle } from 'lucide-react';
-import { StatusUpdateModal } from '../Modals';
+import { StatusUpdateModal, VortexResetModal } from '../Modals';
 
 // Custom Hooks (all API logic lives here)
 import useLeadData from './hooks/useLeadData';
@@ -24,12 +24,14 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
     const { lead, setLead, error, statusModal, setStatusModal, confirmStatusUpdate } = useLeadData(initialLead, onLeadUpdate);
     const { 
         isActivating, isProcessing, isCompleted, isFailed, isSkippedRentedLand, handleActivateVortex,
-        isVisionPending, isVisionProcessing, isVisionCompleted, handleActivateDeepVision
+        isVisionPending, isVisionProcessing, isVisionCompleted, handleActivateDeepVision, handleResetVortex,
+        activeJobId, handleStreamComplete
     } = useVortexAnalysis(lead, setLead, onLeadUpdate);
 
     // --- Local UI state ---
     const [activeTab, setActiveTab] = useState('inteligencia');
     const [isSpiderHelpActive, setIsSpiderHelpActive] = useState(false);
+    const [resetModalOpen, setResetModalOpen] = useState(false);
 
     // Mario strategy hook needs activeTab to auto-fetch on 'estrategia' tab
     const { spiderData, aiResponse, isSpiderLoading, isAiLoading, fetchSpiderStrategy } = useMarioStrategy(lead._id, activeTab);
@@ -118,6 +120,9 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                                 isVisionProcessing={isVisionProcessing}
                                 isVisionCompleted={isVisionCompleted}
                                 onActivateDeepVision={handleActivateDeepVision}
+                                onResetVortex={() => setResetModalOpen(true)}
+                                activeJobId={activeJobId}
+                                onStreamComplete={handleStreamComplete}
                             />
                         )}
 
@@ -188,6 +193,16 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                 newStatus={statusModal.newStatus}
                 onClose={() => setStatusModal({ isOpen: false, newStatus: null })}
                 onConfirm={confirmStatusUpdate}
+            />
+
+            <VortexResetModal
+                isOpen={resetModalOpen}
+                onClose={() => setResetModalOpen(false)}
+                leadName={lead.name}
+                onConfirm={() => {
+                    setResetModalOpen(false);
+                    handleResetVortex();
+                }}
             />
         </div>
     );

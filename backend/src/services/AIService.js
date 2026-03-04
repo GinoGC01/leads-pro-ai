@@ -423,7 +423,7 @@ ${region === 'LATAM' ? "1. DESTRUCCIÓN DEL SIGNO DE APERTURA: Revisa cada frase
      */
     static async analyzeUX(base64Image, url) {
         try {
-            const systemPrompt = "Eres un Director de CRO y experto en UX/UI. Analiza esta captura de pantalla móvil de un negocio B2B. Evalúa la fricción para que un cliente compre o contacte. Identifica si el diseño es obsoleto, si hay problemas de contraste, o si los llamados a la acción (CTAs) están ocultos o rotos. Responde ÚNICAMENTE con un JSON válido.";
+            const systemPrompt = "Eres un analista UX. Basa tu análisis estrictamente en lo que ves de esta captura móvil B2B. Si hay un botón de WhatsApp, teléfono o contacto en el header o visible, RECONÓCELO explícitamente. No inventes fricciones genéricas. Si el diseño es obsoleto o hay problemas de contraste reales indícalo. Si el sitio está bien diseñado y claro, puntúalo alto. Responde ÚNICAMENTE con un JSON válido.";
             
             const expectedJsonTemplate = `{ "ux_score_1_to_10": number, "design_era": string, "critical_frictions": string[], "sales_angle_recommendation": string }`;
 
@@ -437,7 +437,7 @@ ${region === 'LATAM' ? "1. DESTRUCCIÓN DEL SIGNO DE APERTURA: Revisa cada frase
                             type: "image_url",
                             image_url: {
                                 url: `data:image/jpeg;base64,${base64Image}`,
-                                detail: "low" // Ahorro masivo de tokens
+                                detail: "high" // Deep Vision Fix: Máxima resolución para evitar alucinaciones UI
                             }
                         }
                     ]

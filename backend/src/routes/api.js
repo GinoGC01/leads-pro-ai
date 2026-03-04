@@ -42,6 +42,8 @@ router.post('/intelligence/sync-stats', DataIntelligenceController.syncRetroacti
 router.post('/vortex/enrich/:leadId', VortexController.enrichLead);
 router.get('/vortex/status/:leadId', VortexController.getLeadStatus);
 router.post('/vortex/deep-vision/:id', VortexController.triggerDeepVision);
+router.post('/vortex/reset/:id', VortexController.resetAndRescan);
+router.get('/vortex/stream/:jobId', VortexController.streamProgress);
 
 // AI Routes
 router.post('/ai/chat', AIController.chat);

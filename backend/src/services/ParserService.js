@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import TurndownService from 'turndown';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 /**
  * Servicio de purificación de HTML y síntesis de Markdown.
@@ -80,34 +81,28 @@ class ParserService {
         });
 
         // === PHONES ===
-        const phoneSet = new Set();
-        // 1. tel: links
+        const rawPhoneCandidates = [];
+
+        // 1. tel: and wa.me links
         allHrefs.forEach(href => {
-            if (href && href.startsWith('tel:')) {
-                const phone = href.replace('tel:', '').replace(/\s+/g, '').trim();
-                if (phone.length >= 7) phoneSet.add(phone);
+            if (!href) return;
+            if (href.startsWith('tel:') || href.includes('wa.me/')) {
+                rawPhoneCandidates.push(href);
             }
         });
+
         // 2. Phone regex in visible text (international formats)
         const phoneRegex = /(?:\+?\d{1,4}[\s\-.]?)?\(?\d{1,5}\)?[\s\-.]?\d{1,5}[\s\-.]?\d{2,6}/g;
         const textPhones = textContent.match(phoneRegex) || [];
-        textPhones.forEach(p => {
-            const cleaned = p.replace(/[\s\-().+]/g, '');
-            // 7+ digits, not a year, not all same digit (e.g. 99999999), not a simple sequence (12345678)
-            if (cleaned.length >= 7 &&
-                cleaned.length <= 15 &&
-                !/^(19|20)\d{2}$/.test(cleaned) &&
-                !/^(\d)\1+$/.test(cleaned) &&
-                !/^\d{4,8}$/.test(cleaned) // Reject raw 4-8 digit numbers without any formatting that are likely just IDs/prices
-            ) {
-                phoneSet.add(p.trim());
-            } else if (p.includes('-') || p.includes(' ')) {
-                // Si tiene formato explícito, lo toleramos (ej. 444-4444)
-                if (cleaned.length >= 7 && cleaned.length <= 15 && !/^(\d)\1+$/.test(cleaned)) {
-                    phoneSet.add(p.trim());
-                }
-            }
-        });
+        textPhones.forEach(p => rawPhoneCandidates.push(p));
+
+        // 3. Sanitize ALL candidates through libphonenumber-js pipeline
+        const validPhones = rawPhoneCandidates
+            .map(raw => this._sanitizePhone(raw))
+            .filter(Boolean);
+
+        // 4. Deduplicate via Set (E.164 guarantees uniqueness)
+        const phoneSet = new Set(validPhones);
 
         // === SOCIAL LINKS ===
         const socialPlatforms = {
@@ -137,6 +132,53 @@ class ParserService {
             phones: Array.from(phoneSet),
             socialLinks
         };
+    }
+
+    /**
+     * Sanitizes a raw phone string through a strict pipeline:
+     * 1. URI decoding & prefix stripping (tel:, wa.me/, //)
+     * 2. Garbage rejection (dates, IPs, version strings, dimensions)
+     * 3. Mathematical validation via libphonenumber-js
+     * 4. Returns E.164 format or null
+     * @param {string} rawString
+     * @returns {string|null} E.164 phone number or null
+     */
+    _sanitizePhone(rawString) {
+        try {
+            // 1. Decode URI and strip known prefixes
+            let cleaned = decodeURIComponent(rawString)
+                .replace(/^tel:/i, '')
+                .replace(/^\/\//i, '')
+                .replace(/wa\.me\//gi, '')
+                .replace(/[\s\u00a0]/g, '') // Remove all whitespace including &nbsp;
+                .trim();
+
+            // 2. Reject garbage patterns (dates, IPs, version strings, dimensions, CSS values)
+            if (/^\d{4}-\d{2}-\d{2}/.test(cleaned)) return null;       // Date: 2024-01-15
+            if (/\d+\.\d+\.\d+/.test(cleaned)) return null;             // Version/IP: 1.2.3
+            if (/^\d{1,4}x\d{1,4}$/i.test(cleaned)) return null;       // Dimensions: 800x600
+            if (/^\d{1,3}%$/.test(cleaned)) return null;                // Percentage: 50%
+            if (/^#[0-9a-f]{3,8}$/i.test(cleaned)) return null;        // Hex color: #fff
+            if (/^\d{1,2}px$/i.test(cleaned)) return null;             // CSS unit: 16px
+
+            // 3. Reject if not enough digit content (at least 7 digits)
+            const digitsOnly = cleaned.replace(/\D/g, '');
+            if (digitsOnly.length < 7 || digitsOnly.length > 15) return null;
+
+            // 4. Reject all-same-digit sequences (e.g. 99999999)
+            if (/^(\d)\1+$/.test(digitsOnly)) return null;
+
+            // 5. Mathematical validation via libphonenumber-js (default region: AR)
+            const phoneNumber = parsePhoneNumberFromString(cleaned, 'AR');
+
+            if (phoneNumber && phoneNumber.isValid()) {
+                return phoneNumber.format('E.164'); // e.g. +541152355601
+            }
+
+            return null;
+        } catch (e) {
+            return null;
+        }
     }
 }
 

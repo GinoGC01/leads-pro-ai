@@ -12,6 +12,10 @@ import { RENTED_LAND_DOMAINS } from '../services/SpiderEngine.js';
 /**
  * Worker para procesar leads asíncronamente (Pipeline de 4 Fases).
  * Concurrencia limitada para evitar bloqueos de IP/WAF.
+ * 
+ * IMPORTANTE: BullMQ QueueEvents solo emite el evento 'progress' en tiempo real.
+ * job.log() NO se transmite via pub/sub. Por ello, usamos job.updateProgress()
+ * con objetos estructurados { percent, message, type } como canal único de telemetría.
  */
 // Phase 0: Vortex Intelligence Engine (VIE) - Orchestration
 const enrichmentWorker = new Worker('enrichmentQueue', async (job) => {
@@ -24,12 +28,13 @@ const enrichmentWorker = new Worker('enrichmentQueue', async (job) => {
         return;
     }
 
+    await job.updateProgress({ percent: 5, message: `Inicializando pipeline VORTEX Base para ${name}` });
+
     // PRE-FLIGHT: Rented Land Abort Gate
-    // If the URL is a subdomain of a rented platform (agendapro, linktr.ee, etc.),
-    // skip enrichment entirely to avoid wasting Scraper + Lighthouse resources.
     const urlLower = website.toLowerCase();
     const isRentedLand = RENTED_LAND_DOMAINS.some(domain => urlLower.includes(domain));
     if (isRentedLand) {
+        await job.updateProgress({ percent: 100, message: `🛑 ABORT: "${name}" usa Tierra Alquilada (${website}). Saltando.`, type: 'error' });
         console.log(`[VIE] 🚧 ABORT: "${name}" usa Tierra Alquilada (${website}). Saltando enriquecimiento.`);
         lead.enrichmentStatus = 'skipped_rented_land';
         lead.enrichmentError = `URL de Tierra Alquilada detectada: ${website}`;
@@ -39,16 +44,23 @@ const enrichmentWorker = new Worker('enrichmentQueue', async (job) => {
 
     try {
         // FASE 1: Extracción Cruda (WAF Evasion)
+        await job.updateProgress({ percent: 10, message: '[FASE 1] Localizando recursos y evadiendo WAF para descargar HTML Base...' });
         console.log(`[EnrichmentWorker] [FASE 1] Extrayendo HTML para ${name}...`);
         const rawHtml = await ScraperService.getRawHtml(website);
+        
+        await job.updateProgress({ percent: 20, message: `[FASE 1] ✅ Payload HTML descargado: ${(rawHtml.length / 1024).toFixed(2)} KB.` });
         console.log(`[EnrichmentWorker] [FASE 1] Éxito: ${rawHtml.length} bytes.`);
 
         // FASE 2: Purificación Semántica y Auditoría SEO
+        await job.updateProgress({ percent: 25, message: '[FASE 2] Limpiando metadatos. Ejecutando auditoría estructural SEO...' });
         console.log(`[EnrichmentWorker] [FASE 2] Analizando contenido y SEO...`);
         const { seoAudit, markdown } = ParserService.parse(rawHtml);
+        
+        await job.updateProgress({ percent: 35, message: '[FASE 2] ✅ SEO Audit completado satisfactoriamente.' });
         console.log(`[EnrichmentWorker] [FASE 2] SEO Audit y Markdown finalizados.`);
 
         // FASE 2.5: Extracción de Contactos (Emails, Teléfonos, Redes Sociales)
+        await job.updateProgress({ percent: 40, message: '[FASE 2.5] Explorando código fuente en búsqueda de canales de contacto...' });
         console.log(`[EnrichmentWorker] [FASE 2.5] Extrayendo datos de contacto...`);
         const contacts = ParserService.extractContacts(rawHtml);
         lead.extracted_contacts = {
@@ -65,15 +77,21 @@ const enrichmentWorker = new Worker('enrichmentQueue', async (job) => {
             lead.phoneNumber = contacts.phones[0];
             console.log(`[EnrichmentWorker] [FASE 2.5] Teléfono auto-asignado: ${lead.phoneNumber}`);
         }
+        
+        await job.updateProgress({ percent: 50, message: `[FASE 2.5] ✅ Capturados: ${contacts.emails.length} emails, ${contacts.phones.length} teléfonos, ${contacts.socialLinks.length} perfiles sociales.` });
         console.log(`[EnrichmentWorker] [FASE 2.5] Contactos: ${contacts.emails.length} emails, ${contacts.phones.length} phones, ${contacts.socialLinks.length} social.`);
 
         // FASE 3: Perfilado Empírico (Tech + Performance)
+        await job.updateProgress({ percent: 55, message: '[FASE 3] Inyectando Profiler para Stack Tecnológico. Ejecutando Lighthouse Web Vitals...' });
         console.log(`[EnrichmentWorker] [FASE 3] Detectando tecnologías y rendimiento...`);
         const techStack = ProfilerService.detectTechFromHtml(rawHtml);
         const perfMetrics = await ProfilerService.getPerformanceMetrics(website);
+        
+        await job.updateProgress({ percent: 70, message: `[FASE 3] ✅ Tecnologías subyacentes mapeadas (${techStack.length} detectadas).` });
         console.log(`[EnrichmentWorker] [FASE 3] Perfilado completado (${techStack.length} techs).`);
 
         // FASE 4: Consolidación y Vectorización Híbrida
+        await job.updateProgress({ percent: 80, message: '[FASE 4] Preparando síntesis dimensional y generando Embeddings vectoriales...' });
         console.log(`[EnrichmentWorker] [FASE 4] Consolidando datos y sincronizando vectores...`);
 
         // 4.1 Actualizar MongoDB
@@ -110,9 +128,11 @@ const enrichmentWorker = new Worker('enrichmentQueue', async (job) => {
             content: semanticContent
         }, embedding);
 
+        await job.updateProgress({ percent: 100, message: '[FASE 4] ✅ Ingesta de la Base de Datos completada exitosamente.' });
         console.log(`[EnrichmentWorker] ✅ Enriquecimiento total finalizado para ${name}.`);
 
     } catch (error) {
+        await job.updateProgress({ percent: -1, message: `❌ ERROR CRÍTICO: ${error.message}`, type: 'error' });
         console.error(`[EnrichmentWorker] ❌ Error crítico en lead ${name}:`, error.message);
 
         // Actualizar estado a fallido en MongoDB
