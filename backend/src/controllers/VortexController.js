@@ -71,10 +71,11 @@ class VortexController {
      */
     static async getLeadStatus(req, res) {
         try {
-            const lead = await Lead.findById(req.params.leadId, { enrichmentStatus: 1, enrichmentError: 1, name: 1 });
+            const lead = await Lead.findById(req.params.leadId, { enrichmentStatus: 1, enrichmentError: 1, name: 1, vortex_status: 1 });
             if (!lead) return res.status(404).json({ success: false });
             res.status(200).json({
-                status: lead.enrichmentStatus,
+                status: lead.enrichmentStatus, // Backward compat
+                vortex_status: lead.vortex_status,
                 error: lead.enrichmentError,
                 id: lead._id
             });

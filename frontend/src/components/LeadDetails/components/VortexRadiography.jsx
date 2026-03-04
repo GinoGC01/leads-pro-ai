@@ -1,7 +1,8 @@
 import React from 'react';
-import { Globe, MapPin, Phone, AlertCircle, Loader2, CheckCircle2, X, Star, Zap, Server, Activity, AlertTriangle } from 'lucide-react';
+import { Globe, MapPin, Phone, AlertCircle, Loader2, CheckCircle2, X, Star, Zap, Server, Activity, AlertTriangle, Camera } from 'lucide-react';
 import Tooltip from '../../Tooltip';
 import RotatingLoader from './RotatingLoader';
+import VisionAnalysisCard from './VisionAnalysisCard';
 
 const getFriendlyErrorMessage = (errorString) => {
     if (!errorString) return 'Ocurrió un error técnico inesperado al analizar la infraestructura de este prospecto.';
@@ -38,6 +39,10 @@ const VortexRadiography = ({
     onActivateVortex,
     isSpiderHelpActive,
     onToggleSpiderHelp,
+    isVisionPending,
+    isVisionProcessing,
+    isVisionCompleted,
+    onActivateDeepVision
 }) => {
     const sharedHeader = (
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -313,6 +318,36 @@ const VortexRadiography = ({
                     </div>
                 </div>
             </Tooltip>
+
+            {/* DEEP VISION BLOCK */}
+            {isVisionCompleted ? (
+                <VisionAnalysisCard analysis={lead.vision_analysis} />
+            ) : isVisionProcessing ? (
+                <div className="bg-app-card rounded-2xl border border-indigo-500/20 p-6 flex flex-col items-center justify-center mt-6 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-[40px] pointer-events-none"></div>
+                    <Loader2 className="w-6 h-6 text-indigo-400 animate-spin mb-3 relative z-10" />
+                    <p className="text-xs font-bold text-indigo-300 uppercase tracking-widest relative z-10">Analizando UX/UI con IA Multimodal...</p>
+                    <p className="text-[10px] text-indigo-400/60 mt-2 relative z-10 text-center">OpenAI GPT-4o Vision está procesando la captura móvil del prospecto.</p>
+                </div>
+            ) : isVisionPending && !isSkippedRentedLand ? (
+                <div className="bg-[#151720] rounded-2xl border border-fuchsia-500/20 p-6 mt-6 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-r from-fuchsia-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
+                        <div>
+                            <h4 className="text-[12px] font-black text-white uppercase tracking-widest flex items-center gap-2">
+                                <Activity className="w-4 h-4 text-fuchsia-400" /> Deep Vision UX Analysis
+                            </h4>
+                            <p className="text-[10px] text-slate-400 mt-1 max-w-md">Realiza una auditoría visual completa como si fueras un comprador intentando navegar la plataforma desde el móvil. Descubre fricciones de conversión críticas.</p>
+                        </div>
+                        <button
+                            onClick={onActivateDeepVision}
+                            className="shrink-0 px-6 py-3 bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 hover:border-fuchsia-500/30 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(217,70,239,0.1)] active:scale-95"
+                        >
+                            <Camera className="w-4 h-4" /> Ejecutar Deep Vision <span className="text-fuchsia-500/50">($0.05)</span>
+                        </button>
+                    </div>
+                </div>
+            ) : null}
 
             {/* Contactos Extraídos */}
             {lead.extracted_contacts && (lead.extracted_contacts.emails?.length > 0 || lead.extracted_contacts.phones?.length > 0 || lead.extracted_contacts.social_links?.length > 0) && (

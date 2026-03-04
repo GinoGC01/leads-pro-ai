@@ -22,7 +22,10 @@ import GestionPanel from './components/GestionPanel';
 const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
     // --- Hooks (data + logic layer) ---
     const { lead, setLead, error, statusModal, setStatusModal, confirmStatusUpdate } = useLeadData(initialLead, onLeadUpdate);
-    const { isActivating, isProcessing, isCompleted, isFailed, isSkippedRentedLand, handleActivateVortex } = useVortexAnalysis(lead, setLead, onLeadUpdate);
+    const { 
+        isActivating, isProcessing, isCompleted, isFailed, isSkippedRentedLand, handleActivateVortex,
+        isVisionPending, isVisionProcessing, isVisionCompleted, handleActivateDeepVision
+    } = useVortexAnalysis(lead, setLead, onLeadUpdate);
 
     // --- Local UI state ---
     const [activeTab, setActiveTab] = useState('inteligencia');
@@ -111,6 +114,10 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                                 onActivateVortex={handleActivateVortex}
                                 isSpiderHelpActive={isSpiderHelpActive}
                                 onToggleSpiderHelp={() => setIsSpiderHelpActive(!isSpiderHelpActive)}
+                                isVisionPending={isVisionPending}
+                                isVisionProcessing={isVisionProcessing}
+                                isVisionCompleted={isVisionCompleted}
+                                onActivateDeepVision={handleActivateDeepVision}
                             />
                         )}
 
