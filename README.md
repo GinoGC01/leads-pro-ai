@@ -28,10 +28,12 @@ El proyecto está dividido en un stack MERN moderno:
 - **Frontend:** React + Vite, Tailwind CSS, Lucide Icons. Interfaz "Vantablack" ultraligera. Clean Architecture (Feature-Based).
 - **Backend:** Node.js con Express, ESM Modules.
 - **Base de Datos:** MongoDB (almacenamiento de Leads, Historial, Sesiones de Chat AI y Configuración).
-- **Vector DB:** Supabase/pgvector para búsqueda semántica y RAG.
+- **Vector DB (RAG):** Supabase/pgvector para búsqueda semántica y RAG de MARIO.
+- **Vector DB (SPIDER):** Qdrant (Self-hosted, Docker) para memoria vectorial de tácticas comerciales ganadoras.
 - **Micro-servicios:** BullMQ/Redis para procesamiento asíncrono y tolerante a fallos, implementando un bus de eventos en la nube para streaming en vivo.
 - **Telecomunicaciones:** `libphonenumber-js` para sanitización matemática estricta de números de teléfono (formato E.164, rechazo de basura y duplicados).
 - **Telemetría en Vivo:** Integración nativa de Server-Sent Events (SSE) para emitir los logs asíncronos de BullMQ directamente a una consola "Vantablack" (Mac-Style) en el cliente.
+- **Testing:** Jest + Supertest + cross-env para pruebas de integración ESM en Windows.
 
 ```text
 ┌──────────────────────────────────────────────────────┐
@@ -48,15 +50,17 @@ El proyecto está dividido en un stack MERN moderno:
 │  GooglePlaces │ AIService │ GridService │ CampaignSvc│
 │  ParserService │ ScraperService │ ProfilerService    │
 │  ScoringService │ SpiderEngine │ SupabaseService     │
+│  VectorStoreService (Qdrant)                         │
 ├──────────────────────────────────────────────────────┤
 │  WORKERS (BullMQ)                                    │
-│  EnrichmentWorker (Vortex Pipeline)                  │
+│  EnrichmentWorker (Vortex Pipeline + SPIDER V2)      │
+│  VisionWorker (Deep Vision Multimodal)               │
 ├──────────────────────────────────────────────────────┤
 │  MODELS (Mongoose)                                   │
 │  Lead │ SearchHistory │ ApiUsage │ Settings          │
 └──────────────────────────────────────────────────────┘
-       │                 │                 │
-    MongoDB       Supabase/pgvector      Redis
+       │                 │           │           │
+    MongoDB       Supabase/pgvector  Redis     Qdrant
 ```
 
 ---
@@ -70,7 +74,9 @@ El proyecto está dividido en un stack MERN moderno:
 - **FASE 1: Evasión WAF y Extracción Base:** Usa `got-scraping` para bypassear barreras. Si falla (Cloudflare 403, etc.), hace fallback a Puppeteer Stealth (Chromium headless) bloqueando CSS/Imágenes para ahorrar RAM.
 - **FASE 2: Sanitización de Datos Crudos:** Verifica SEO básico (H1, meta descriptions). Extrae contactos y plica filtros de limpieza y deduplicación profunda (ignorando fechas, píxeles o IPs capturadas erróneamente en el HTML).
 - **FASE 3: Análisis de Performance:** Llama a Google PageSpeed API para medir LCP y TTFB. Usa regex y firmas para descubrir el Tech Stack (WordPress, Wix, React).
+- **🛡️ SPIDER INTERCEPT (entre FASE 3 y 4):** Antes de gastar tokens de OpenAI, `SpiderEngine.evaluateViability()` analiza si el lead posee infraestructura enterprise inexpugnable (Next.js + Vercel, React + AWS, etc.). Si 2+ tecnologías enterprise se detectan con un Lighthouse Score >85 y TTFB <400ms, el lead se marca como `disqualified` con `reason: DISCARD_PERFECT` y el pipeline se detiene. El frontend renderiza una tarjeta ámbar de "SPIDER Shield".
 - **FASE 4: Vectorización Híbrida:** Llama a `text-embedding-3-small` de OpenAI y guarda un resumen técnico en Supabase (pgvector) para memoria semántica de RAG.
+- **FASE 5: SPIDER V2 — Predicción de Táctica (READ-ONLY):** Genera un embedding del contexto comercial del lead, consulta Qdrant buscando leads ganados similares (status: `WON`), y predice la mejor táctica. Triple fallback: Qdrant → Heurístico → Emergencia. El embedding se guarda en MongoDB (`spider_context_vector`) para ingesta diferida.
 
 **Nivel 2: DEEP VISION (Auditoría Multimodal Avanzada)**
 Si el usuario lo requiere (o si la automatización lo exige), VORTEX lanza un segundo worker que implementa:
@@ -83,6 +89,25 @@ _(Toda la actividad en el VORTEX Engine emite streams asíncronos al Frontend ut
 ### 🕷️ SPIDER Engine (Triaje Simbólico)
 
 **Propósito:** El núcleo lógico y determinista. No alucina; aplica matemáticas y reglas crudas para escupir un Veredicto que la IA debe obedecer. Depende al 100% de la visión de VORTEX.
+
+#### V1: Disqualification Shield (Filtro de Rentabilidad)
+
+- **Viability Gate (`evaluateViability`):** Antes de la vectorización, SPIDER analiza el tech stack contra una lista de tecnologías enterprise (Next.js, Nuxt, Gatsby, React, Vercel, AWS, Docker, Kubernetes, GraphQL, etc.). Si detecta 2+ tecnologías enterprise con rendimiento excepcional (Lighthouse >85, TTFB <400ms), o 3+ tecnologías enterprise sin importar performance, el lead se marca como `DISCARD_PERFECT` y el pipeline aborta. El frontend muestra una tarjeta ámbar con el veredicto.
+- **Rented Land Detection:** Dominios de tierra alquilada (linktr.ee, instagram.com, calendly.com, etc.) se detectan pre-pipeline y el lead se salta sin consumir recursos.
+
+#### V2: Vector Memory (Qdrant — Aprendizaje por Éxito)
+
+- **`generateLeadContext(lead)`:** Genera un string semántico con nicho, tech stack, performance, fricción y UX score del lead.
+- **`predictTactic(lead)`:** Orquestador principal:
+  1. Genera embedding vía `AIService.generateEmbedding()` (text-embedding-3-small, 1536D).
+  2. Consulta Qdrant (READ-ONLY) filtrando por `status: WON`.
+  3. Si hay resultados: retorna la táctica más frecuente entre los ganadores (frequency analysis).
+  4. Fallback: usa el heurístico determinista `analyzeLead()`.
+  5. Guarda el embedding en MongoDB (`spider_context_vector`) para ingesta diferida.
+- **Deferred Ingestion (`_ingestWonLeadToQdrant`):** Cuando un lead se marca como `Cerrado Ganado` en el CRM, el `SearchController` lee el `spider_context_vector` de MongoDB y lo upserta en Qdrant con payload `{ status: 'WON', tactic, niche }`. **Esta es la ÚNICA función autorizada para escribir en Qdrant.**
+- **Resilience:** Si Qdrant está caído, el pipeline continúa normalmente usando el fallback heurístico. Ningún fallo de Qdrant bloquea VORTEX.
+
+#### Reglas Clásicas
 
 - **El Códice de Nichos:** Mapea industrias (Tiers). Tier 1 (High Ticket) receta "Software a Medida", Tier 2 (Locales) receta "Web + SEO", Tier 3 se filtran como `NO-GO`.
 - **Motor de Fricción (Costo Hundido):** Si VORTEX detecta React o AWS, SPIDER deduce "Fricción Alta" (gastó mucho, la táctica cambia a "Auditoría"). Si detecta Wix o ausencia de web, la "Fricción Baja" indica quemar y rehacer completo o `NO_WEB_FOMO`.
@@ -192,7 +217,20 @@ El CRM opera bajo un pipeline estricto de estatus. La transición alimenta a la 
 
 ### 📋 Prerrequisitos
 
-- **Node.js v18+**, **MongoDB** local o Atlas, **Cuenta OpenAI**, **Proyecto Supabase**, Instancia de **Redis** activa (para BullMQ).
+- **Node.js v18+**, **MongoDB** local o Atlas, **Docker** (para Qdrant y Redis), **Cuenta OpenAI**, **Proyecto Supabase**.
+
+### 🐳 Infraestructura Docker
+
+El proyecto incluye un `docker-compose.yml` que levanta Qdrant (memoria vectorial de SPIDER) y Redis (BullMQ) con persistencia:
+
+```bash
+# Levantar infraestructura (desde la raíz del proyecto)
+docker compose up -d
+
+# Verificar contenedores
+docker ps
+# Esperado: spider_qdrant (puerto 6333) + spider_redis (puerto 6379)
+```
 
 ### 🛠️ Instalación de Dependencias
 
@@ -217,6 +255,9 @@ SUPABASE_ANON_KEY=tu_clave_anon_de_supabase
 # Redis (BullMQ)
 REDIS_HOST=localhost
 REDIS_PORT=6379
+
+# Qdrant (SPIDER V2 Vector Memory)
+QDRANT_URL=http://localhost:6333
 
 # Frontend
 VITE_API_URL=http://localhost:5000/api
@@ -257,13 +298,19 @@ $$;
 ### ⚡ Ejecución
 
 ```bash
-# Desarrollo
-npm run dev # (Ejecuta el root de concurrently)
+# 1. Levantar infraestructura (Qdrant + Redis)
+docker compose up -d
 
-# Ejecución Manual de los 3 procesos (Frontend, Backend Server, BullMQ Worker)
+# 2. Desarrollo (Frontend + Backend concurrente)
+npm run dev
+
+# 3. Ejecución Manual de los 3 procesos
 cd backend && npm run dev
 cd backend && node src/workers/EnrichmentWorker.js
 cd frontend && npm run dev
+
+# 4. Tests de integración (SPIDER Vector Loop)
+cd backend && npm run test -- --forceExit tests/integration/SpiderVectorLoop.test.js
 ```
 
 ---
@@ -286,7 +333,7 @@ El backend usa un **3-Tier Modular Monolith** de Clean Architecture en varios do
   - `GET /api/history`
   - `DELETE /api/history/:id`
 - **Leads / CRM:**
-  - `PUT /api/leads/:id/status` (Trigger automágico de estado de campaña)
+  - `PATCH /api/leads/:id/status` (Trigger automágico de estado de campaña + **ingesta Qdrant** al marcar `Cerrado Ganado`)
   - `POST /api/leads/manual`
   - `DELETE /api/leads`
 - **Data Intelligence (Billing/Usage):**
@@ -294,7 +341,7 @@ El backend usa un **3-Tier Modular Monolith** de Clean Architecture en varios do
   - `GET /api/stats` (Métricas globales)
 - **AI & Vortex:**
   - `POST /api/ai/chat` (Flujo RAG de MARIO)
-  - `POST /api/vortex/enrich/:id`
+  - `POST /api/vortex/enrich/:id` (Pipeline de 5 fases: Scrape → Parse → Profile → **SPIDER Gate** → Vectorize + **SPIDER V2 Predict**)
   - `POST /api/vortex/deep-vision/:id` (Trigger Nivel 2 Multimodal)
   - `POST /api/vortex/reset/:id` (Hard Reset Engine)
   - `GET /api/vortex/status/:id`
