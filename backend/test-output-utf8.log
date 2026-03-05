@@ -1,0 +1,543 @@
+﻿
+> backend@1.0.0 test
+> cross-env NODE_OPTIONS=--experimental-vm-modules jest --no-color
+
+  console.log
+    [VisionWorker] Deep Vision Engine Operational (1 slot).
+
+      at src/workers/VisionWorker.js:82:9
+
+  console.log
+    [VisionWorker] ­ƒæü´©Å Iniciando an├ílisis Deep Vision para leadId: fake-id
+
+      at Worker.connection.connection (src/workers/VisionWorker.js:16:13)
+
+  console.log
+    [VisionWorker] ­ƒæü´©Å Iniciando an├ílisis Deep Vision para leadId: fake-id
+
+      at Worker.connection.connection (src/workers/VisionWorker.js:16:13)
+
+node.exe : (node:10176) 
+ExperimentalWarning: VM Modules is an 
+experimental feature and might change at 
+any time
+En línea: 1 Carácter: 1
++ & "C:\Program Files\nodejs/node.exe" 
+"C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecifie 
+   d: ((node:10176) Ex...nge at any time  
+  :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeComma 
+   ndError
+ 
+(Use `node --trace-warnings ...` to show 
+where the warning was created)
+FAIL 
+tests/unit/workers/VisionWorker.test.js
+  VisionWorker
+    ├ù should successfully process a lead 
+and update to vision_completed (9 ms)
+    ├ù should set vortex_status to failed 
+when an error occurs during processing 
+(11 ms)
+
+  ÔùÅ VisionWorker ÔÇ║ should 
+successfully process a lead and update to 
+vision_completed
+
+    TypeError: job.updateProgress is not 
+a function
+
+    [0m [90m 26 |[39m     }
+     [90m 27 |[39m
+    [31m[1m>[22m[39m[90m 28 |[39m   
+  [36mawait[39m 
+job[33m.[39mupdateProgress({ 
+percent[33m:[39m [35m5[39m[33m,[39m 
+message[33m:[39m [32m'ƒöÑ 
+Inicializando VORTEX DEEP VISION 
+Engine...'[39m })[33m;[39m
+     [90m    |[39m               
+[31m[1m^[22m[39m
+     [90m 29 |[39m
+     [90m 30 |[39m     [36mtry[39m {
+     [90m 31 |[39m         
+[36mawait[39m 
+job[33m.[39mupdateProgress({ 
+percent[33m:[39m 
+[35m10[39m[33m,[39m 
+message[33m:[39m [32m'> Inicializando 
+motor de Visi├│n (Puppeteer)...'[39m 
+})[33m;[39m[0m
+
+      at Worker.connection.connection 
+(src/workers/VisionWorker.js:28:15)
+      at Object.<anonymous> (tests/unit/wo
+rkers/VisionWorker.test.js:76:9)
+
+  ÔùÅ VisionWorker ÔÇ║ should set 
+vortex_status to failed when an error 
+occurs during processing
+
+    
+expect(received).rejects.toThrow(expected)
+
+    Expected substring: "Simulated 
+Puppeteer Error"
+    Received message:   
+"job.updateProgress is not a function"
+
+        [0m [90m 26 |[39m     }
+         [90m 27 |[39m
+        [31m[1m>[22m[39m[90m 28 
+|[39m     [36mawait[39m 
+job[33m.[39mupdateProgress({ 
+percent[33m:[39m [35m5[39m[33m,[39m 
+message[33m:[39m [32m'ƒöÑ 
+Inicializando VORTEX DEEP VISION 
+Engine...'[39m })[33m;[39m
+         [90m    |[39m               
+[31m[1m^[22m[39m
+         [90m 29 |[39m
+         [90m 30 |[39m     
+[36mtry[39m {
+         [90m 31 |[39m         
+[36mawait[39m 
+job[33m.[39mupdateProgress({ 
+percent[33m:[39m 
+[35m10[39m[33m,[39m 
+message[33m:[39m [32m'> Inicializando 
+motor de Visi├│n (Puppeteer)...'[39m 
+})[33m;[39m[0m
+
+      at Worker.connection.connection 
+(src/workers/VisionWorker.js:28:15)
+      at Object.<anonymous> (tests/unit/wo
+rkers/VisionWorker.test.js:101:9)
+      at Object.toThrow (node_modules/expe
+ct/build/index.js:2155:20)
+      at Object.<anonymous> (tests/unit/wo
+rkers/VisionWorker.test.js:101:46)
+
+FAIL tests/unit/controllers/VortexControll
+er.test.js
+  ÔùÅ Test suite failed to run
+
+    SyntaxError: The requested module 
+'../services/QueueService.js' does not 
+provide an export named 'enrichmentEvents'
+
+      27 |
+      28 | // Dynamic import after mocks 
+to inject them into the module cache
+    > 29 | const { default: 
+VortexController } = await import('../../.
+./src/controllers/VortexController.js');
+         |                                
+       ^
+      30 |
+      31 | const app = express();
+      32 | app.use(express.json());
+
+      at Runtime.linkAndEvaluateModule (no
+de_modules/jest-runtime/build/index.js:684
+:5)
+      at tests/unit/controllers/VortexCont
+roller.test.js:29:39
+
+(node:8528) ExperimentalWarning: VM 
+Modules is an experimental feature and 
+might change at any time
+(Use `node --trace-warnings ...` to show 
+where the warning was created)
+(node:3740) ExperimentalWarning: VM 
+Modules is an experimental feature and 
+might change at any time
+(Use `node --trace-warnings ...` to show 
+where the warning was created)
+PASS tests/unit/models/Lead.test.js
+  Lead Model
+    ÔêÜ should have a default 
+vortex_status of "pending" (12 ms)
+    ÔêÜ should throw a ValidationError 
+when vortex_status is invalid (5 ms)
+
+  console.log
+    [dotenv@17.3.1] injecting env (6) from .env -- tip: ­ƒöÉ prevent building .env in docker: https://dotenvx.com/prebuild
+
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+
+  console.log
+    [dotenv@17.3.1] injecting env (6) from .env -- tip: ÔÜÖ´©Å  override existing env vars with { override: true }
+
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+
+  console.log
+    [dotenv@17.3.1] injecting env (0) from .env -- tip: ­ƒøá´©Å  run anywhere with `dotenvx run -- yourcommand`
+
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+
+  console.log
+    [dotenv@17.3.1] injecting env (0) from .env -- tip: ­ƒñû agentic secret storage: https://dotenvx.com/as2
+
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+
+(node:17496) ExperimentalWarning: VM 
+Modules is an experimental feature and 
+might change at any time
+(Use `node --trace-warnings ...` to show 
+where the warning was created)
+(node:13896) ExperimentalWarning: VM 
+Modules is an experimental feature and 
+might change at any time
+(Use `node --trace-warnings ...` to show 
+where the warning was created)
+  console.log
+    [Test] Connected to MongoDB: leads_pro_ai_test
+
+      at Object.<anonymous> (tests/integration/KnowledgeIngestion.test.js:45:17)
+
+  console.log
+    [TEST] Connected to MongoDB: mongodb://127.0.0.1:27017/leads_pro_ai_test
+
+      at Object.<anonymous> (tests/integration/SpiderVectorLoop.test.js:100:17)
+
+  console.log
+    [VectorStore] Qdrant client initialized ÔåÆ http://localhost:6333
+
+      at VectorStoreService.getClient (src/services/VectorStoreService.js:34:15)
+
+  console.log
+    [VectorStore] Qdrant client initialized ÔåÆ http://localhost:6333
+
+      at VectorStoreService.getClient (src/services/VectorStoreService.js:34:15)
+
+  console.log
+    [VectorStore] Collection "spider_memory" already exists.
+
+      at VectorStoreService.initializeCollections (src/services/VectorStoreService.js:58:19)
+
+  console.log
+    [VectorStore] Collection "mario_knowledge" already exists.
+
+      at VectorStoreService.initializeCollections (src/services/VectorStoreService.js:58:19)
+
+  console.log
+    [VectorStore] Collection "spider_memory" already exists.
+
+      at VectorStoreService.initializeCollections (src/services/VectorStoreService.js:58:19)
+
+  console.log
+    [VectorStore] Collection "mario_knowledge" already exists.
+
+      at VectorStoreService.initializeCollections (src/services/VectorStoreService.js:58:19)
+
+  console.log
+    [VectorStore] ­ƒº╣ Collection "mario_knowledge" cleared and recreated.
+
+      at VectorStoreService.clearCollection (src/services/VectorStoreService.js:226:15)
+
+  console.log
+    [GLOBAL_LOG] POST /api/knowledge/upload
+
+      at src/app.js:14:13
+
+  console.log
+    [Router] POST /api/knowledge/upload
+
+      at src/routes/api.js:19:13
+
+  console.log
+    [Knowledge] ­ƒôä Archivo recibido: "ventas-b2b.txt" (text/plain, 5.2KB)
+
+      at uploadDocument (src/controllers/KnowledgeController.js:52:21)
+
+  console.log
+    [Knowledge] ­ƒöæ Hash SHA-256: 5aa04c76cf9e5229...
+
+      at uploadDocument (src/controllers/KnowledgeController.js:56:21)
+
+  console.log
+    [Knowledge] Ô£à Texto extra├¡do: 5100 caracteres.
+
+      at uploadDocument (src/controllers/KnowledgeController.js:87:21)
+
+  console.log
+    [Knowledge] ­ƒö¼ Muestreo estrat├®gico generado (3110 chars).
+
+      at uploadDocument (src/controllers/KnowledgeController.js:91:21)
+
+  console.log
+    [DocumentProcessor] Texto fragmentado: 7 chunks de ~1000 chars (overlap: 200).
+
+      at DocumentProcessor.chunkText (src/services/DocumentProcessor.js:107:17)
+
+  console.log
+    [Knowledge] ­ƒôª Fragmentado en 7 chunks.
+
+      at uploadDocument (src/controllers/KnowledgeController.js:119:21)
+
+  console.log
+    [VectorStore] ­ƒº╣ Collection "spider_memory" cleared and recreated.
+
+      at VectorStoreService.clearCollection (src/services/VectorStoreService.js:226:15)
+
+  console.log
+    [TEST] Qdrant spider_memory collection cleared.
+
+      at Object.<anonymous> (tests/integration/SpiderVectorLoop.test.js:108:17)
+
+  console.log
+    [Knowledge] Ô£à Ingesta completada: 7/7 chunks vectorizados para "ventas-b2b.txt".
+
+      at uploadDocument (src/controllers/KnowledgeController.js:166:21)
+
+[0mPOST /api/knowledge/upload [32m200[0m 108.990 ms - 395[0m
+  console.log
+    [Test 1] Ô£à PASSED ÔÇö 7 chunks vectorized.
+
+      at Object.<anonymous> (tests/integration/KnowledgeIngestion.test.js:110:17)
+
+  console.log
+    [GLOBAL_LOG] POST /api/knowledge/upload
+
+      at src/app.js:14:13
+
+  console.log
+    [Router] POST /api/knowledge/upload
+
+      at src/routes/api.js:19:13
+
+  console.log
+    [Knowledge] ­ƒôä Archivo recibido: "ventas-b2b.txt" (text/plain, 5.2KB)
+
+      at uploadDocument (src/controllers/KnowledgeController.js:52:21)
+
+  console.log
+    [SPIDER V2] ÔÜÖ´©Å No vector matches found. Using heuristic fallback.
+
+      at SpiderEngine.predictTactic (src/services/SpiderEngine.js:428:21)
+
+  console.log
+    [Knowledge] ­ƒöæ Hash SHA-256: 5aa04c76cf9e5229...
+
+      at uploadDocument (src/controllers/KnowledgeController.js:56:21)
+
+  console.log
+    [Knowledge] Ô£à Documento id├®ntico ya procesado (tokens ahorrados).
+
+      at uploadDocument (src/controllers/KnowledgeController.js:73:29)
+
+[0mPOST /api/knowledge/upload [32m200[0m 15.871 ms - 215[0m
+  console.log
+    [Test 2] Ô£à PASSED ÔÇö Duplicate detected, 0 OpenAI tokens consumed.
+
+      at Object.<anonymous> (tests/integration/KnowledgeIngestion.test.js:131:17)
+
+  console.log
+    [GLOBAL_LOG] POST /api/knowledge/upload
+
+      at src/app.js:14:13
+
+  console.log
+    [Router] POST /api/knowledge/upload
+
+      at src/routes/api.js:19:13
+
+  console.log
+    [Knowledge] ­ƒôä Archivo recibido: "trojan-doc.txt" (text/plain, 3.8KB)
+
+      at uploadDocument (src/controllers/KnowledgeController.js:52:21)
+
+  console.log
+    [Knowledge] ­ƒöæ Hash SHA-256: b6fd2680364de3d0...
+
+      at uploadDocument (src/controllers/KnowledgeController.js:56:21)
+
+  console.log
+    [Knowledge] Ô£à Texto extra├¡do: 3823 caracteres.
+
+      at uploadDocument (src/controllers/KnowledgeController.js:87:21)
+
+  console.log
+    [Knowledge] ­ƒö¼ Muestreo estrat├®gico generado (3110 chars).
+
+      at uploadDocument (src/controllers/KnowledgeController.js:91:21)
+
+  console.log
+    [Knowledge] ÔØî Documento rechazado por LLM gatekeeper: El documento desv├¡a hacia recetas de cocina y aviaci├│n militar.
+
+      at uploadDocument (src/controllers/KnowledgeController.js:107:25)
+
+[0mPOST /api/knowledge/upload [33m406[0m 11.891 ms - 153[0m
+  console.log
+    [TEST 1] Ô£à Cold Start: tactic="Secuestro de Tr├ífico Local (Local Hijack)", source=HEURISTIC_FALLBACK
+
+      at Object.<anonymous> (tests/integration/SpiderVectorLoop.test.js:167:17)
+
+  console.log
+    [Test 3] Ô£à PASSED ÔÇö Trojan Horse rejected, 0 embeddings generated.
+
+      at Object.<anonymous> (tests/integration/KnowledgeIngestion.test.js:163:17)
+
+  console.log
+    [GLOBAL_LOG] POST /api/knowledge/upload
+
+      at src/app.js:14:13
+
+  console.log
+    [Router] POST /api/knowledge/upload
+
+      at src/routes/api.js:19:13
+
+  console.log
+    [Knowledge] ­ƒôä Archivo recibido: "trojan-doc.txt" (text/plain, 3.8KB)
+
+      at uploadDocument (src/controllers/KnowledgeController.js:52:21)
+
+  console.log
+    [Knowledge] ­ƒöæ Hash SHA-256: b6fd2680364de3d0...
+
+      at uploadDocument (src/controllers/KnowledgeController.js:56:21)
+
+  console.log
+    [Knowledge] ­ƒÜ½ Documento rechazado previamente (tokens ahorrados).
+
+      at uploadDocument (src/controllers/KnowledgeController.js:62:29)
+
+[0mPOST /api/knowledge/upload [33m406[0m 8.005 ms - 229[0m
+  console.log
+    [GLOBAL_LOG] PATCH /api/leads/69a99c1986366ead3811e342/status
+
+      at src/app.js:14:13
+
+  console.log
+    [Test 4] Ô£à PASSED ÔÇö Cached rejection, 0 OpenAI tokens consumed.
+
+      at Object.<anonymous> (tests/integration/KnowledgeIngestion.test.js:184:17)
+
+PASS tests/integration/KnowledgeIngestion.
+test.js
+  Knowledge Ingestion Pipeline ÔÇö RAG 
+Gatekeeper
+    ÔêÜ accepts a valid business document 
+and vectorizes it into Qdrant (148 ms)
+    ÔêÜ returns cached acceptance for 
+duplicate file (zero OpenAI tokens) (25 
+ms)
+    ÔêÜ rejects a Trojan Horse document 
+and caches the rejection (24 ms)
+    ÔêÜ returns cached rejection for 
+duplicate bad file (zero OpenAI tokens) 
+(16 ms)
+
+  console.log
+    [Router] PATCH /api/leads/69a99c1986366ead3811e342/status
+
+      at src/routes/api.js:19:13
+
+(node:13896) [MONGOOSE] Warning: 
+mongoose: the `new` option for 
+`findOneAndUpdate()` and 
+`findOneAndReplace()` is deprecated. Use 
+`returnDocument: 'after'` instead.
+[0mPATCH /api/leads/69a99c1986366ead3811e342/status [32m200[0m 26.376 ms - 1378[0m
+  console.log
+    [SPIDER V2] Ô£à Lead "Plomer├¡a Norte" ingested into Qdrant as WON vector.
+
+      at SearchController._ingestWonLeadToQdrant (src/controllers/SearchController.js:177:17)
+
+  console.log
+    [SPIDER V2] ­ƒÄ» Predicted tactic from 1 WON leads: "Secuestro de Tr├ífico Local (Local Hijack)" (freq: 1, avg similarity: 100.0%)
+
+      at SpiderEngine.predictTactic (src/services/SpiderEngine.js:417:25)
+
+  console.log
+    [TEST 3] Ô£à Inference: tactic="Secuestro de Tr├ífico Local (Local Hijack)" (from Qdrant), confidence=100%, source=QDRANT_VECTOR
+
+      at Object.<anonymous> (tests/integration/SpiderVectorLoop.test.js:236:17)
+
+  console.log
+    [SPIDER V2] ÔÜÖ´©Å No vector matches found. Using heuristic fallback.
+
+      at SpiderEngine.predictTactic (src/services/SpiderEngine.js:428:21)
+
+  console.log
+    [TEST 4] Ô£à Dissimilar: tactic="Secuestro de Tr├ífico Local (Local Hijack)", source=HEURISTIC_FALLBACK (correctly avoided Qdrant match)
+
+      at Object.<anonymous> (tests/integration/SpiderVectorLoop.test.js:261:17)
+
+  console.log
+    [VectorStore] ­ƒº╣ Collection "spider_memory" cleared and recreated.
+
+      at VectorStoreService.clearCollection (src/services/VectorStoreService.js:226:15)
+
+  console.log
+    [TEST] Cleanup complete.
+
+      at Object.<anonymous> (tests/integration/SpiderVectorLoop.test.js:124:17)
+
+FAIL tests/integration/SpiderVectorLoop.te
+st.js (5.81 s)
+  SPIDER Vector Learning Loop
+    ÔêÜ Cold Start: predictTactic should 
+use heuristic fallback when Qdrant is 
+empty (67 ms)
+    ├ù Ingestion: marking lead as 
+"Cerrado Ganado" should ingest vector 
+into Qdrant (2072 ms)
+    ÔêÜ Inference: predictTactic for 
+similar lead should return tactic from 
+Qdrant (16 ms)
+    ÔêÜ Dissimilar lead should fall back 
+to heuristic (no Qdrant match) (16 ms)
+
+  ÔùÅ SPIDER Vector Learning Loop ÔÇ║ 
+Ingestion: marking lead as "Cerrado 
+Ganado" should ingest vector into Qdrant
+
+    expect(received).toBe(expected) // 
+Object.is equality
+
+    Expected: "69a99c1986366ead3811e342"
+    Received: undefined
+
+    [0m [90m 193 |[39m         
+[36mconst[39m wonResult [33m=[39m 
+searchResults[[35m0[39m][33m;[39m
+     [90m 194 |[39m         expect(wonRe
+sult[33m.[39mpayload[33m.[39mstatus)[
+33m.[39mtoBe([32m'WON'[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 195 |[39m  
+       expect(wonResult[33m.[39mpayload
+[33m.[39mlead_id)[33m.[39mtoBe(leadA[3
+3m.[39m_id[33m.[39mtoString())[33m;[3
+9m
+     [90m     |[39m                     
+                      [31m[1m^[22m[39m
+     [90m 196 |[39m         expect(wonRe
+sult[33m.[39mpayload[33m.[39mtactic)[
+33m.[39mtoBeDefined()[33m;[39m
+     [90m 197 |[39m         expect(wonRe
+sult[33m.[39mscore)[33m.[39mtoBeGreate
+rThan([35m0.9[39m)[33m;[39m [90m// 
+Same vector, should be ~1.0[39m
+     [90m 198 |[39m[0m
+
+      at Object.<anonymous> (tests/integra
+tion/SpiderVectorLoop.test.js:195:43)
+
+A worker process has failed to exit 
+gracefully and has been force exited. 
+This is likely caused by tests leaking 
+due to improper teardown. Try running 
+with --detectOpenHandles to find leaks. 
+Active timers can also cause this, ensure 
+that .unref() was called on them.
+Test Suites: 3 failed, 2 passed, 5 total
+Tests:       3 failed, 9 passed, 12 total
+Snapshots:   0 total
+Time:        6.696 s, estimated 7 s
+Ran all test suites.

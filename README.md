@@ -28,8 +28,9 @@ El proyecto está dividido en un stack MERN moderno:
 - **Frontend:** React + Vite, Tailwind CSS, Lucide Icons. Interfaz "Vantablack" ultraligera. Clean Architecture (Feature-Based).
 - **Backend:** Node.js con Express, ESM Modules.
 - **Base de Datos:** MongoDB (almacenamiento de Leads, Historial, Sesiones de Chat AI y Configuración).
-- **Vector DB (RAG):** Supabase/pgvector para búsqueda semántica y RAG de MARIO.
-- **Vector DB (SPIDER):** Qdrant (Self-hosted, Docker) para memoria vectorial de tácticas comerciales ganadoras.
+- **Vector DB:** Qdrant (Self-hosted, Docker) con dos colecciones:
+  - `spider_memory`: Tácticas ganadoras (WON leads) para predicción de SPIDER V2.
+  - `mario_knowledge`: Conocimiento RAG de leads enriquecidos para MARIO AI.
 - **Micro-servicios:** BullMQ/Redis para procesamiento asíncrono y tolerante a fallos, implementando un bus de eventos en la nube para streaming en vivo.
 - **Telecomunicaciones:** `libphonenumber-js` para sanitización matemática estricta de números de teléfono (formato E.164, rechazo de basura y duplicados).
 - **Telemetría en Vivo:** Integración nativa de Server-Sent Events (SSE) para emitir los logs asíncronos de BullMQ directamente a una consola "Vantablack" (Mac-Style) en el cliente.
@@ -59,8 +60,10 @@ El proyecto está dividido en un stack MERN moderno:
 │  MODELS (Mongoose)                                   │
 │  Lead │ SearchHistory │ ApiUsage │ Settings          │
 └──────────────────────────────────────────────────────┘
-       │                 │           │           │
-    MongoDB       Supabase/pgvector  Redis     Qdrant
+       │                 │                 │
+    MongoDB              Redis           Qdrant
+                                    (spider_memory +
+                                     mario_knowledge)
 ```
 
 ---
@@ -217,7 +220,7 @@ El CRM opera bajo un pipeline estricto de estatus. La transición alimenta a la 
 
 ### 📋 Prerrequisitos
 
-- **Node.js v18+**, **MongoDB** local o Atlas, **Docker** (para Qdrant y Redis), **Cuenta OpenAI**, **Proyecto Supabase**.
+- **Node.js v18+**, **MongoDB** local o Atlas, **Docker** (para Qdrant y Redis), **Cuenta OpenAI**.
 
 ### 🐳 Infraestructura Docker
 
@@ -247,16 +250,14 @@ PORT=5000
 MONGODB_URI=mongodb://localhost:27017/tu_db
 GOOGLE_PLACES_API_KEY=tu_google_api_key
 
-# --- AI & RAG CONFIGURATION ---
+# --- AI CONFIGURATION ---
 OPENAI_API_KEY=tu_clave_de_openai
-SUPABASE_URL=tu_url_de_supabase
-SUPABASE_ANON_KEY=tu_clave_anon_de_supabase
 
 # Redis (BullMQ)
 REDIS_HOST=localhost
 REDIS_PORT=6379
 
-# Qdrant (SPIDER V2 Vector Memory)
+# Qdrant (SPIDER V2 + MARIO RAG)
 QDRANT_URL=http://localhost:6333
 
 # Frontend

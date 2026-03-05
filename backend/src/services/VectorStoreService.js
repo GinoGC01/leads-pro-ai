@@ -1,157 +1,250 @@
-import { QdrantClient } from '@qdrant/js-client-rest';
+import { QdrantClient } from "@qdrant/js-client-rest";
 
-const COLLECTION_NAME = 'spider_memory';
+const COLLECTIONS = {
+  SPIDER_MEMORY: "spider_memory",
+  MARIO_KNOWLEDGE: "mario_knowledge",
+};
 const VECTOR_DIM = 1536; // text-embedding-3-small
 
 /**
- * VectorStoreService — Qdrant Singleton for SPIDER V2.
- * Handles collection lifecycle, vector search, and deferred ingestion.
- * 
- * ARCHITECTURE RULE: upsertLeadVector is ONLY called from markLeadAsWon (Controller),
- * NEVER from Workers. Workers are READ-ONLY consumers.
+ * VectorStoreService — Multi-Collection Qdrant Singleton.
+ *
+ * Collections:
+ *   - spider_memory: Tácticas ganadoras (WON leads) para predicción de SPIDER V2.
+ *   - mario_knowledge: Conocimiento RAG de leads enriquecidos para MARIO AI.
+ *
+ * ARCHITECTURE RULES:
+ *   - spider_memory.upsert: ONLY from markLeadAsWon (SearchController).
+ *   - mario_knowledge.upsert: From EnrichmentWorker (FASE 4).
+ *   - Workers are READ-ONLY for spider_memory.
  */
 class VectorStoreService {
-    constructor() {
-        this._client = null;
-        this._initialized = false;
-    }
+  constructor() {
+    this._client = null;
+    this._initialized = false;
+  }
 
-    /**
-     * Lazy singleton — connects to Qdrant on first call.
-     */
-    getClient() {
-        if (!this._client) {
-            const url = process.env.QDRANT_URL || 'http://localhost:6333';
-            this._client = new QdrantClient({ url });
-            console.log(`[VectorStore] Qdrant client initialized → ${url}`);
+  /**
+   * Lazy singleton — connects to Qdrant on first call.
+   */
+  getClient() {
+    if (!this._client) {
+      const url = process.env.QDRANT_URL || "http://localhost:6333";
+      this._client = new QdrantClient({ url });
+      console.log(`[VectorStore] Qdrant client initialized → ${url}`);
+    }
+    return this._client;
+  }
+
+  /**
+   * Ensure both collections exist (1536D, Cosine).
+   * Called once at server startup.
+   */
+  async initializeCollections() {
+    try {
+      const client = this.getClient();
+      const existing = await client.getCollections();
+      const existingNames = existing.collections.map((c) => c.name);
+
+      for (const colName of Object.values(COLLECTIONS)) {
+        if (!existingNames.includes(colName)) {
+          await client.createCollection(colName, {
+            vectors: { size: VECTOR_DIM, distance: "Cosine" },
+          });
+          console.log(
+            `[VectorStore] ✅ Collection "${colName}" created (${VECTOR_DIM}D, Cosine).`,
+          );
+        } else {
+          console.log(`[VectorStore] Collection "${colName}" already exists.`);
         }
-        return this._client;
+      }
+      this._initialized = true;
+    } catch (err) {
+      console.error(
+        `[VectorStore] ⚠️ Qdrant initialization failed (non-blocking): ${err.message}`,
+      );
     }
+  }
 
-    /**
-     * Ensure the spider_memory collection exists (1536D, Cosine).
-     * Called once at server startup.
-     */
-    async initializeCollection() {
-        try {
-            const client = this.getClient();
-            const collections = await client.getCollections();
-            const exists = collections.collections.some(c => c.name === COLLECTION_NAME);
+  // Legacy alias for backwards compatibility (server.js)
+  async initializeCollection() {
+    return this.initializeCollections();
+  }
 
-            if (!exists) {
-                await client.createCollection(COLLECTION_NAME, {
-                    vectors: {
-                        size: VECTOR_DIM,
-                        distance: 'Cosine'
-                    }
-                });
-                console.log(`[VectorStore] ✅ Collection "${COLLECTION_NAME}" created (${VECTOR_DIM}D, Cosine).`);
-            } else {
-                console.log(`[VectorStore] Collection "${COLLECTION_NAME}" already exists.`);
-            }
-            this._initialized = true;
-        } catch (err) {
-            console.error(`[VectorStore] ⚠️ Qdrant initialization failed (non-blocking): ${err.message}`);
-            // Non-blocking — pipeline will use heuristic fallback
-        }
+  // ─── GENERIC CRUD ──────────────────────────────────────────────────
+
+  /**
+   * Insert or update a vector in any collection.
+   * @param {string} collectionName - Target collection
+   * @param {string} id - Document ID (will be hashed for Qdrant)
+   * @param {number[]} vector - 1536D embedding
+   * @param {Object} payload - Metadata payload
+   */
+  async upsertVector(collectionName, id, vector, payload) {
+    try {
+      const client = this.getClient();
+      await client.upsert(collectionName, {
+        wait: true,
+        points: [
+          {
+            id: this._hashId(id),
+            vector,
+            payload: { doc_id: id, ...payload },
+          },
+        ],
+      });
+      return true;
+    } catch (err) {
+      console.error(
+        `[VectorStore] ⚠️ Upsert to "${collectionName}" failed: ${err.message}`,
+      );
+      return false;
     }
+  }
 
-    /**
-     * Insert or update a lead vector in Qdrant.
-     * ONLY called from the "Won" lifecycle hook (markLeadAsWon).
-     * 
-     * @param {string} leadId - MongoDB _id as string
-     * @param {number[]} vector - 1536D embedding
-     * @param {Object} payload - { niche, tech_stack, tactic, status, performance_score, friction_score }
-     */
-    async upsertLeadVector(leadId, vector, payload) {
-        try {
-            const client = this.getClient();
-            await client.upsert(COLLECTION_NAME, {
-                wait: true,
-                points: [{
-                    id: this._hashId(leadId),
-                    vector,
-                    payload: {
-                        lead_id: leadId,
-                        ...payload
-                    }
-                }]
-            });
-            console.log(`[VectorStore] ✅ Lead vectorized in Qdrant: ${leadId}`);
-            return true;
-        } catch (err) {
-            console.error(`[VectorStore] ⚠️ Upsert failed (non-blocking): ${err.message}`);
-            return false;
-        }
+  /**
+   * Search for similar vectors in any collection.
+   * @param {string} collectionName - Target collection
+   * @param {number[]} vector - Query embedding
+   * @param {Object} [filter] - Qdrant filter
+   * @param {number} [limit=5] - Max results
+   * @param {number} [scoreThreshold=0.3] - Min similarity
+   */
+  async searchSimilar(
+    collectionName,
+    vector,
+    filter = null,
+    limit = 5,
+    scoreThreshold = 0.3,
+  ) {
+    try {
+      const client = this.getClient();
+      const searchParams = {
+        vector,
+        limit,
+        with_payload: true,
+        score_threshold: scoreThreshold,
+      };
+      if (filter) searchParams.filter = filter;
+
+      const results = await client.search(collectionName, searchParams);
+      return results || [];
+    } catch (err) {
+      console.error(
+        `[VectorStore] ⚠️ Search in "${collectionName}" failed: ${err.message}`,
+      );
+      return [];
     }
+  }
 
-    /**
-     * Search for similar leads in the spider_memory collection.
-     * Used by Workers in READ-ONLY mode for tactic prediction.
-     * 
-     * @param {number[]} vector - Query embedding (1536D)
-     * @param {Object} [filter] - Optional Qdrant filter object
-     * @param {number} [limit=5] - Max results
-     * @returns {Array} Matching points with payload
-     */
-    async searchSimilarLeads(vector, filter = null, limit = 5) {
-        try {
-            const client = this.getClient();
-            const searchParams = {
-                vector,
-                limit,
-                with_payload: true,
-                score_threshold: 0.65 // Only strong semantic matches
-            };
-
-            if (filter) {
-                searchParams.filter = filter;
-            }
-
-            const results = await client.search(COLLECTION_NAME, searchParams);
-            return results || [];
-        } catch (err) {
-            console.error(`[VectorStore] ⚠️ Search failed (fallback to heuristic): ${err.message}`);
-            return []; // Graceful degradation — SpiderEngine uses heuristic
-        }
+  /**
+   * Delete vectors by their document IDs.
+   * @param {string} collectionName - Target collection
+   * @param {string[]} docIds - Array of document IDs
+   */
+  async deleteVectors(collectionName, docIds) {
+    try {
+      const client = this.getClient();
+      const pointIds = docIds.map((id) => this._hashId(id));
+      await client.delete(collectionName, {
+        wait: true,
+        points: pointIds,
+      });
+      console.log(
+        `[VectorStore] 🗑️ Deleted ${pointIds.length} vectors from "${collectionName}".`,
+      );
+      return true;
+    } catch (err) {
+      console.error(
+        `[VectorStore] ⚠️ Delete from "${collectionName}" failed: ${err.message}`,
+      );
+      return false;
     }
+  }
 
-    /**
-     * Delete all points from the collection (for testing/reset).
-     * Drops and recreates the collection to ensure a clean slate.
-     */
-    async clearCollection() {
-        try {
-            const client = this.getClient();
-            const collections = await client.getCollections();
-            const exists = collections.collections.some(c => c.name === COLLECTION_NAME);
-            if (exists) {
-                await client.deleteCollection(COLLECTION_NAME);
-            }
-            await client.createCollection(COLLECTION_NAME, {
-                vectors: { size: VECTOR_DIM, distance: 'Cosine' }
-            });
-            console.log(`[VectorStore] 🧹 Collection "${COLLECTION_NAME}" cleared and recreated.`);
-        } catch (err) {
-            console.error(`[VectorStore] ⚠️ clearCollection failed: ${err.message}`);
-        }
+  /**
+   * Retrieve a single vector's payload by document ID.
+   * @param {string} collectionName - Target collection
+   * @param {string} docId - Document ID
+   */
+  async getPayload(collectionName, docId) {
+    try {
+      const client = this.getClient();
+      const pointId = this._hashId(docId);
+      const results = await client.retrieve(collectionName, {
+        ids: [pointId],
+        with_payload: true,
+      });
+      return results?.[0]?.payload || null;
+    } catch (err) {
+      console.error(
+        `[VectorStore] ⚠️ Retrieve from "${collectionName}" failed: ${err.message}`,
+      );
+      return null;
     }
+  }
 
-    /**
-     * Convert a MongoDB ObjectId string to a Qdrant-compatible unsigned integer.
-     * Uses a simple hash to map the 24-char hex string to a positive integer.
-     */
-    _hashId(mongoId) {
-        let hash = 0;
-        const str = mongoId.toString();
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash >>> 0; // Convert to unsigned 32-bit
-        }
-        return hash || 1; // Qdrant IDs must be > 0
+  // ─── SPIDER-SPECIFIC ALIASES (backwards compat) ────────────────────
+
+  async upsertLeadVector(leadId, vector, payload) {
+    return this.upsertVector(
+      COLLECTIONS.SPIDER_MEMORY,
+      leadId,
+      vector,
+      payload,
+    );
+  }
+
+  async searchSimilarLeads(vector, filter = null, limit = 5) {
+    return this.searchSimilar(
+      COLLECTIONS.SPIDER_MEMORY,
+      vector,
+      filter,
+      limit,
+      0.65,
+    );
+  }
+
+  // ─── UTILITIES ─────────────────────────────────────────────────────
+
+  /**
+   * Drop and recreate a collection (testing/reset).
+   */
+  async clearCollection(collectionName = COLLECTIONS.SPIDER_MEMORY) {
+    try {
+      const client = this.getClient();
+      const collections = await client.getCollections();
+      const exists = collections.collections.some(
+        (c) => c.name === collectionName,
+      );
+      if (exists) {
+        await client.deleteCollection(collectionName);
+      }
+      await client.createCollection(collectionName, {
+        vectors: { size: VECTOR_DIM, distance: "Cosine" },
+      });
+      console.log(
+        `[VectorStore] 🧹 Collection "${collectionName}" cleared and recreated.`,
+      );
+    } catch (err) {
+      console.error(`[VectorStore] ⚠️ clearCollection failed: ${err.message}`);
     }
+  }
+
+  /**
+   * Convert a MongoDB ObjectId string to a Qdrant-compatible unsigned integer.
+   */
+  _hashId(mongoId) {
+    let hash = 0;
+    const str = mongoId.toString();
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash >>> 0;
+    }
+    return hash || 1;
+  }
 }
 
+export { COLLECTIONS };
 export default new VectorStoreService();

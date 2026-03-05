@@ -4,7 +4,7 @@ const mockFindById = jest.fn();
 const mockLeadSave = jest.fn();
 
 // Mock Mongoose model
-jest.unstable_mockModule('../../models/Lead.js', () => ({
+jest.unstable_mockModule('../../../src/models/Lead.js', () => ({
     default: {
         findById: mockFindById
     }
@@ -26,26 +26,26 @@ jest.unstable_mockModule('bullmq', () => {
 });
 
 // Mock QueueService reference
-jest.unstable_mockModule('../../services/QueueService.js', () => ({
+jest.unstable_mockModule('../../../src/services/QueueService.js', () => ({
     connection: { quit: jest.fn(), disconnect: jest.fn() }
 }));
 
 const mockTakeMobileScreenshot = jest.fn();
-jest.unstable_mockModule('../../services/VisionScraperService.js', () => ({
+jest.unstable_mockModule('../../../src/services/VisionScraperService.js', () => ({
     default: {
         takeMobileScreenshot: mockTakeMobileScreenshot
     }
 }));
 
 const mockAnalyzeUX = jest.fn();
-jest.unstable_mockModule('../../services/AIService.js', () => ({
+jest.unstable_mockModule('../../../src/services/AIService.js', () => ({
     default: {
         analyzeUX: mockAnalyzeUX
     }
 }));
 
 // Dynamic import
-const { default: visionWorker } = await import('../../workers/VisionWorker.js');
+const { default: visionWorker } = await import('../../../src/workers/VisionWorker.js');
 
 describe('VisionWorker', () => {
     beforeEach(() => {
@@ -70,13 +70,13 @@ describe('VisionWorker', () => {
 
         // Access the worker processor function directly for testing
         const processor = visionWorker.processor;
-        const job = { data: { leadId: 'fake-id' } };
+        const job = { data: { leadId: 'fake-id' }, updateProgress: jest.fn() };
 
         // Test the processor logic
         await processor(job);
 
         expect(mockFindById).toHaveBeenCalledWith('fake-id');
-        expect(mockTakeMobileScreenshot).toHaveBeenCalledWith('https://test.com');
+        expect(mockTakeMobileScreenshot).toHaveBeenCalledWith('https://test.com', job);
         expect(mockAnalyzeUX).toHaveBeenCalledWith('fake-base64', 'https://test.com');
         expect(fakeLead.vortex_status).toBe('vision_completed');
         expect(fakeLead.vision_analysis.ux_score_1_to_10).toBe(8);
@@ -96,7 +96,7 @@ describe('VisionWorker', () => {
         mockLeadSave.mockResolvedValue(fakeLead); // succeed on the fallback save
 
         const processor = visionWorker.processor;
-        const job = { data: { leadId: 'fake-id' } };
+        const job = { data: { leadId: 'fake-id' }, updateProgress: jest.fn() };
 
         await expect(processor(job)).rejects.toThrow('Simulated Puppeteer Error');
 

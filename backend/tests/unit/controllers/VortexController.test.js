@@ -8,7 +8,7 @@ const mockFindByIdAndUpdate = jest.fn();
 const mockAddLeadToVision = jest.fn();
 
 // Mock Mongoose model BEFORE importing the controller
-jest.unstable_mockModule('../../models/Lead.js', () => ({
+jest.unstable_mockModule('../../../src/models/Lead.js', () => ({
     default: {
         findOneAndUpdate: mockFindOneAndUpdate,
         findById: mockFindById,
@@ -17,16 +17,18 @@ jest.unstable_mockModule('../../models/Lead.js', () => ({
 }));
 
 // Mock QueueService to prevent real Redis connections
-jest.unstable_mockModule('../../services/QueueService.js', () => ({
+jest.unstable_mockModule('../../../src/services/QueueService.js', () => ({
     addLeadToVision: mockAddLeadToVision,
     addLeadToEnrichment: jest.fn(),
     enrichmentQueue: {},
     visionQueue: {},
+    enrichmentEvents: {},
+    visionEvents: {},
     connection: { quit: jest.fn(), disconnect: jest.fn() }
 }));
 
 // Dynamic import after mocks to inject them into the module cache
-const { default: VortexController } = await import('../../controllers/VortexController.js');
+const { default: VortexController } = await import('../../../src/controllers/VortexController.js');
 
 const app = express();
 app.use(express.json());

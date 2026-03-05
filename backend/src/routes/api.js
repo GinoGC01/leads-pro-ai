@@ -12,6 +12,7 @@ import SettingsController from '../controllers/SettingsController.js';
 import ChatController from '../controllers/ChatController.js';
 import ManualLeadController from '../controllers/ManualLeadController.js';
 import DataIntelligenceController from '../controllers/DataIntelligenceController.js';
+import KnowledgeController from '../controllers/KnowledgeController.js';
 
 // Global request logger
 router.use((req, res, next) => {
@@ -60,8 +61,12 @@ router.get('/export/:searchId/json', ExportController.exportJson);
 router.get('/export/:searchId/csv', ExportController.exportCsv);
 router.get('/export/:searchId/excel', ExportController.exportExcel);
 
+
 // Settings Routes
 router.get('/settings/agency-context', SettingsController.getAgencyContext);
 router.post('/settings/agency-context', SettingsController.updateAgencyContext);
+
+// Knowledge Ingestion Routes (Dynamic RAG)
+router.post('/knowledge/upload', KnowledgeController.uploadMiddleware, KnowledgeController.uploadDocument);
 
 export default router;

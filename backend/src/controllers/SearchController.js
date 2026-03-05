@@ -9,7 +9,7 @@ import Lead from '../models/Lead.js';
 import SearchHistory from '../models/SearchHistory.js';
 import ApiUsage from '../models/ApiUsage.js';
 import ScoringService from '../services/ScoringService.js';
-import SupabaseService from '../services/SupabaseService.js';
+import VectorStoreService, { COLLECTIONS } from '../services/VectorStoreService.js';
 import CampaignService from '../services/CampaignService.js';
 
 /**
@@ -166,6 +166,7 @@ class SearchController {
             leadId,
             lead.spider_context_vector,
             {
+                lead_id: lead._id.toString(),
                 status: 'WON',
                 tactic: lead.spider_memory?.applied_tactic || 'UNKNOWN',
                 niche: lead.category || 'General',
@@ -189,10 +190,11 @@ class SearchController {
             console.log(`[SearchController] Iniciando borrado masivo de ${leadIds.length} leads.`);
 
             try {
-                await SupabaseService.deleteLeadVectors(leadIds);
-                console.log(`[SearchController] Vectores eliminados en Supabase.`);
+                await VectorStoreService.deleteVectors(COLLECTIONS.MARIO_KNOWLEDGE, leadIds);
+                await VectorStoreService.deleteVectors(COLLECTIONS.SPIDER_MEMORY, leadIds);
+                console.log(`[SearchController] Vectores eliminados en Qdrant (mario_knowledge + spider_memory).`);
             } catch (vdbError) {
-                console.warn(`[SearchController] Advertencia: Error borrando vectores en Supabase:`, vdbError.message);
+                console.warn(`[SearchController] Advertencia: Error borrando vectores en Qdrant:`, vdbError.message);
             }
 
             const mongoResult = await Lead.deleteMany({ _id: { $in: leadIds } });

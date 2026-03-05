@@ -6,7 +6,6 @@ import GooglePlacesService from './GooglePlacesService.js';
 import ScoringService from './ScoringService.js';
 import GridService from './GridService.js';
 import CampaignService from './CampaignService.js';
-import SupabaseService from './SupabaseService.js';
 import { RENTED_LAND_DOMAINS } from './SpiderEngine.js';
 
 /**

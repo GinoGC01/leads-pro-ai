@@ -4,7 +4,7 @@ import ScraperService from '../services/ScraperService.js';
 import ParserService from '../services/ParserService.js';
 import ProfilerService from '../services/ProfilerService.js';
 import AIService from '../services/AIService.js';
-import SupabaseService from '../services/SupabaseService.js';
+import VectorStoreService, { COLLECTIONS } from '../services/VectorStoreService.js';
 import ragConfig from '../config/rag.config.js';
 import Lead from '../models/Lead.js';
 import SpiderEngine, { RENTED_LAND_DOMAINS } from '../services/SpiderEngine.js';
@@ -147,23 +147,27 @@ const enrichmentWorker = new Worker('enrichmentQueue', async (job) => {
         lead.spider_verdict = spiderVerdict; // NONE — lead es viable
         await lead.save();
 
-        // 4.2 Sincronización Vectorial (pgvector)
+        // 4.2 Sincronización Vectorial (Qdrant → mario_knowledge)
         const semanticContent = ragConfig.ingestion.buildSemanticContent(lead);
         const embedding = await AIService.generateEmbedding(semanticContent);
 
-        await SupabaseService.upsertLeadVector({
-            lead_id: lead._id.toString(),
-            name: lead.name,
-            metadata: {
+        await VectorStoreService.upsertVector(
+            COLLECTIONS.MARIO_KNOWLEDGE,
+            lead._id.toString(),
+            embedding,
+            {
+                name: lead.name,
+                text_chunk: semanticContent,
+                document_id: lead._id.toString(),
+                source: 'enrichment_worker',
                 rating: lead.rating,
                 ttfb: lead.performance_metrics?.ttfb,
                 score: lead.leadOpportunityScore,
                 is_zombie: lead.is_zombie,
-                tech: techStack.slice(0, 5),
+                tech: (techStack || []).slice(0, 5),
                 performance: perfMetrics.performanceScore
-            },
-            content: semanticContent
-        }, embedding);
+            }
+        );
 
         // FASE 5: SPIDER V2 — Tactic Prediction (READ-ONLY Qdrant)
         await job.updateProgress({ percent: 90, message: '[SPIDER V2] 🧠 Consultando memoria vectorial para predicción de táctica...' });

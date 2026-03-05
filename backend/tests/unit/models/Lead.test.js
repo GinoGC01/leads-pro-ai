@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import Lead from '../../models/Lead.js';
+import Lead from '../../../src/models/Lead.js';
 
 describe('Lead Model', () => {
     beforeAll(() => {

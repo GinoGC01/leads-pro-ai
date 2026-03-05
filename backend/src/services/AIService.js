@@ -465,6 +465,60 @@ ${region === 'LATAM' ? "1. DESTRUCCIÓN DEL SIGNO DE APERTURA: Revisa cada frase
             throw new Error(`AI UX Analysis failed: ${error.message}`);
         }
     }
+
+    /**
+     * RAG Gatekeeper: Evaluate document domain relevance via LLM.
+     * Receives 3 strategic samples (start, center, end) and checks topical congruence.
+     * Rejects Trojan Horse documents that deviate from business/tech/sales domains.
+     * 
+     * @param {string} sampledText - Output from DocumentProcessor.extractStrategicSamples
+     * @returns {{ is_relevant: boolean, reason: string }}
+     */
+    static async evaluateDocumentDomain(sampledText) {
+        try {
+            const { client, config } = await AIService.getEngine();
+
+            const response = await client.chat.completions.create({
+                model: 'gpt-4o-mini',
+                temperature: 0.1,
+                max_tokens: 300,
+                response_format: { type: 'json_object' },
+                messages: [
+                    {
+                        role: 'system',
+                        content: `Eres un auditor de bases de datos corporativas. Te daré 3 fragmentos extraídos del inicio, medio y final de un documento. Debes evaluar la congruencia total.
+
+REGLA DE ACEPTACIÓN:
+Si los 3 fragmentos hablan consistentemente sobre alguno de estos temas: Ventas B2B, Estrategias Comerciales, Marketing Digital, Tecnología Web, Desarrollo de Software, SEO/SEM, CRM, Automatización, Gestión Empresarial, E-commerce, o Atención al Cliente — ACEPTA el documento.
+
+REGLA DE RECHAZO:
+Si detectas que en algún punto el tema se desvía drásticamente hacia temas completamente irrelevantes (ej. aviación, recetas de cocina, ficción literaria, historia antigua, matemáticas puras, biología, deportes) — RECHAZA el documento.
+
+Responde EXCLUSIVAMENTE en JSON: {"is_relevant": boolean, "reason": "explicación breve de tu decisión"}`
+                    },
+                    {
+                        role: 'user',
+                        content: `Evalúa este documento:\n\n${sampledText}`
+                    }
+                ]
+            });
+
+            const content = response.choices[0].message.content;
+            const result = JSON.parse(content);
+
+            console.log(`[AIService] 🛡️ Document Gate: ${result.is_relevant ? '✅ ACCEPTED' : '❌ REJECTED'} — ${result.reason}`);
+
+            return {
+                is_relevant: !!result.is_relevant,
+                reason: result.reason || (result.is_relevant ? 'Contenido relevante.' : 'Contenido fuera de dominio.')
+            };
+
+        } catch (error) {
+            console.error(`[AIService] ⚠️ evaluateDocumentDomain error: ${error.message}`);
+            // Fail-open: if LLM is unavailable, accept the document
+            return { is_relevant: true, reason: 'Error en validación LLM — aceptado por defecto.' };
+        }
+    }
 }
 
 export default AIService;

@@ -1,7 +1,7 @@
 import Lead from '../models/Lead.js';
 import ChatSession from '../models/ChatSession.js';
 import AIService from '../services/AIService.js';
-import SupabaseService from '../services/SupabaseService.js';
+import VectorStoreService, { COLLECTIONS } from '../services/VectorStoreService.js';
 import SpiderEngine from '../services/SpiderEngine.js';
 import ragConfig from '../config/rag.config.js';
 
@@ -28,16 +28,16 @@ class AIController {
                     // Build deterministic context from MongoDB
                     const structuredContent = ragConfig.ingestion.buildSemanticContent(mongoLead);
 
-                    // Fetch extended deep-scrape content from Supabase
-                    const vdbContent = await SupabaseService.getLeadContent(leadId);
+                    // Fetch extended deep-scrape content from Qdrant
+                    const vdbPayload = await VectorStoreService.getPayload(COLLECTIONS.MARIO_KNOWLEDGE, leadId);
 
-                    // Merge: Priority to structured MongoDB data + extended Supabase scraping
+                    // Merge: Priority to structured MongoDB data + extended scraping
                     const finalContent = `
                         DATOS ESTRUCTURADOS (Métricas CRM):
                         ${structuredContent}
                         
                         CONTENIDO EXTENDIDO (Web Scraping):
-                        ${vdbContent?.content || 'Sin contenido extra de scraping disponible.'}
+                        ${vdbPayload?.text_chunk || 'Sin contenido extra de scraping disponible.'}
                     `.trim();
 
                     retrievedLeads = [{
@@ -68,7 +68,15 @@ class AIController {
             } else {
                 // General RAG: similarity search
                 const queryEmbedding = await AIService.generateEmbedding(query);
-                retrievedLeads = await SupabaseService.searchSimilarLeads(queryEmbedding);
+                const qdrantResults = await VectorStoreService.searchSimilar(
+                    COLLECTIONS.MARIO_KNOWLEDGE, queryEmbedding, null, 5, 0.3
+                );
+                retrievedLeads = qdrantResults.map(r => ({
+                    name: r.payload?.name || 'Lead',
+                    lead_id: r.payload?.document_id || r.payload?.doc_id,
+                    content: r.payload?.text_chunk || '',
+                    similarity: r.score
+                }));
 
                 // 3. Generate response with Context-Aware LLM
                 var answer = await AIService.chatWithContext(query, retrievedLeads, history || []);
