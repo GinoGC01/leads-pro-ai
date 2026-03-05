@@ -36,6 +36,7 @@ const VortexRadiography = ({
     isCompleted,
     isFailed,
     isSkippedRentedLand,
+    isDisqualified,
     isActivating,
     onActivateVortex,
     isSpiderHelpActive,
@@ -177,6 +178,36 @@ const VortexRadiography = ({
     }
 
     // Completed — Full Radiography
+    // But first: intercept disqualified leads
+    if (isDisqualified) {
+        return (
+            <div className="space-y-6">
+                {sharedHeader}
+                <div className="bg-app-card rounded-2xl border border-amber-500/20 p-6 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full blur-[60px] pointer-events-none"></div>
+                    <div className="flex items-center gap-3 mb-4 relative z-10">
+                        <div className="p-2 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400">
+                            <AlertCircle className="w-5 h-5" />
+                        </div>
+                        <h3 className="text-xs font-black text-amber-400 uppercase tracking-[0.2em]">SPIDER Shield: Lead Descalificado</h3>
+                    </div>
+                    <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl mb-4">
+                        <p className="text-amber-400/90 text-[11px] font-bold mb-2 uppercase tracking-wider">Razón: {lead.spider_verdict?.reason || 'DISCARD_PERFECT'}</p>
+                        <p className="text-slate-300 text-xs leading-relaxed">{lead.spider_verdict?.message || 'Infraestructura inexpugnable detectada. Fricción comercial 100%.'}</p>
+                    </div>
+                    {lead.tech_stack && lead.tech_stack.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                            {lead.tech_stack.map((tech, i) => (
+                                <span key={i} className="px-2 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg text-[9px] font-bold uppercase">{tech}</span>
+                            ))}
+                        </div>
+                    )}
+                    <p className="text-slate-500 text-[10px] italic">Este lead posee infraestructura de nivel enterprise. No es rentable ofrecer nuestros servicios. El pipeline de Deep Vision fue bloqueado para ahorrar recursos.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
             {sharedHeader}

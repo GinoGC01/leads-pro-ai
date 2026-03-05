@@ -1,8 +1,22 @@
 import { SPIDER_CODEX } from '../config/spider_codex.js';
 import Lead from '../models/Lead.js';
+import VectorStoreService from './VectorStoreService.js';
+import AIService from './AIService.js';
 
 const HIGH_COST_TECH = ['React', 'Next.js', 'Vue.js', 'Angular', 'AWS', 'Shopify Plus', 'Magento', 'Laravel'];
 const LOW_COST_TECH = ['Wix', 'Weebly', 'Squarespace', 'WordPress', 'Blogger', 'Joomla'];
+
+// Tecnologías que indican infraestructura de alto nivel inexpugnable (Fricción 100%)
+const ENTERPRISE_FORTRESS_TECH = [
+    'next.js', 'nuxt', 'gatsby', 'remix', 'astro', 'svelte',    // Frameworks modernos SSR/SSG
+    'react', 'vue.js', 'angular',                                 // SPA Frameworks (si combinados con infra enterprise)
+    'vercel', 'netlify', 'cloudflare pages',                      // Edge platforms
+    'aws', 'google cloud', 'azure',                                // Cloud enterprise
+    'docker', 'kubernetes',                                        // Containerización
+    'graphql', 'strapi', 'contentful', 'sanity',                  // Headless CMS enterprise
+    'shopify plus', 'magento enterprise'                           // E-commerce enterprise
+];
+
 export const RENTED_LAND_DOMAINS = [
     'agendapro.com', 'linktr.ee', 'instagram.com', 'facebook.com',
     'wa.me', 'calendly.com', 'sites.google.com', 'wixsite.com',
@@ -10,6 +24,55 @@ export const RENTED_LAND_DOMAINS = [
 ];
 
 class SpiderEngine {
+    /**
+     * FASE 0: Viability Gate (Disqualification Shield)
+     * Evalúa si el lead posee infraestructura de alto nivel que lo hace comercialmente inexpugnable.
+     * Se ejecuta ANTES de vectorización para ahorrar tokens de OpenAI y tiempo de Deep Vision.
+     * 
+     * @param {Object} leadData - Objeto con { tech_stack: string[], performance_metrics: { performanceScore, ttfb } }
+     * @returns {{ is_disqualified: boolean, reason: string, message: string }}
+     */
+    static evaluateViability(leadData) {
+        const techStack = leadData.tech_stack || [];
+        const perfMetrics = leadData.performance_metrics || {};
+
+        // --- REGLA 1: Detección de Stack Fortaleza ---
+        // Contamos cuántas tecnologías "enterprise" posee el stack
+        const fortressMatches = techStack.filter(tech =>
+            ENTERPRISE_FORTRESS_TECH.some(fort => tech.toLowerCase().includes(fort))
+        );
+
+        // Si tiene 2+ tecnologías enterprise (ej. React + Vercel, Next.js + AWS), 
+        // es infraestructura deliberada, no accidental
+        const hasEnterpriseFortress = fortressMatches.length >= 2;
+
+        // --- REGLA 2: Rendimiento Excepcional ---
+        // Si Lighthouse Score > 85 Y TTFB < 400ms, están optimizados profesionalmente
+        const hasExceptionalPerformance = (
+            perfMetrics.performanceScore > 85 && 
+            perfMetrics.ttfb && perfMetrics.ttfb < 400
+        );
+
+        // --- VEREDICTO: DISCARD_PERFECT ---
+        // Ambas condiciones o solo la fortaleza con 3+ matches (inequívoco)
+        if ((hasEnterpriseFortress && hasExceptionalPerformance) || fortressMatches.length >= 3) {
+            return {
+                is_disqualified: true,
+                reason: 'DISCARD_PERFECT',
+                message: `Infraestructura inexpugnable detectada. Stack: [${fortressMatches.join(', ')}]. ` +
+                    `Performance Score: ${perfMetrics.performanceScore || 'N/A'}, TTFB: ${perfMetrics.ttfb || 'N/A'}ms. ` +
+                    `Fricción comercial 100%. El prospecto no necesita nuestros servicios.`
+            };
+        }
+
+        // No descalificado — continuar pipeline
+        return {
+            is_disqualified: false,
+            reason: 'NONE',
+            message: null
+        };
+    }
+
     /**
      * FASE 1: Friction Scoring
      * Calcula el costo hundido tecnológico del prospecto.
@@ -282,6 +345,116 @@ class SpiderEngine {
             is_rented_land_flag: false,
             reputation_context: reputation_context
         };
+    }
+
+    /**
+     * SPIDER V2: Generate semantic context string for embedding.
+     * Captures the commercial DNA of a lead for vector similarity search.
+     * 
+     * @param {Object} lead - MongoDB Lead document
+     * @returns {string} Natural language context for embedding
+     */
+    static generateLeadContext(lead) {
+        const techStack = lead.tech_stack?.length > 0 ? lead.tech_stack.join(', ') : 'Desconocido';
+        const perfScore = lead.performance_metrics?.performanceScore || 'N/A';
+        const ttfb = lead.performance_metrics?.ttfb || 'N/A';
+        const friction = lead.spider_memory?.friction_score || 'UNKNOWN';
+        const hasWeb = !!lead.website;
+        const rating = lead.rating || 0;
+        const reviews = lead.userRatingsTotal || 0;
+        const category = lead.category || 'General';
+        const visionScore = lead.vision_analysis?.ux_score || 'N/A';
+
+        return [
+            `Nicho: ${category}.`,
+            `Tech Stack: ${techStack}.`,
+            `Performance Score: ${perfScore}. TTFB: ${ttfb}ms.`,
+            `Fricción Tecnológica: ${friction}.`,
+            `Tiene Web: ${hasWeb ? 'Sí' : 'No'}.`,
+            `Rating Google: ${rating} (${reviews} reseñas).`,
+            `UX Score (Vision): ${visionScore}.`
+        ].join(' ');
+    }
+
+    /**
+     * SPIDER V2: Predict the best commercial tactic using Qdrant vector memory.
+     * Pipeline: Generate context → Embed → Search Qdrant (WON filter) → Pick winner → Fallback heuristic.
+     * 
+     * ARCHITECTURE: READ-ONLY Qdrant access. No upsert here.
+     * The embedding is saved to MongoDB (spider_context_vector) for deferred ingestion via markLeadAsWon.
+     * 
+     * @param {Object} lead - MongoDB Lead document (must have tech_stack, performance_metrics populated)
+     * @returns {{ predicted_tactic: string, confidence: number, source: string, embedding: number[] }}
+     */
+    static async predictTactic(lead) {
+        try {
+            // 1. Generate semantic context and embedding
+            const context = SpiderEngine.generateLeadContext(lead);
+            const embedding = await AIService.generateEmbedding(context);
+
+            // 2. Search Qdrant for similar WON leads (READ-ONLY)
+            const filter = {
+                must: [
+                    { key: 'status', match: { value: 'WON' } }
+                ]
+            };
+
+            const similarLeads = await VectorStoreService.searchSimilarLeads(embedding, filter, 5);
+
+            if (similarLeads.length > 0) {
+                // 3. Frequency analysis — pick the most common winning tactic
+                const tacticCounts = {};
+                similarLeads.forEach(result => {
+                    const tactic = result.payload?.tactic || 'UNKNOWN';
+                    tacticCounts[tactic] = (tacticCounts[tactic] || 0) + 1;
+                });
+
+                const bestTactic = Object.entries(tacticCounts)
+                    .sort((a, b) => b[1] - a[1])[0];
+
+                const avgScore = similarLeads.reduce((sum, r) => sum + (r.score || 0), 0) / similarLeads.length;
+
+                console.log(`[SPIDER V2] 🎯 Predicted tactic from ${similarLeads.length} WON leads: "${bestTactic[0]}" (freq: ${bestTactic[1]}, avg similarity: ${(avgScore * 100).toFixed(1)}%)`);
+
+                return {
+                    predicted_tactic: bestTactic[0],
+                    confidence: Math.round(avgScore * 100),
+                    source: 'QDRANT_VECTOR',
+                    embedding
+                };
+            }
+
+            // 4. Fallback — no WON data in Qdrant, use heuristic
+            console.log(`[SPIDER V2] ⚙️ No vector matches found. Using heuristic fallback.`);
+            const heuristicResult = await SpiderEngine.analyzeLead(lead);
+
+            return {
+                predicted_tactic: heuristicResult.tactic_name || 'Estrategia Genérica',
+                confidence: heuristicResult.historical_confidence || 50,
+                source: 'HEURISTIC_FALLBACK',
+                embedding
+            };
+        } catch (err) {
+            console.error(`[SPIDER V2] ⚠️ predictTactic failed (using heuristic): ${err.message}`);
+            
+            // Total fallback — even embedding generation failed
+            try {
+                const heuristicResult = await SpiderEngine.analyzeLead(lead);
+                return {
+                    predicted_tactic: heuristicResult.tactic_name || 'Estrategia Genérica',
+                    confidence: heuristicResult.historical_confidence || 50,
+                    source: 'HEURISTIC_EMERGENCY',
+                    embedding: null
+                };
+            } catch (innerErr) {
+                return {
+                    predicted_tactic: 'Estrategia Genérica',
+                    confidence: 0,
+                    source: 'TOTAL_FALLBACK',
+                    embedding: null
+                };
+            }
+        }
     }
 }
 

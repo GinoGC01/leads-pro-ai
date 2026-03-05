@@ -7,7 +7,7 @@ import AIService from '../services/AIService.js';
 import SupabaseService from '../services/SupabaseService.js';
 import ragConfig from '../config/rag.config.js';
 import Lead from '../models/Lead.js';
-import { RENTED_LAND_DOMAINS } from '../services/SpiderEngine.js';
+import SpiderEngine, { RENTED_LAND_DOMAINS } from '../services/SpiderEngine.js';
 
 /**
  * Worker para procesar leads asíncronamente (Pipeline de 4 Fases).
@@ -90,6 +90,42 @@ const enrichmentWorker = new Worker('enrichmentQueue', async (job) => {
         await job.updateProgress({ percent: 70, message: `[FASE 3] ✅ Tecnologías subyacentes mapeadas (${techStack.length} detectadas).` });
         console.log(`[EnrichmentWorker] [FASE 3] Perfilado completado (${techStack.length} techs).`);
 
+        // 🛡️ SPIDER INTERCEPT: Viability Gate (antes de gastar tokens de OpenAI)
+        await job.updateProgress({ percent: 73, message: '[SPIDER] 🕵️ Evaluando viabilidad comercial del prospecto...' });
+        const spiderVerdict = SpiderEngine.evaluateViability({
+            tech_stack: techStack,
+            performance_metrics: {
+                performanceScore: perfMetrics.performanceScore,
+                ttfb: perfMetrics.ttfb
+            }
+        });
+
+        if (spiderVerdict.is_disqualified) {
+            await job.updateProgress({ percent: 100, message: `[SPIDER] 🛑 ${spiderVerdict.message}`, type: 'error' });
+            console.log(`[EnrichmentWorker] [SPIDER] 🛑 DISCARD_PERFECT para ${name}: ${spiderVerdict.message}`);
+
+            lead.tech_stack = techStack;
+            lead.performance_metrics = {
+                ...lead.performance_metrics,
+                performanceScore: perfMetrics.performanceScore,
+                ttfb: perfMetrics.ttfb,
+                lcp: perfMetrics.lcp,
+                performance_issue: perfMetrics.performanceScore < 50
+            };
+            lead.seo_audit = seoAudit;
+            lead.markdown_content = markdown;
+            lead.enrichmentStatus = 'completed';
+            lead.vortex_status = 'disqualified';
+            lead.enrichmentError = null;
+            lead.spider_verdict = spiderVerdict;
+            await lead.save();
+            return; // Early exit — descarte es un resultado exitoso de negocio
+        }
+
+        // SPIDER aprueba: continuar pipeline
+        await job.updateProgress({ percent: 75, message: '[SPIDER] ✅ Lead viable. Continuando vectorización...' });
+        console.log(`[EnrichmentWorker] [SPIDER] ✅ Lead viable para ${name}. Continuando.`);
+
         // FASE 4: Consolidación y Vectorización Híbrida
         await job.updateProgress({ percent: 80, message: '[FASE 4] Preparando síntesis dimensional y generando Embeddings vectoriales...' });
         console.log(`[EnrichmentWorker] [FASE 4] Consolidando datos y sincronizando vectores...`);
@@ -106,8 +142,9 @@ const enrichmentWorker = new Worker('enrichmentQueue', async (job) => {
         lead.seo_audit = seoAudit;
         lead.markdown_content = markdown;
         lead.enrichmentStatus = 'completed';
-        lead.vortex_status = 'base_completed'; // Update Phase 1 state
+        lead.vortex_status = 'base_completed';
         lead.enrichmentError = null;
+        lead.spider_verdict = spiderVerdict; // NONE — lead es viable
         await lead.save();
 
         // 4.2 Sincronización Vectorial (pgvector)
@@ -128,7 +165,29 @@ const enrichmentWorker = new Worker('enrichmentQueue', async (job) => {
             content: semanticContent
         }, embedding);
 
-        await job.updateProgress({ percent: 100, message: '[FASE 4] ✅ Ingesta de la Base de Datos completada exitosamente.' });
+        // FASE 5: SPIDER V2 — Tactic Prediction (READ-ONLY Qdrant)
+        await job.updateProgress({ percent: 90, message: '[SPIDER V2] 🧠 Consultando memoria vectorial para predicción de táctica...' });
+        try {
+            const prediction = await SpiderEngine.predictTactic(lead);
+            console.log(`[EnrichmentWorker] [SPIDER V2] Prediction: "${prediction.predicted_tactic}" (source: ${prediction.source}, confidence: ${prediction.confidence}%)`);
+
+            // Save prediction + vector to MongoDB (NEVER to Qdrant from Worker)
+            await Lead.findByIdAndUpdate(leadId, {
+                $set: {
+                    'spider_memory.applied_tactic': prediction.predicted_tactic,
+                    'spider_memory.historical_confidence': prediction.confidence,
+                    'spider_memory.last_analyzed_at': new Date(),
+                    spider_context_vector: prediction.embedding // Stored for deferred Qdrant ingestion on "Cerrado Ganado"
+                }
+            });
+
+            await job.updateProgress({ percent: 95, message: `[SPIDER V2] 🎯 Táctica predicha: "${prediction.predicted_tactic}" (${prediction.source}, ${prediction.confidence}% confianza).` });
+        } catch (spiderErr) {
+            console.error(`[EnrichmentWorker] [SPIDER V2] Non-blocking error: ${spiderErr.message}`);
+            await job.updateProgress({ percent: 95, message: '[SPIDER V2] ⚠️ Predicción fallida. Pipeline continúa normalmente.' });
+        }
+
+        await job.updateProgress({ percent: 100, message: '[FASE 5] ✅ Pipeline VORTEX + SPIDER V2 completado exitosamente.' });
         console.log(`[EnrichmentWorker] ✅ Enriquecimiento total finalizado para ${name}.`);
 
     } catch (error) {

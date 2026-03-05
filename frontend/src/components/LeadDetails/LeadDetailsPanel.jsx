@@ -23,7 +23,7 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
     // --- Hooks (data + logic layer) ---
     const { lead, setLead, error, statusModal, setStatusModal, confirmStatusUpdate } = useLeadData(initialLead, onLeadUpdate);
     const { 
-        isActivating, isProcessing, isCompleted, isFailed, isSkippedRentedLand, handleActivateVortex,
+        isActivating, isDisqualified, isProcessing, isCompleted, isFailed, isSkippedRentedLand, handleActivateVortex,
         isVisionPending, isVisionProcessing, isVisionCompleted, handleActivateDeepVision, handleResetVortex,
         activeJobId, handleStreamComplete
     } = useVortexAnalysis(lead, setLead, onLeadUpdate);
@@ -112,6 +112,7 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                                 isCompleted={isCompleted}
                                 isFailed={isFailed}
                                 isSkippedRentedLand={isSkippedRentedLand}
+                                isDisqualified={isDisqualified}
                                 isActivating={isActivating}
                                 onActivateVortex={handleActivateVortex}
                                 isSpiderHelpActive={isSpiderHelpActive}

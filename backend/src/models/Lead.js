@@ -44,6 +44,7 @@ const LeadSchema = new mongoose.Schema({
       "vision_processing",
       "vision_completed",
       "failed",
+      "disqualified",
     ],
     default: "pending",
   },
@@ -155,6 +156,16 @@ const LeadSchema = new mongoose.Schema({
   vision_analysis: {
     type: Object,
     default: null,
+  },
+  spider_verdict: {
+    is_disqualified: { type: Boolean, default: false },
+    reason: { type: String, enum: ['DISCARD_PERFECT', 'DISCARD_NO_WEB', 'NONE'], default: 'NONE' },
+    message: { type: String, default: null },
+  },
+  spider_context_vector: {
+    type: [Number],
+    default: null,
+    select: false, // Exclude from default queries (1536 floats is heavy)
   },
   createdAt: {
     type: Date,

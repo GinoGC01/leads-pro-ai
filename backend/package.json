@@ -9,13 +9,14 @@
     "clean:queue": "node scripts/flush-redis.js",
     "reset:db": "node scripts/factory-reset.js",
     "test-google": "node src/utils/testGoogleApi.js",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@qdrant/js-client-rest": "^1.17.0",
     "@supabase/supabase-js": "^2.97.0",
     "axios": "^1.13.5",
     "bullmq": "^5.70.1",
@@ -40,6 +41,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "jest": "^30.2.0",
     "supertest": "^7.2.2"
   }

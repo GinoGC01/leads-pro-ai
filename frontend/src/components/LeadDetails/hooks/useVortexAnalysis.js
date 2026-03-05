@@ -18,8 +18,9 @@ const useVortexAnalysis = (lead, setLead, onLeadUpdate) => {
     const vortexToastIdRef = useRef(null);
 
     // Derived status flags (Tier 1)
+    const isDisqualified = lead.vortex_status === 'disqualified';
     const isProcessing = lead.enrichmentStatus === 'pending';
-    const isCompleted = lead.enrichmentStatus === 'completed' || ['base_completed', 'vision_processing', 'vision_completed'].includes(lead.vortex_status);
+    const isCompleted = !isDisqualified && (lead.enrichmentStatus === 'completed' || ['base_completed', 'vision_processing', 'vision_completed'].includes(lead.vortex_status));
     const isFailed = lead.enrichmentStatus === 'failed' || lead.vortex_status === 'failed';
     const isSkippedRentedLand = lead.enrichmentStatus === 'skipped_rented_land';
 
@@ -196,6 +197,7 @@ const useVortexAnalysis = (lead, setLead, onLeadUpdate) => {
 
     return {
         isActivating,
+        isDisqualified,
         isProcessing,
         isCompleted,
         isFailed,

@@ -15,6 +15,12 @@ import './workers/EnrichmentWorker.js';
 // Phase 2: Start Deep Vision Worker
 import './workers/VisionWorker.js';
 
+// Phase 3: Initialize SPIDER V2 Vector Memory (Qdrant)
+import VectorStoreService from './services/VectorStoreService.js';
+VectorStoreService.initializeCollection().catch(err => 
+    console.warn(`[Server] Qdrant init skipped (non-blocking): ${err.message}`)
+);
+
 // Start Server
 const server = app.listen(PORT, () => {
     console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);

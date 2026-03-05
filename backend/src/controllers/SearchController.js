@@ -132,10 +132,49 @@ class SearchController {
                 );
             }
 
+            // 🧠 SPIDER V2: Qdrant Vector Learning (ONLY authorized write path)
+            // When a lead is marked as "Cerrado Ganado", ingest its vector into Qdrant
+            // so SPIDER can predict tactics for similar future leads.
+            if (status === 'Cerrado Ganado') {
+                SearchController._ingestWonLeadToQdrant(id).catch(err =>
+                    console.error('[SPIDER V2] Qdrant ingestion error (non-blocking):', err.message)
+                );
+            }
+
             res.status(200).json(updatedLead);
         } catch (error) {
             res.status(500).json({ success: false, message: error.message });
         }
+    }
+
+    /**
+     * SPIDER V2: Deferred Qdrant Ingestion (markLeadAsWon).
+     * Reads the spider_context_vector from MongoDB and upserts to Qdrant.
+     * This is the ONLY function authorized to write to Qdrant.
+     * @private
+     */
+    static async _ingestWonLeadToQdrant(leadId) {
+        const lead = await Lead.findById(leadId).select('+spider_context_vector');
+        if (!lead || !lead.spider_context_vector || lead.spider_context_vector.length === 0) {
+            console.log(`[SPIDER V2] ⚠️ Lead ${leadId} has no spider_context_vector. Skipping Qdrant ingestion.`);
+            return;
+        }
+
+        const { default: VectorStoreService } = await import('../services/VectorStoreService.js');
+        
+        await VectorStoreService.upsertLeadVector(
+            leadId,
+            lead.spider_context_vector,
+            {
+                status: 'WON',
+                tactic: lead.spider_memory?.applied_tactic || 'UNKNOWN',
+                niche: lead.category || 'General',
+                tech_stack: (lead.tech_stack || []).slice(0, 5),
+                friction_score: lead.spider_memory?.friction_score || 'UNKNOWN',
+                performance_score: lead.performance_metrics?.performanceScore || null
+            }
+        );
+        console.log(`[SPIDER V2] ✅ Lead "${lead.name}" ingested into Qdrant as WON vector.`);
     }
 
     /** DELETE /api/leads — Bulk delete */
