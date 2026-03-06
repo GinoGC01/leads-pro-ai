@@ -49,6 +49,8 @@ router.get('/vortex/stream/:jobId', VortexController.streamProgress);
 // AI Routes
 router.post('/ai/chat', AIController.chat);
 router.get('/ai/spider-analysis/:leadId', AIController.spiderAnalysis);
+router.post('/ai/mario/regenerate/:leadId', AIController.regenerateStrategy);
+router.patch('/ai/mario/feedback/:strategyId', AIController.scoreStrategy);
 
 // Chat Sessions Routes
 router.get('/chat/sessions', ChatController.getSessions);

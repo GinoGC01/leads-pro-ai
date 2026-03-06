@@ -128,6 +128,10 @@ const LeadSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  whatsapp_valid: {
+    type: Boolean,
+    default: false,
+  },
   extracted_contacts: {
     emails: [String],
     phones: [String],

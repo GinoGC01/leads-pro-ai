@@ -5,6 +5,7 @@ import ParserService from '../services/ParserService.js';
 import ProfilerService from '../services/ProfilerService.js';
 import AIService from '../services/AIService.js';
 import VectorStoreService, { COLLECTIONS } from '../services/VectorStoreService.js';
+import PhoneValidator from '../utils/PhoneValidator.js';
 import ragConfig from '../config/rag.config.js';
 import Lead from '../models/Lead.js';
 import SpiderEngine, { RENTED_LAND_DOMAINS } from '../services/SpiderEngine.js';
@@ -73,12 +74,23 @@ const enrichmentWorker = new Worker('enrichmentQueue', async (job) => {
             lead.email = contacts.emails[0];
             console.log(`[EnrichmentWorker] [FASE 2.5] Email auto-asignado: ${lead.email}`);
         }
-        if (!lead.phoneNumber && contacts.phones.length > 0) {
-            lead.phoneNumber = contacts.phones[0];
-            console.log(`[EnrichmentWorker] [FASE 2.5] Teléfono auto-asignado: ${lead.phoneNumber}`);
+        
+        // Determinar validez de WhatsApp para el RAG
+        const basePhoneLine = contacts.phones.length > 0 ? contacts.phones[0] : lead.phoneNumber;
+        if (basePhoneLine) {
+            const validation = PhoneValidator.validateMobile(basePhoneLine);
+            lead.whatsapp_valid = validation.isMobile;
+            
+            // Preferimos guardar el e164 si se pudo formatear
+            if (validation.e164) {
+                lead.phoneNumber = validation.e164;
+            } else if (!lead.phoneNumber) {
+                lead.phoneNumber = basePhoneLine;
+            }
+            console.log(`[EnrichmentWorker] [FASE 2.5] Phone: ${lead.phoneNumber} | Mobile/WhatsApp: ${validation.isMobile}`);
         }
         
-        await job.updateProgress({ percent: 50, message: `[FASE 2.5] ✅ Capturados: ${contacts.emails.length} emails, ${contacts.phones.length} teléfonos, ${contacts.socialLinks.length} perfiles sociales.` });
+        await job.updateProgress({ percent: 50, message: `[FASE 2.5] ✅ Capturados: ${contacts.emails.length} emails, ${contacts.phones.length} teléfonos, WhatsApp Válido: ${lead.whatsapp_valid}.` });
         console.log(`[EnrichmentWorker] [FASE 2.5] Contactos: ${contacts.emails.length} emails, ${contacts.phones.length} phones, ${contacts.socialLinks.length} social.`);
 
         // FASE 3: Perfilado Empírico (Tech + Performance)

@@ -18,7 +18,9 @@ class SettingsController {
                 // Return fallback from the current markdown file if not instantiated in DB yet
                 return res.status(200).json({
                     success: true,
-                    context: ragConfig.agency.raw
+                    context: ragConfig.agency.raw,
+                    core_services: [],
+                    value_proposition: ''
                 });
             }
 
@@ -27,7 +29,9 @@ class SettingsController {
                 context: settings.agencyContext,
                 senderName: settings.senderName,
                 agencyName: settings.agencyName,
-                languageTone: settings.languageTone
+                languageTone: settings.languageTone,
+                core_services: settings.core_services || [],
+                value_proposition: settings.value_proposition || ''
             });
         } catch (error) {
             console.error('[SettingsController] Error fetching agency context:', error);
@@ -40,7 +44,7 @@ class SettingsController {
      */
     static async updateAgencyContext(req, res) {
         try {
-            const { context, senderName, agencyName, languageTone } = req.body;
+            const { context, senderName, agencyName, languageTone, core_services, value_proposition } = req.body;
             if (typeof context !== 'string') {
                 return res.status(400).json({ success: false, message: 'El contexto debe ser un texto válido.' });
             }
@@ -58,6 +62,8 @@ class SettingsController {
                     senderName: finalSender,
                     agencyName: finalAgency,
                     languageTone: finalLanguageTone,
+                    core_services: core_services || [],
+                    value_proposition: value_proposition || 'Ayudamos a empresas a escalar con tecnología e inteligencia artificial.',
                     updatedAt: Date.now()
                 },
                 { new: true, upsert: true }
@@ -75,7 +81,9 @@ class SettingsController {
                 context: settings.agencyContext,
                 senderName: settings.senderName,
                 agencyName: settings.agencyName,
-                languageTone: settings.languageTone
+                languageTone: settings.languageTone,
+                core_services: settings.core_services,
+                value_proposition: settings.value_proposition
             });
         } catch (error) {
             console.error('[SettingsController] Error updating agency context:', error);

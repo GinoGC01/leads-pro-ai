@@ -1,6 +1,8 @@
 import Lead from '../models/Lead.js';
 import ChatSession from '../models/ChatSession.js';
+import MarioStrategy from '../models/MarioStrategy.js';
 import AIService from '../services/AIService.js';
+import MarioService from '../services/MarioService.js';
 import VectorStoreService, { COLLECTIONS } from '../services/VectorStoreService.js';
 import SpiderEngine from '../services/SpiderEngine.js';
 import ragConfig from '../config/rag.config.js';
@@ -221,47 +223,98 @@ class AIController {
             console.log(`[AIController] Detected Region For Prompt: ${region}`);
 
             // 1. Capa Simbólica (Determinista + ML) - Costo 0 Tokens
-            const spiderVerdict = await SpiderEngine.analyzeLead(lead);
+        const spiderVerdict = await SpiderEngine.analyzeLead(lead);
 
-            // CACHE HIT LOGIC: Si no se fuerza refresco y ya hay un playbook generado para esta táctica
-            if (!forceRefresh && lead.spider_memory && lead.spider_memory.generated_playbook) {
-                console.log(`[AIController] Spider Cache Hit (Tokens guardados) para Lead: ${leadId}`);
-                return res.status(200).json({
-                    spider_verdict: spiderVerdict, // Veredicto fresh calculado
-                    mario_strategy: lead.spider_memory.generated_playbook,
-                    detected_region: region
-                });
+        // CACHE HIT LOGIC: Si no se fuerza refresco y ya hay un playbook generado para esta táctica
+        if (!forceRefresh && lead.spider_memory && lead.spider_memory.generated_playbook) {
+            console.log(`[AIController] Spider Cache Hit (Tokens guardados) para Lead: ${leadId}`);
+            
+            // Try to parse it as JSON since Mario V2 handles strict objects
+            let parsedPlaybook = lead.spider_memory.generated_playbook;
+            try {
+                if (typeof parsedPlaybook === 'string') {
+                    parsedPlaybook = JSON.parse(parsedPlaybook);
+                }
+            } catch (e) {
+                // If it's a legacy markdown string, let it be
             }
 
-            console.log(`[AIController] Spider Cache Miss/Force Refresh. LLM run para: ${leadId} en modo ${region}`);
-
-            // 2. Capa Neuronal (LLM Persona) con perfil lingüístico inyectado
-            const marioResponse = await AIService.chatWithSpiderContext(spiderVerdict, region, lead.name);
-
-            // Persist the strategic tactical response and memory for future ML loops
-            lead.spider_memory = {
-                applied_tactic: spiderVerdict.tactic_name,
-                friction_score: spiderVerdict.friction_score,
-                historical_confidence: spiderVerdict.historical_confidence,
-                generated_playbook: marioResponse,
-                last_analyzed_at: new Date()
-            };
-            lead.tactical_response = marioResponse;
-            await lead.save();
-
             return res.status(200).json({
-                spider_verdict: spiderVerdict,
-                mario_strategy: marioResponse,
+                spider_verdict: spiderVerdict, // Veredicto fresh calculado
+                mario_strategy: parsedPlaybook,
                 detected_region: region
             });
-
-        } catch (error) {
-            console.error('[AIController - Spider] Error:', error);
-            res.status(500).json({ error: 'Error procesando la estrategia Spider/Mario' });
         }
+
+        console.log(`[AIController] Spider Cache Miss/Force Refresh. LLM run para: ${leadId} en modo ${region}`);
+
+        // 2. Capa Neuronal (War Room JSON + RLHF)
+        const marioResult = await MarioService.generateStrategy(lead._id);
+
+        return res.status(200).json({
+            spider_verdict: spiderVerdict,
+            mario_strategy: marioResult.strategy,
+            strategy_id: marioResult.strategy_id,
+            detected_region: region
+        });
+
+    } catch (error) {
+        console.error('[AIController - Spider] Error:', error);
+        res.status(500).json({ error: 'Error procesando la estrategia Spider/Mario' });
+    }
+}
+
+/**
+ * RLHF: Score a strategy and save human feedback
+ */
+static async scoreStrategy(req, res) {
+    try {
+        const { strategyId } = req.params;
+        const { score, feedback } = req.body;
+
+        const strategy = await MarioStrategy.findById(strategyId);
+        if (!strategy) return res.status(404).json({ error: 'Estrategia no encontrada' });
+
+        strategy.human_score = score;
+        strategy.human_feedback = feedback;
+        strategy.status = score >= 3 ? 'APPROVED' : 'REJECTED';
+        await strategy.save();
+
+        console.log(`[RLHF] Estrategia ${strategyId} puntuada con ${score}/5. Status: ${strategy.status}`);
+        return res.status(200).json({ success: true, status: strategy.status });
+    } catch (error) {
+        console.error('[AIController - RLHF Score] Error:', error);
+        res.status(500).json({ error: 'Error guardando feedback' });
+    }
+}
+
+/**
+ * RLHF: Regenerate a strategy using previous failed attempts as context
+ */
+static async regenerateStrategy(req, res) {
+    try {
+        const { leadId } = req.params;
+        
+        // Fetch all rejected strategies for this lead to use as RLHF negative context
+        const failedStrategies = await MarioStrategy.find({ 
+            lead_id: leadId, 
+            status: 'REJECTED' 
+        }).sort({ generated_at: -1 }).limit(3);
+
+        console.log(`[RLHF] Regenerando estrategia para lead ${leadId} inyectando ${failedStrategies.length} fallos humanos.`);
+
+        const marioResult = await MarioService.generateStrategy(leadId, failedStrategies);
+
+        return res.status(200).json({
+            mario_strategy: marioResult.strategy,
+            strategy_id: marioResult.strategy_id,
+            rlhf_warnings_applied: marioResult.rlhf_warnings_applied
+        });
+    } catch (error) {
+        console.error('[AIController - RLHF Regenerate] Error:', error);
+        res.status(500).json({ error: 'Error regenerando estrategia' });
+    }
     }
 }
 
 export default AIController;
-
-

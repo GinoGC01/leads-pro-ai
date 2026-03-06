@@ -11,6 +11,15 @@ const SettingsSchema = new mongoose.Schema({
         type: String,
         default: '# Agency Context\nModify this to define your business rules for the AI.',
     },
+    core_services: [{
+        name: { type: String, required: true },
+        description: { type: String, required: true },
+        ideal_for: { type: String }
+    }],
+    value_proposition: {
+        type: String,
+        default: 'Ayudamos a empresas a escalar con tecnología e inteligencia artificial.'
+    },
     senderName: {
         type: String,
         default: 'Gino'
