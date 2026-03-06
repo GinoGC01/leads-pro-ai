@@ -55,7 +55,7 @@ class DocumentProcessor {
      * @returns {{ chunks: string[], stats: { totalChars: number, chunkCount: number } }}
      */
     static chunkText(text, chunkSize = 1000, overlap = 200) {
-        // Clean: normalize whitespace, remove excessive newlines
+        // Normalización inicial: quita basura de PDFs
         const cleaned = text
             .replace(/\r\n/g, '\n')
             .replace(/\n{3,}/g, '\n\n')
@@ -75,17 +75,22 @@ class DocumentProcessor {
         while (start < cleaned.length) {
             let end = start + chunkSize;
 
-            // Don't cut mid-sentence: find the last period/newline before the limit
             if (end < cleaned.length) {
                 const slice = cleaned.substring(start, end);
+                
+                // Prioridad de corte estratégico (de mejor a peor):
+                // 1. Doble salto (Párrafos o Títulos)
+                // 2. Punto seguido o punto final
+                // 3. Espacio en blanco (Para evitar partir palabras si no hay puntuación)
                 const lastBreak = Math.max(
-                    slice.lastIndexOf('. '),
+                    slice.lastIndexOf('\n\n'), 
                     slice.lastIndexOf('.\n'),
-                    slice.lastIndexOf('\n\n')
+                    slice.lastIndexOf('. '),
+                    slice.lastIndexOf(' ') // ¡Nuevo! Salva palabras si no hay puntos
                 );
 
+                // Si encontró un break decente más allá del 30% del tamaño, recorta ahí.
                 if (lastBreak > chunkSize * 0.3) {
-                    // Found a natural break point past 30% of the chunk
                     end = start + lastBreak + 1;
                 }
             } else {
@@ -97,14 +102,25 @@ class DocumentProcessor {
                 chunks.push(chunk);
             }
 
-            // Advance with overlap
-            start = end - overlap;
-            if (start >= cleaned.length) break;
-            // Prevent infinite loop on tiny remaining text
-            if (end >= cleaned.length) break;
+            // --- REGLA DE OVERLAP INTELIGENTE ---
+            // Asegurarse de que el inicio del próximo chunk no caiga a mitad de una palabra
+            let nextStart = end - overlap;
+            if (nextStart >= cleaned.length) break;
+            
+            // Si el overlap cayó en medio de algo, retrocedemos hasta el primer espacio libre
+            if (nextStart > start && cleaned[nextStart] !== ' ' && cleaned[nextStart - 1] !== ' ') {
+                const indexOfSpace = cleaned.indexOf(' ', nextStart);
+                if (indexOfSpace !== -1 && indexOfSpace < end) {
+                    nextStart = indexOfSpace + 1;
+                }
+            }
+
+            // Evitar loops infinitos y asegurar el avance
+            if (nextStart <= start) nextStart = end; 
+            start = nextStart;
         }
 
-        console.log(`[DocumentProcessor] Texto fragmentado: ${chunks.length} chunks de ~${chunkSize} chars (overlap: ${overlap}).`);
+        console.log(`[DocumentProcessor] Texto fragmentado: ${chunks.length} chunks de ~${chunkSize} chars (overlap flexible).`);
 
         return {
             chunks,
