@@ -1,95 +1,95 @@
-import Settings from '../models/Settings.js';
-import fs from 'fs';
-import path from 'path';
-import ragConfig from '../config/rag.config.js';
-import { fileURLToPath } from 'url';
+import Settings from "../models/Settings.js";
+import fs from "fs";
+import path from "path";
+import ragConfig from "../config/rag.config.js";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 class SettingsController {
-    /**
-     * Get the singleton agency context settings
-     */
-    static async getAgencyContext(req, res) {
-        try {
-            let settings = await Settings.findOne({ isSingleton: true });
-            if (!settings) {
-                // Return fallback from the current markdown file if not instantiated in DB yet
-                return res.status(200).json({
-                    success: true,
-                    context: ragConfig.agency.raw,
-                    core_services: [],
-                    value_proposition: ''
-                });
-            }
+  static async getAgencySettings(req, res) {
+    try {
+      let settings = await Settings.findOne({ isSingleton: true });
+      if (!settings) {
+        return res.status(200).json({
+          success: true,
+          sales_rep_name: "",
+          agency_name: "",
+          linguistic_behavior: "AUTO",
+          value_proposition: "",
+          core_services: [],
+        });
+      }
 
-            res.status(200).json({
-                success: true,
-                context: settings.agencyContext,
-                senderName: settings.senderName,
-                agencyName: settings.agencyName,
-                languageTone: settings.languageTone,
-                core_services: settings.core_services || [],
-                value_proposition: settings.value_proposition || ''
-            });
-        } catch (error) {
-            console.error('[SettingsController] Error fetching agency context:', error);
-            res.status(500).json({ success: false, message: 'Fallo al obtener la configuración de la agencia.' });
-        }
+      res.status(200).json({
+        success: true,
+        sales_rep_name: settings.sales_rep_name,
+        agency_name: settings.agency_name,
+        linguistic_behavior: settings.linguistic_behavior,
+        value_proposition: settings.value_proposition,
+        core_services: settings.core_services || [],
+      });
+    } catch (error) {
+      console.error(
+        "[SettingsController] Error fetching agency settings:",
+        error,
+      );
+      res
+        .status(500)
+        .json({
+          success: false,
+          message: "Fallo al obtener la configuración de la agencia.",
+        });
     }
+  }
 
-    /**
-     * Create or update the singleton agency context
-     */
-    static async updateAgencyContext(req, res) {
-        try {
-            const { context, senderName, agencyName, languageTone, core_services, value_proposition } = req.body;
-            if (typeof context !== 'string') {
-                return res.status(400).json({ success: false, message: 'El contexto debe ser un texto válido.' });
-            }
+  static async updateAgencySettings(req, res) {
+    try {
+      const {
+        sales_rep_name,
+        agency_name,
+        linguistic_behavior,
+        core_services,
+        value_proposition,
+      } = req.body;
 
-            // Exctract fallback variables just in case
-            const finalSender = senderName || 'Gino';
-            const finalAgency = agencyName || 'Mariosweb';
-            const finalLanguageTone = languageTone || 'AUTO_DETECT';
+      const settings = await Settings.findOneAndUpdate(
+        { isSingleton: true },
+        {
+          sales_rep_name: sales_rep_name || "",
+          agency_name: agency_name || "",
+          linguistic_behavior: linguistic_behavior || "AUTO",
+          core_services: core_services || [],
+          value_proposition: value_proposition || "",
+          updatedAt: Date.now(),
+        },
+        { new: true, upsert: true },
+      );
 
-            // Upsert the singleton record
-            const settings = await Settings.findOneAndUpdate(
-                { isSingleton: true },
-                {
-                    agencyContext: context,
-                    senderName: finalSender,
-                    agencyName: finalAgency,
-                    languageTone: finalLanguageTone,
-                    core_services: core_services || [],
-                    value_proposition: value_proposition || 'Ayudamos a empresas a escalar con tecnología e inteligencia artificial.',
-                    updatedAt: Date.now()
-                },
-                { new: true, upsert: true }
-            );
+      // Removed physical file writing (Markdown is deleted)
 
-            // SYNC FACTORY: Physically overwrite the markdown file to feed the python/local scripts instantly
-            const agencyPath = path.join(__dirname, '../config/AGENCY_CONTEXT.md');
-            fs.writeFileSync(agencyPath, context, 'utf8');
-
-            // Reload the cache in RAM for the dual-RAG Vortex algorithm without Server Restart
-            ragConfig.reloadAgencyContext();
-
-            res.status(200).json({
-                success: true,
-                context: settings.agencyContext,
-                senderName: settings.senderName,
-                agencyName: settings.agencyName,
-                languageTone: settings.languageTone,
-                core_services: settings.core_services,
-                value_proposition: settings.value_proposition
-            });
-        } catch (error) {
-            console.error('[SettingsController] Error updating agency context:', error);
-            res.status(500).json({ success: false, message: 'Fallo al actualizar la configuración de la agencia.' });
-        }
+      res.status(200).json({
+        success: true,
+        sales_rep_name: settings.sales_rep_name,
+        agency_name: settings.agency_name,
+        linguistic_behavior: settings.linguistic_behavior,
+        core_services: settings.core_services,
+        value_proposition: settings.value_proposition,
+      });
+    } catch (error) {
+      console.error(
+        "[SettingsController] Error updating agency settings:",
+        error,
+      );
+      res
+        .status(500)
+        .json({
+          success: false,
+          message: "Fallo al actualizar la configuración de la agencia.",
+        });
     }
+  }
 }
 
 export default SettingsController;

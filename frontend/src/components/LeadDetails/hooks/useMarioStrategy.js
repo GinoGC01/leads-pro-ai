@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import axios from 'axios';
-import AlertService from '../../../services/AlertService';
+import { useState, useEffect } from "react";
+import axios from "axios";
+import AlertService from "../../../services/AlertService";
+import { regenerateStrategy } from "../../../services/api";
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
 });
 
 /**
@@ -12,100 +13,123 @@ const api = axios.create({
  * and safe JSON parsing of the AI response into structured battlecards.
  */
 const useMarioStrategy = (leadId, activeTab) => {
-    const [spiderData, setSpiderData] = useState(null);
-    const [isSpiderLoading, setIsSpiderLoading] = useState(false);
-    const [aiResponse, setAiResponse] = useState('');
-    const [isAiLoading, setIsAiLoading] = useState(false);
+  const [spiderData, setSpiderData] = useState(null);
+  const [isSpiderLoading, setIsSpiderLoading] = useState(false);
+  const [aiResponse, setAiResponse] = useState("");
+  const [strategyId, setStrategyId] = useState(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
-    const fetchSpiderStrategy = async (forceRefresh = false) => {
-        setIsSpiderLoading(true);
-        if (forceRefresh) {
-            setAiResponse('');
-        }
-        try {
-            const url = `/ai/spider-analysis/${leadId}${forceRefresh ? '?forceRefresh=true' : ''}`;
-            const aiRequest = api.get(url);
+  const fetchSpiderStrategy = async (forceRefresh = false) => {
+    setIsSpiderLoading(true);
+    if (forceRefresh) {
+      setAiResponse("");
+    }
+    try {
+      const url = `/ai/spider-analysis/${leadId}${forceRefresh ? "?forceRefresh=true" : ""}`;
+      const aiRequest = api.get(url);
 
-            if (forceRefresh) {
-                AlertService.promise(
-                    aiRequest,
-                    {
-                        loading: 'MARIO re-calculando estrategia...',
-                        success: 'Playbook regenerado en base de datos',
-                        error: 'Fallo crítico en neuro-procesamiento'
-                    }
-                ).then(({ data }) => {
-                    setSpiderData(data.spider_verdict);
-                    setAiResponse(data.mario_strategy);
-                }).finally(() => {
-                    setIsSpiderLoading(false);
-                });
-            } else {
-                const { data } = await aiRequest;
-                setSpiderData(data.spider_verdict);
-                setAiResponse(data.mario_strategy);
-                setIsSpiderLoading(false);
-            }
-        } catch (err) {
-            console.error("Spider fetch error:", err);
-            AlertService.error("Fallo al calcular Estrategia Neuro-Simbólica.");
+      if (forceRefresh) {
+        AlertService.promise(aiRequest, {
+          loading: "MARIO re-calculando estrategia...",
+          success: "Playbook regenerado en base de datos",
+          error: "Fallo crítico en neuro-procesamiento",
+        })
+          .then(({ data }) => {
+            setSpiderData(data.spider_verdict);
+            setAiResponse(data.mario_strategy);
+            setStrategyId(data.strategy_id);
+          })
+          .finally(() => {
             setIsSpiderLoading(false);
-        }
-    };
+          });
+      } else {
+        const { data } = await aiRequest;
+        setSpiderData(data.spider_verdict);
+        setAiResponse(data.mario_strategy);
+        setStrategyId(data.strategy_id);
+        setIsSpiderLoading(false);
+      }
+    } catch (err) {
+      console.error("Spider fetch error:", err);
+      AlertService.error("Fallo al calcular Estrategia Neuro-Simbólica.");
+      setIsSpiderLoading(false);
+    }
+  };
 
-    // Auto-fetch Spider analysis when 'estrategia' tab opens
-    useEffect(() => {
-        if (activeTab === 'estrategia' && !spiderData && !isSpiderLoading && !aiResponse) {
-            fetchSpiderStrategy(false);
-        }
-    }, [activeTab, leadId, spiderData, aiResponse, isSpiderLoading]);
+  const handleRLHFRegeneration = async () => {
+    setIsSpiderLoading(true);
+    try {
+      const { data } = await regenerateStrategy(leadId);
+      setAiResponse(data.mario_strategy);
+      setStrategyId(data.strategy_id);
+      return data;
+    } catch (err) {
+      console.error("RLHF regeneration error:", err);
+      throw err;
+    } finally {
+      setIsSpiderLoading(false);
+    }
+  };
 
-    const handleTacticalAction = async (prompt, label) => {
-        setIsAiLoading(true);
-        setAiResponse('');
+  // Auto-fetch Spider analysis when 'estrategia' tab opens
+  useEffect(() => {
+    if (
+      activeTab === "estrategia" &&
+      !spiderData &&
+      !isSpiderLoading &&
+      !aiResponse
+    ) {
+      fetchSpiderStrategy(false);
+    }
+  }, [activeTab, leadId, spiderData, aiResponse, isSpiderLoading]);
 
-        const aiRequest = api.post('/ai/chat', {
-            query: prompt,
-            leadId
-        });
+  const handleTacticalAction = async (prompt, label) => {
+    setIsAiLoading(true);
+    setAiResponse("");
 
-        AlertService.promise(
-            aiRequest,
-            {
-                loading: `Generando ${label}...`,
-                success: `¡${label} estratégico generado!`,
-                error: `Error al generar ${label}`
-            }
-        ).then(({ data }) => {
-            setAiResponse(data.answer);
-        }).finally(() => {
-            setIsAiLoading(false);
-        });
-    };
+    const aiRequest = api.post("/ai/chat", {
+      query: prompt,
+      leadId,
+    });
 
-    // Parse aiResponse JSON safely
-    const parsedStrategy = (() => {
-        if (!aiResponse) return null;
-        try {
-            let cleanJSON = aiResponse;
-            if (cleanJSON.startsWith('```json')) {
-                cleanJSON = cleanJSON.replace(/^```json\n/, '').replace(/\n```$/, '');
-            }
-            return JSON.parse(cleanJSON);
-        } catch (e) {
-            return null; // Components handle the raw fallback
-        }
-    })();
+    AlertService.promise(aiRequest, {
+      loading: `Generando ${label}...`,
+      success: `¡${label} estratégico generado!`,
+      error: `Error al generar ${label}`,
+    })
+      .then(({ data }) => {
+        setAiResponse(data.answer);
+      })
+      .finally(() => {
+        setIsAiLoading(false);
+      });
+  };
 
-    return {
-        spiderData,
-        aiResponse,
-        isSpiderLoading,
-        isAiLoading,
-        fetchSpiderStrategy,
-        handleTacticalAction,
-        parsedStrategy,
-    };
+  // Parse aiResponse JSON safely
+  const parsedStrategy = (() => {
+    if (!aiResponse) return null;
+    try {
+      let cleanJSON = aiResponse;
+      if (typeof cleanJSON === "string" && cleanJSON.startsWith("```json")) {
+        cleanJSON = cleanJSON.replace(/^```json\n/, "").replace(/\n```$/, "");
+      }
+      return typeof cleanJSON === "string" ? JSON.parse(cleanJSON) : cleanJSON;
+    } catch (e) {
+      return null; // Components handle the raw fallback
+    }
+  })();
+
+  return {
+    spiderData,
+    aiResponse,
+    strategyId,
+    isSpiderLoading,
+    isAiLoading,
+    fetchSpiderStrategy,
+    handleRLHFRegeneration,
+    handleTacticalAction,
+    parsedStrategy,
+  };
 };
 
 export default useMarioStrategy;

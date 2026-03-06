@@ -1,42 +1,30 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const SettingsSchema = new mongoose.Schema({
-    // We only need one settings document acting as a singleton
-    isSingleton: {
-        type: Boolean,
-        default: true,
-        unique: true
+  isSingleton: {
+    type: Boolean,
+    default: true,
+    unique: true,
+  },
+  sales_rep_name: { type: String, default: "" },
+  agency_name: { type: String, default: "" },
+  linguistic_behavior: {
+    type: String,
+    enum: ["AUTO", "LATAM", "EXPORT"],
+    default: "AUTO",
+  },
+  value_proposition: { type: String, default: "" },
+  core_services: [
+    {
+      name: String,
+      description: String,
+      ideal_for: String,
     },
-    agencyContext: {
-        type: String,
-        default: '# Agency Context\nModify this to define your business rules for the AI.',
-    },
-    core_services: [{
-        name: { type: String, required: true },
-        description: { type: String, required: true },
-        ideal_for: { type: String }
-    }],
-    value_proposition: {
-        type: String,
-        default: 'Ayudamos a empresas a escalar con tecnología e inteligencia artificial.'
-    },
-    senderName: {
-        type: String,
-        default: 'Gino'
-    },
-    agencyName: {
-        type: String,
-        default: 'Mariosweb'
-    },
-    languageTone: {
-        type: String,
-        enum: ['AUTO_DETECT', 'FORCE_LATAM', 'FORCE_EXPORT'],
-        default: 'AUTO_DETECT'
-    },
-    updatedAt: {
-        type: Date,
-        default: Date.now
-    }
+  ],
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
-export default mongoose.model('Settings', SettingsSchema);
+export default mongoose.model("Settings", SettingsSchema);
