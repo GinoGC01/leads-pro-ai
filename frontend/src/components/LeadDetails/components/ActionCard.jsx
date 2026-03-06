@@ -1,64 +1,102 @@
-import React from 'react';
-import { Copy, MessageSquare, Mail, Target } from 'lucide-react';
+import React, { useState } from 'react';
+import { Copy, MessageSquare, Mail, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import AlertService from '../../../services/AlertService';
 import { getWhatsAppLink } from '../../../utils/phoneUtils';
 
-const ActionCard = ({ title, textContent, whatsAppText, icon, colorClass, lead }) => {
+const ActionCard = ({ title, subtitle, textContent, whatsAppText, icon, colorClass, borderColor, lead }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
     const validWaNumber = getWhatsAppLink(lead?.phoneNumber, lead?.countryCode || 'AR');
 
-    const handleCopy = () => {
+    const handleCopy = (e) => {
+        e.stopPropagation();
         navigator.clipboard.writeText(textContent);
         AlertService.success("Copiado al portapapeles");
     };
 
-    const handleWhatsApp = () => {
+    const handleWhatsApp = (e) => {
+        e.stopPropagation();
         if (!validWaNumber) return;
         window.open(`https://wa.me/${validWaNumber}?text=${encodeURIComponent(whatsAppText || textContent)}`, '_blank');
     };
 
-    const handleEmail = () => {
+    const handleEmail = (e) => {
+        e.stopPropagation();
         if (!lead?.email) return AlertService.warning("No hay email registrado");
         window.open(`mailto:${lead.email}?body=${encodeURIComponent(textContent)}`, '_blank');
     };
 
     return (
-        <div className="bg-[#151720] border border-white/10 rounded-xl overflow-hidden shadow-2xl shrink-0">
-            <div className="bg-slate-900/50 border-b border-white/5 py-2 px-4 shadow-inner">
-                <span className={`text-[10px] font-black ${colorClass} uppercase tracking-widest flex items-center gap-2`}>
-                    {icon}
-                    {title}
-                </span>
+        <div className={`group relative bg-[#18181b] border-l-4 ${borderColor || 'border-l-[#27272a]'} border border-[#27272a] rounded-r-xl transition-all overflow-hidden`}>
+            
+            {/* Header (Stitch Design) */}
+            <div 
+                className="p-4 hover:bg-slate-800 transition-colors cursor-pointer flex items-center justify-between"
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
+                <div className="flex items-center gap-4">
+                    <span className={colorClass}>
+                        {icon}
+                    </span>
+                    <div>
+                        <p className={`font-bold text-[13px] ${colorClass}`}>{title}</p>
+                        {subtitle && <p className="text-[11px] text-slate-400 italic mt-0.5">{subtitle}</p>}
+                    </div>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-slate-600 transition-transform duration-300 ${isExpanded ? 'rotate-180 text-white' : 'group-hover:text-white'}`} />
             </div>
-            <div className="p-5 text-slate-200 text-sm font-sans leading-relaxed whitespace-pre-wrap prose prose-invert prose-xs max-w-none">
-                <ReactMarkdown>
-                    {textContent}
-                </ReactMarkdown>
-            </div>
-            <div className="bg-[#0B0B0C] border-t border-white/5 p-4 flex flex-wrap items-center gap-3">
-                <button onClick={handleCopy} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-[11px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm">
-                    <Copy className="w-4 h-4 text-slate-300" /> Copiar
-                </button>
 
-                {validWaNumber ? (
-                    <button onClick={handleWhatsApp} className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm">
-                        <MessageSquare className="w-4 h-4" /> Enviar WhatsApp
+            {/* Body (Markdown + Actions) */}
+            <div className={`transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+                <div className="p-5 pt-0 text-slate-300 text-[13px] font-sans leading-relaxed whitespace-pre-wrap prose prose-invert prose-xs max-w-none border-t border-[#27272a] mt-2 pt-4 bg-[#09090b]/50">
+                    <ReactMarkdown>
+                        {textContent}
+                    </ReactMarkdown>
+                </div>
+                
+                {/* Actions Footer */}
+                <div className="bg-[#0B0B0C] border-t border-[#27272a] p-3 px-4 flex flex-wrap items-center gap-2">
+                    <button 
+                        onClick={handleCopy} 
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-slate-200 text-[10px] font-bold uppercase tracking-widest rounded transition-all"
+                    >
+                        <Copy className="w-3.5 h-3.5" /> Copiar
                     </button>
-                ) : (
-                    <button disabled title="Número inválido o no detectado" className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-slate-500 text-[11px] font-black uppercase tracking-widest rounded-xl cursor-not-allowed border border-white/5">
-                        <MessageSquare className="w-4 h-4 opacity-50" /> WhatsApp (ND)
-                    </button>
-                )}
 
-                {lead?.email ? (
-                    <button onClick={handleEmail} className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm">
-                        <Mail className="w-4 h-4" /> Enviar Email
-                    </button>
-                ) : (
-                    <button disabled title="Sin email detectado" className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-slate-500 text-[11px] font-black uppercase tracking-widest rounded-xl cursor-not-allowed border border-white/5">
-                        <Mail className="w-4 h-4 opacity-50" /> Email (ND)
-                    </button>
-                )}
+                    {validWaNumber ? (
+                        <button 
+                            onClick={handleWhatsApp} 
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold uppercase tracking-widest rounded transition-all"
+                        >
+                            <MessageSquare className="w-3.5 h-3.5" /> Enviar
+                        </button>
+                    ) : (
+                        <button 
+                            disabled 
+                            title="Número no válido" 
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18181b] text-slate-500 text-[10px] font-bold uppercase tracking-widest rounded cursor-not-allowed border border-[#27272a]"
+                        >
+                            <MessageSquare className="w-3.5 h-3.5 opacity-50" /> WA N/D
+                        </button>
+                    )}
+
+                    {lead?.email ? (
+                        <button 
+                            onClick={handleEmail} 
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0d59f2]/10 hover:bg-[#0d59f2]/20 text-[#0d59f2] border border-[#0d59f2]/20 text-[10px] font-bold uppercase tracking-widest rounded transition-all"
+                        >
+                            <Mail className="w-3.5 h-3.5" /> Email
+                        </button>
+                    ) : (
+                        <button 
+                            disabled 
+                            title="Sin email" 
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18181b] text-slate-500 text-[10px] font-bold uppercase tracking-widest rounded cursor-not-allowed border border-[#27272a]"
+                        >
+                            <Mail className="w-3.5 h-3.5 opacity-50" /> N/A
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );

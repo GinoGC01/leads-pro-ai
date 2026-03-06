@@ -37,7 +37,7 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
     const { spiderData, aiResponse, strategyId, isSpiderLoading, isAiLoading, fetchSpiderStrategy, handleRLHFRegeneration } = useMarioStrategy(lead._id, activeTab);
 
     // Resizable Mario Panel
-    const [marioWidth, setMarioWidth] = useState(550);
+    const [marioWidth, setMarioWidth] = useState(660); // 20% más ancho inicialmente
     const isDraggingRef = useRef(false);
 
     useEffect(() => {
@@ -184,7 +184,7 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                         strategyId={strategyId}
                         isSpiderLoading={isSpiderLoading}
                         isAiLoading={isAiLoading}
-                        onRegenerate={(isRlhf) => isRlhf ? handleRLHFRegeneration() : fetchSpiderStrategy(true)}
+                        onRegenerate={(isRlhf, options) => isRlhf ? handleRLHFRegeneration(isRlhf, options) : fetchSpiderStrategy(true)}
                         onFetchSpider={() => fetchSpiderStrategy(false)}
                     />
                 </div>

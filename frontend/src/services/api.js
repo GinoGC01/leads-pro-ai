@@ -117,7 +117,7 @@ export const uploadKnowledgeDocument = (file) => {
 // AI Strategy (Mario RLHF)
 export const scoreStrategy = (strategyId, score, feedback) =>
   api.patch(`/ai/mario/feedback/${strategyId}`, { score, feedback });
-export const regenerateStrategy = (leadId) =>
-  api.post(`/ai/mario/regenerate/${leadId}`);
+export const regenerateStrategy = (leadId, options = {}) =>
+  api.post(`/ai/mario/regenerate/${leadId}`, options);
 
 export default api;

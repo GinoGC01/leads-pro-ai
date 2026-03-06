@@ -56,15 +56,15 @@ const useMarioStrategy = (leadId, activeTab) => {
     }
   };
 
-  const handleRLHFRegeneration = async () => {
+  const handleRLHFRegeneration = async (isRlhf = false, options = {}) => {
     setIsSpiderLoading(true);
     try {
-      const { data } = await regenerateStrategy(leadId);
+      const { data } = await regenerateStrategy(leadId, options);
       setAiResponse(data.mario_strategy);
       setStrategyId(data.strategy_id);
       return data;
     } catch (err) {
-      console.error("RLHF regeneration error:", err);
+      console.error("Regeneration error:", err);
       throw err;
     } finally {
       setIsSpiderLoading(false);

@@ -12,8 +12,14 @@ class MarioService {
    *
    * @param {string} leadId - The Mongoose ID of the lead.
    * @param {Array} previousFailedStrategies - Array of { strategy_data, human_feedback } from MarioStrategy.
+   * @param {Object} options - Additional options for execution.
+   * @param {boolean} options.forceUpsell - Whether to enforce the innovative upsell directly in the copy.
    */
-  static async generateStrategy(leadId, previousFailedStrategies = []) {
+  static async generateStrategy(
+    leadId,
+    previousFailedStrategies = [],
+    options = {},
+  ) {
     try {
       // 1. Load Data
       const lead = await Lead.findById(leadId);
@@ -77,6 +83,12 @@ class MarioService {
         rlhfBlock = `\n[ALERTA ROJA - CORRECCIÓN RLHF HUMANA]:\nATENCIÓN: Tus intentos anteriores para este lead fueron RECHAZADOS.\n${feedbackLogs}\nREGLA ESTRICTA: NO repitas los errores del feedback. Ajusta drásticamente tu enfoque según las correcciones del humano.\n`;
       }
 
+      // 3.5 Upsell Injection
+      let upsellBlock = "";
+      if (options.forceUpsell === true) {
+        upsellBlock = `\n[INSTRUCCIÓN DE VENTA CRUZADA (UPSELL)]:\nEl Director de Ventas ha ordenado que el 'innovative_upsell' se ofrezca de forma EXPLÍCITA en el 'opening_message' y a lo largo del embudo. Integra esta oferta de manera fluida y natural. REGLA ESTRICTA: Usa un lenguaje extremadamente sencillo y orientado a beneficios para dueños de negocios (Ej. habla de 'atender clientes 24/7', 'respuestas automáticas al instante', 'no perder ventas'). NO uses jerga técnica como 'RAG', 'Vectores' o 'LLM' en el copy del mensaje.\n`;
+      }
+
       // 4. Construct WAR ROOM Mega-Prompt
       const spiderVerdict = lead.spider_verdict || {};
       const isWhatsappValid = lead.whatsapp_valid === true;
@@ -100,6 +112,7 @@ Regla Lingüística: ${linguisticTone === "LATAM" ? "Fuerza el uso de voseo/tute
 
 ${ragContext}
 ${rlhfBlock}
+${upsellBlock}
 
 [INSTRUCCIONES DEL WAR ROOM - FORMATO ESTRICTO JSON]:
 Debes debatir internamente y generar una estrategia implacable. Tu respuesta DEBE ser EXCLUSIVAMENTE un objeto JSON válido que cumpla estrictamente con esta estructura:

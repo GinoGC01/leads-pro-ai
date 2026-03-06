@@ -1,320 +1,381 @@
-import Lead from '../models/Lead.js';
-import ChatSession from '../models/ChatSession.js';
-import MarioStrategy from '../models/MarioStrategy.js';
-import AIService from '../services/AIService.js';
-import MarioService from '../services/MarioService.js';
-import VectorStoreService, { COLLECTIONS } from '../services/VectorStoreService.js';
-import SpiderEngine from '../services/SpiderEngine.js';
-import ragConfig from '../config/rag.config.js';
+import Lead from "../models/Lead.js";
+import ChatSession from "../models/ChatSession.js";
+import MarioStrategy from "../models/MarioStrategy.js";
+import AIService from "../services/AIService.js";
+import MarioService from "../services/MarioService.js";
+import VectorStoreService, {
+  COLLECTIONS,
+} from "../services/VectorStoreService.js";
+import SpiderEngine from "../services/SpiderEngine.js";
+import ragConfig from "../config/rag.config.js";
 
 class AIController {
-    /**
-     * Handle AI chat queries with RAG context
-     */
-    static async chat(req, res) {
-        const { query, history, leadId, campaignId, sessionId } = req.body;
+  /**
+   * Handle AI chat queries with RAG context
+   */
+  static async chat(req, res) {
+    const { query, history, leadId, campaignId, sessionId } = req.body;
 
-        if (!query || query.trim().length === 0) {
-            return res.status(400).json({ error: 'La pregunta es obligatoria.' });
-        }
+    if (!query || query.trim().length === 0) {
+      return res.status(400).json({ error: "La pregunta es obligatoria." });
+    }
 
-        try {
-            let retrievedLeads = [];
+    try {
+      let retrievedLeads = [];
 
-            if (leadId) {
-                // Tactical context: fetch lead from MongoDB (Source of Truth for scores/SEO)
-                console.log(`[AIController] Tactical Mode for lead: ${leadId}`);
-                const mongoLead = await Lead.findById(leadId);
+      if (leadId) {
+        // Tactical context: fetch lead from MongoDB (Source of Truth for scores/SEO)
+        console.log(`[AIController] Tactical Mode for lead: ${leadId}`);
+        const mongoLead = await Lead.findById(leadId);
 
-                if (mongoLead) {
-                    // Build deterministic context from MongoDB
-                    const structuredContent = ragConfig.ingestion.buildSemanticContent(mongoLead);
+        if (mongoLead) {
+          // Build deterministic context from MongoDB
+          const structuredContent =
+            ragConfig.ingestion.buildSemanticContent(mongoLead);
 
-                    // Fetch extended deep-scrape content from Qdrant
-                    const vdbPayload = await VectorStoreService.getPayload(COLLECTIONS.MARIO_KNOWLEDGE, leadId);
+          // Fetch extended deep-scrape content from Qdrant
+          const vdbPayload = await VectorStoreService.getPayload(
+            COLLECTIONS.MARIO_KNOWLEDGE,
+            leadId,
+          );
 
-                    // Merge: Priority to structured MongoDB data + extended scraping
-                    const finalContent = `
+          // Merge: Priority to structured MongoDB data + extended scraping
+          const finalContent = `
                         DATOS ESTRUCTURADOS (Métricas CRM):
                         ${structuredContent}
                         
                         CONTENIDO EXTENDIDO (Web Scraping):
-                        ${vdbPayload?.text_chunk || 'Sin contenido extra de scraping disponible.'}
+                        ${vdbPayload?.text_chunk || "Sin contenido extra de scraping disponible."}
                     `.trim();
 
-                    retrievedLeads = [{
-                        name: mongoLead.name,
-                        lead_id: leadId,
-                        content: finalContent,
-                        similarity: 1.0
-                    }];
-                }
-
-                // 3. Generate response with Context-Aware LLM
-                var answer = await AIService.chatWithContext(query, retrievedLeads, history || []);
-
-            } else if (campaignId && !leadId) {
-                // Macro-RAG: Aggregate Campaign Context for general queries
-                console.log(`[AIController] Macro Mode for campaign: ${campaignId}`);
-                const campaignLeadsDataString = await AIService.buildCampaignContext(campaignId);
-
-                // 3. Generate response with strict Data Analyst System Prompt
-                var answer = await AIService.chatWithMacroContext(query, campaignLeadsDataString, history || []);
-
-                retrievedLeads = [{
-                    name: 'Base de Datos de Campaña Completa',
-                    lead_id: campaignId,
-                    similarity: 1.0
-                }];
-
-            } else {
-                // General RAG: similarity search
-                const queryEmbedding = await AIService.generateEmbedding(query);
-                const qdrantResults = await VectorStoreService.searchSimilar(
-                    COLLECTIONS.MARIO_KNOWLEDGE, queryEmbedding, null, 5, 0.3
-                );
-                retrievedLeads = qdrantResults.map(r => ({
-                    name: r.payload?.name || 'Lead',
-                    lead_id: r.payload?.document_id || r.payload?.doc_id,
-                    content: r.payload?.text_chunk || '',
-                    similarity: r.score
-                }));
-
-                // 3. Generate response with Context-Aware LLM
-                var answer = await AIService.chatWithContext(query, retrievedLeads, history || []);
-            }
-
-            // 4. Persist if tactical (lead-specific)
-            if (leadId) {
-                try {
-                    await Lead.findByIdAndUpdate(leadId, { tactical_response: answer });
-                } catch (persistErr) {
-                    console.error('[AIController] Failed to persist tactical response:', persistErr.message);
-                }
-            }
-
-            // 5. Persist Chat Session
-            let currentSessionId = sessionId;
-            try {
-                let session;
-                if (currentSessionId) {
-                    session = await ChatSession.findById(currentSessionId);
-                }
-
-                if (!session) {
-                    // Create new session
-                    const titleWords = query.split(' ').slice(0, 4).join(' ');
-                    const title = titleWords ? titleWords + '...' : 'Nueva Conversación';
-
-                    session = new ChatSession({
-                        title: title,
-                        campaignId: campaignId || null,
-                        leadId: leadId || null,
-                        messages: []
-                    });
-
-                    // Add legacy history if it's the first time saving but frontend sent history
-                    if (history && history.length > 0) {
-                        history.forEach(msg => {
-                            if (msg.role !== 'system') {
-                                session.messages.push({
-                                    role: msg.role,
-                                    content: msg.text || msg.content
-                                });
-                            }
-                        });
-                    }
-                }
-
-                // Push current interaction
-                session.messages.push({
-                    role: 'user',
-                    content: query
-                });
-
-                session.messages.push({
-                    role: 'assistant',
-                    content: answer,
-                    sources: retrievedLeads.map(l => ({
-                        name: l.name,
-                        id: l.lead_id,
-                        similarity: l.similarity
-                    }))
-                });
-
-                await session.save();
-                currentSessionId = session._id;
-            } catch (sessionErr) {
-                console.error('[AIController] Failed to persist chat session:', sessionErr.message);
-            }
-
-            res.status(200).json({
-                success: true,
-                answer,
-                sessionId: currentSessionId,
-                sessionTitle: currentSessionId ? undefined : 'Nueva Conversación',
-                sources: retrievedLeads.map(l => ({
-                    name: l.name,
-                    id: l.lead_id,
-                    similarity: l.similarity
-                }))
-            });
-        } catch (error) {
-            console.error('[AIController] Chat Error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'No pude procesar tu consulta de IA en este momento.',
-                error: error.message
-            });
+          retrievedLeads = [
+            {
+              name: mongoLead.name,
+              lead_id: leadId,
+              content: finalContent,
+              similarity: 1.0,
+            },
+          ];
         }
-    }
 
-    /**
-     * Delete a chat session
-     */
-    static async deleteSession(req, res) {
-        // ... (unchanged existing methods are above this block, this is just to append) 
-    }
+        // 3. Generate response with Context-Aware LLM
+        var answer = await AIService.chatWithContext(
+          query,
+          retrievedLeads,
+          history || [],
+        );
+      } else if (campaignId && !leadId) {
+        // Macro-RAG: Aggregate Campaign Context for general queries
+        console.log(`[AIController] Macro Mode for campaign: ${campaignId}`);
+        const campaignLeadsDataString =
+          await AIService.buildCampaignContext(campaignId);
 
-    /**
-     * SPIDER Analysis Endpoint (Neuro-Symbolic)
-     */
-    static async spiderAnalysis(req, res) {
-        const { leadId } = req.params;
-        const forceRefresh = req.query.forceRefresh === 'true';
+        // 3. Generate response with strict Data Analyst System Prompt
+        var answer = await AIService.chatWithMacroContext(
+          query,
+          campaignLeadsDataString,
+          history || [],
+        );
 
+        retrievedLeads = [
+          {
+            name: "Base de Datos de Campaña Completa",
+            lead_id: campaignId,
+            similarity: 1.0,
+          },
+        ];
+      } else {
+        // General RAG: similarity search
+        const queryEmbedding = await AIService.generateEmbedding(query);
+        const qdrantResults = await VectorStoreService.searchSimilar(
+          COLLECTIONS.MARIO_KNOWLEDGE,
+          queryEmbedding,
+          null,
+          5,
+          0.3,
+        );
+        retrievedLeads = qdrantResults.map((r) => ({
+          name: r.payload?.name || "Lead",
+          lead_id: r.payload?.document_id || r.payload?.doc_id,
+          content: r.payload?.text_chunk || "",
+          similarity: r.score,
+        }));
+
+        // 3. Generate response with Context-Aware LLM
+        var answer = await AIService.chatWithContext(
+          query,
+          retrievedLeads,
+          history || [],
+        );
+      }
+
+      // 4. Persist if tactical (lead-specific)
+      if (leadId) {
         try {
-            const lead = await Lead.findById(leadId);
-            if (!lead) {
-                return res.status(404).json({ error: 'Lead no encontrado' });
-            }
+          await Lead.findByIdAndUpdate(leadId, { tactical_response: answer });
+        } catch (persistErr) {
+          console.error(
+            "[AIController] Failed to persist tactical response:",
+            persistErr.message,
+          );
+        }
+      }
 
-            // Detect Region from phone using libphonenumber-js or fallback
-            let region = 'LATAM'; // Default
-            const globalTone = ragConfig.agency?.languageTone;
-
-            if (globalTone === 'FORCE_LATAM') {
-                region = 'LATAM';
-            } else if (globalTone === 'FORCE_EXPORT') {
-                region = 'EXPORT';
-            } else if (lead.phone) {
-                // Auto Detect Mode
-                try {
-                    // Try parsing dynamically
-                    const { parsePhoneNumberFromString } = await import('libphonenumber-js');
-                    const phoneNumber = parsePhoneNumberFromString(lead.phone);
-                    // Standard LATAM country codes logic (focusing heavily on Argentina rule +54)
-                    if (phoneNumber && phoneNumber.country) {
-                        if (['AR', 'UY', 'CL', 'BO', 'PY'].includes(phoneNumber.country)) {
-                            region = 'LATAM';
-                        } else {
-                            region = 'EXPORT';
-                        }
-                    } else if (lead.phone.startsWith('+54') || lead.phone.startsWith('549')) {
-                        region = 'LATAM';
-                    } else if (lead.phone.startsWith('+1') || lead.phone.startsWith('+34')) {
-                        region = 'EXPORT';
-                    }
-                } catch (e) {
-                    console.log(`[AIController] Error parsing phone ${lead.phone} for region. Defaulting to LATAM.`);
-                }
-            }
-
-            console.log(`[AIController] Detected Region For Prompt: ${region}`);
-
-            // 1. Capa Simbólica (Determinista + ML) - Costo 0 Tokens
-        const spiderVerdict = await SpiderEngine.analyzeLead(lead);
-
-        // CACHE HIT LOGIC: Si no se fuerza refresco y ya hay un playbook generado para esta táctica
-        if (!forceRefresh && lead.spider_memory && lead.spider_memory.generated_playbook) {
-            console.log(`[AIController] Spider Cache Hit (Tokens guardados) para Lead: ${leadId}`);
-            
-            // Try to parse it as JSON since Mario V2 handles strict objects
-            let parsedPlaybook = lead.spider_memory.generated_playbook;
-            try {
-                if (typeof parsedPlaybook === 'string') {
-                    parsedPlaybook = JSON.parse(parsedPlaybook);
-                }
-            } catch (e) {
-                // If it's a legacy markdown string, let it be
-            }
-
-            return res.status(200).json({
-                spider_verdict: spiderVerdict, // Veredicto fresh calculado
-                mario_strategy: parsedPlaybook,
-                detected_region: region
-            });
+      // 5. Persist Chat Session
+      let currentSessionId = sessionId;
+      try {
+        let session;
+        if (currentSessionId) {
+          session = await ChatSession.findById(currentSessionId);
         }
 
-        console.log(`[AIController] Spider Cache Miss/Force Refresh. LLM run para: ${leadId} en modo ${region}`);
+        if (!session) {
+          // Create new session
+          const titleWords = query.split(" ").slice(0, 4).join(" ");
+          const title = titleWords ? titleWords + "..." : "Nueva Conversación";
 
-        // 2. Capa Neuronal (War Room JSON + RLHF)
-        const marioResult = await MarioService.generateStrategy(lead._id);
+          session = new ChatSession({
+            title: title,
+            campaignId: campaignId || null,
+            leadId: leadId || null,
+            messages: [],
+          });
 
-        return res.status(200).json({
-            spider_verdict: spiderVerdict,
-            mario_strategy: marioResult.strategy,
-            strategy_id: marioResult.strategy_id,
-            detected_region: region
+          // Add legacy history if it's the first time saving but frontend sent history
+          if (history && history.length > 0) {
+            history.forEach((msg) => {
+              if (msg.role !== "system") {
+                session.messages.push({
+                  role: msg.role,
+                  content: msg.text || msg.content,
+                });
+              }
+            });
+          }
+        }
+
+        // Push current interaction
+        session.messages.push({
+          role: "user",
+          content: query,
         });
 
+        session.messages.push({
+          role: "assistant",
+          content: answer,
+          sources: retrievedLeads.map((l) => ({
+            name: l.name,
+            id: l.lead_id,
+            similarity: l.similarity,
+          })),
+        });
+
+        await session.save();
+        currentSessionId = session._id;
+      } catch (sessionErr) {
+        console.error(
+          "[AIController] Failed to persist chat session:",
+          sessionErr.message,
+        );
+      }
+
+      res.status(200).json({
+        success: true,
+        answer,
+        sessionId: currentSessionId,
+        sessionTitle: currentSessionId ? undefined : "Nueva Conversación",
+        sources: retrievedLeads.map((l) => ({
+          name: l.name,
+          id: l.lead_id,
+          similarity: l.similarity,
+        })),
+      });
     } catch (error) {
-        console.error('[AIController - Spider] Error:', error);
-        res.status(500).json({ error: 'Error procesando la estrategia Spider/Mario' });
+      console.error("[AIController] Chat Error:", error);
+      res.status(500).json({
+        success: false,
+        message: "No pude procesar tu consulta de IA en este momento.",
+        error: error.message,
+      });
     }
-}
+  }
 
-/**
- * RLHF: Score a strategy and save human feedback
- */
-static async scoreStrategy(req, res) {
+  /**
+   * Delete a chat session
+   */
+  static async deleteSession(req, res) {
+    // ... (unchanged existing methods are above this block, this is just to append)
+  }
+
+  /**
+   * SPIDER Analysis Endpoint (Neuro-Symbolic)
+   */
+  static async spiderAnalysis(req, res) {
+    const { leadId } = req.params;
+    const forceRefresh = req.query.forceRefresh === "true";
+
     try {
-        const { strategyId } = req.params;
-        const { score, feedback } = req.body;
+      const lead = await Lead.findById(leadId);
+      if (!lead) {
+        return res.status(404).json({ error: "Lead no encontrado" });
+      }
 
-        const strategy = await MarioStrategy.findById(strategyId);
-        if (!strategy) return res.status(404).json({ error: 'Estrategia no encontrada' });
+      // Detect Region from phone using libphonenumber-js or fallback
+      let region = "LATAM"; // Default
+      const globalTone = ragConfig.agency?.languageTone;
 
-        strategy.human_score = score;
-        strategy.human_feedback = feedback;
-        strategy.status = score >= 3 ? 'APPROVED' : 'REJECTED';
-        await strategy.save();
+      if (globalTone === "FORCE_LATAM") {
+        region = "LATAM";
+      } else if (globalTone === "FORCE_EXPORT") {
+        region = "EXPORT";
+      } else if (lead.phone) {
+        // Auto Detect Mode
+        try {
+          // Try parsing dynamically
+          const { parsePhoneNumberFromString } =
+            await import("libphonenumber-js");
+          const phoneNumber = parsePhoneNumberFromString(lead.phone);
+          // Standard LATAM country codes logic (focusing heavily on Argentina rule +54)
+          if (phoneNumber && phoneNumber.country) {
+            if (["AR", "UY", "CL", "BO", "PY"].includes(phoneNumber.country)) {
+              region = "LATAM";
+            } else {
+              region = "EXPORT";
+            }
+          } else if (
+            lead.phone.startsWith("+54") ||
+            lead.phone.startsWith("549")
+          ) {
+            region = "LATAM";
+          } else if (
+            lead.phone.startsWith("+1") ||
+            lead.phone.startsWith("+34")
+          ) {
+            region = "EXPORT";
+          }
+        } catch (e) {
+          console.log(
+            `[AIController] Error parsing phone ${lead.phone} for region. Defaulting to LATAM.`,
+          );
+        }
+      }
 
-        console.log(`[RLHF] Estrategia ${strategyId} puntuada con ${score}/5. Status: ${strategy.status}`);
-        return res.status(200).json({ success: true, status: strategy.status });
-    } catch (error) {
-        console.error('[AIController - RLHF Score] Error:', error);
-        res.status(500).json({ error: 'Error guardando feedback' });
-    }
-}
+      console.log(`[AIController] Detected Region For Prompt: ${region}`);
 
-/**
- * RLHF: Regenerate a strategy using previous failed attempts as context
- */
-static async regenerateStrategy(req, res) {
-    try {
-        const { leadId } = req.params;
-        
-        // Fetch all rejected strategies for this lead to use as RLHF negative context
-        const failedStrategies = await MarioStrategy.find({ 
-            lead_id: leadId, 
-            status: 'REJECTED' 
-        }).sort({ generated_at: -1 }).limit(3);
+      // 1. Capa Simbólica (Determinista + ML) - Costo 0 Tokens
+      const spiderVerdict = await SpiderEngine.analyzeLead(lead);
 
-        console.log(`[RLHF] Regenerando estrategia para lead ${leadId} inyectando ${failedStrategies.length} fallos humanos.`);
+      // CACHE HIT LOGIC: Si no se fuerza refresco y ya hay un playbook generado para esta táctica
+      if (
+        !forceRefresh &&
+        lead.spider_memory &&
+        lead.spider_memory.generated_playbook
+      ) {
+        console.log(
+          `[AIController] Spider Cache Hit (Tokens guardados) para Lead: ${leadId}`,
+        );
 
-        const marioResult = await MarioService.generateStrategy(leadId, failedStrategies);
+        // Try to parse it as JSON since Mario V2 handles strict objects
+        let parsedPlaybook = lead.spider_memory.generated_playbook;
+        try {
+          if (typeof parsedPlaybook === "string") {
+            parsedPlaybook = JSON.parse(parsedPlaybook);
+          }
+        } catch (e) {
+          // If it's a legacy markdown string, let it be
+        }
 
         return res.status(200).json({
-            mario_strategy: marioResult.strategy,
-            strategy_id: marioResult.strategy_id,
-            rlhf_warnings_applied: marioResult.rlhf_warnings_applied
+          spider_verdict: spiderVerdict, // Veredicto fresh calculado
+          mario_strategy: parsedPlaybook,
+          detected_region: region,
         });
+      }
+
+      console.log(
+        `[AIController] Spider Cache Miss/Force Refresh. LLM run para: ${leadId} en modo ${region}`,
+      );
+
+      // 2. Capa Neuronal (War Room JSON + RLHF)
+      const marioResult = await MarioService.generateStrategy(lead._id);
+
+      return res.status(200).json({
+        spider_verdict: spiderVerdict,
+        mario_strategy: marioResult.strategy,
+        strategy_id: marioResult.strategy_id,
+        detected_region: region,
+      });
     } catch (error) {
-        console.error('[AIController - RLHF Regenerate] Error:', error);
-        res.status(500).json({ error: 'Error regenerando estrategia' });
+      console.error("[AIController - Spider] Error:", error);
+      res
+        .status(500)
+        .json({ error: "Error procesando la estrategia Spider/Mario" });
     }
+  }
+
+  /**
+   * RLHF: Score a strategy and save human feedback
+   */
+  static async scoreStrategy(req, res) {
+    try {
+      const { strategyId } = req.params;
+      const { score, feedback } = req.body;
+
+      const strategy = await MarioStrategy.findById(strategyId);
+      if (!strategy)
+        return res.status(404).json({ error: "Estrategia no encontrada" });
+
+      strategy.human_score = score;
+      strategy.human_feedback = feedback;
+      strategy.status = score >= 3 ? "APPROVED" : "REJECTED";
+      await strategy.save();
+
+      console.log(
+        `[RLHF] Estrategia ${strategyId} puntuada con ${score}/5. Status: ${strategy.status}`,
+      );
+      return res.status(200).json({ success: true, status: strategy.status });
+    } catch (error) {
+      console.error("[AIController - RLHF Score] Error:", error);
+      res.status(500).json({ error: "Error guardando feedback" });
     }
+  }
+
+  /**
+   * RLHF: Regenerate a strategy using previous failed attempts as context
+   */
+  static async regenerateStrategy(req, res) {
+    try {
+      const { leadId } = req.params;
+      const { force_upsell } = req.body;
+
+      // Fetch all rejected strategies for this lead to use as RLHF negative context
+      const failedStrategies = await MarioStrategy.find({
+        lead_id: leadId,
+        status: "REJECTED",
+      })
+        .sort({ generated_at: -1 })
+        .limit(3);
+
+      console.log(
+        `[RLHF] Regenerando estrategia para lead ${leadId} inyectando ${failedStrategies.length} fallos humanos. (Force Upsell: ${force_upsell})`,
+      );
+
+      const marioResult = await MarioService.generateStrategy(
+        leadId,
+        failedStrategies,
+        { forceUpsell: force_upsell === true },
+      );
+
+      return res.status(200).json({
+        mario_strategy: marioResult.strategy,
+        strategy_id: marioResult.strategy_id,
+        rlhf_warnings_applied: marioResult.rlhf_warnings_applied,
+      });
+    } catch (error) {
+      console.error("[AIController - RLHF Regenerate] Error:", error);
+      res.status(500).json({ error: "Error regenerando estrategia" });
+    }
+  }
 }
 
 export default AIController;
