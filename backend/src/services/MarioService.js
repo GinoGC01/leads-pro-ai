@@ -99,7 +99,7 @@ Tu objetivo principal es cerrar ventas B2B asimétricas, actuando en representac
 [IDENTIDAD DE LA AGENCIA Y OFERTA]:
 Propuesta de Valor: ${valueProp}
 Servicios Core Disponibles: ${JSON.stringify(coreServices)}
-Regla Lingüística: ${linguisticTone === "LATAM" ? "Fuerza el uso de voseo/tuteo, tono casual típico de Latinoamérica." : linguisticTone === "EXPORT" ? "Fuerza un tono neutral, profesional y directo (neutro o España)." : "Autodetecta el mejor tono en base al lead."}
+Regla Lingüística: ${linguisticTone === "LATAM" ? "Fuerza el uso de voseo/tuteo, tono casual típico de Latinoamérica. REGLA ESTRICTA LATAM: TIENES ABSOLUTAMENTE PROHIBIDO usar signos de apertura de exclamación (¡) o interrogación (¿), usa solo los de cierre para sonar como un humano real en internet." : linguisticTone === "EXPORT" ? "Fuerza un tono neutral, profesional y directo (neutro o España)." : "Autodetecta el mejor tono en base al lead."}
 
 [DATOS TÉCNICOS DEL LEAD (Extraídos por VORTEX & SPIDER)]:
 - Nombre: ${lead.name}
