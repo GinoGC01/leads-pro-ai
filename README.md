@@ -50,8 +50,7 @@ El proyecto está dividido en un stack MERN moderno:
 │  SERVICES LAYER                                      │
 │  GooglePlaces │ AIService │ GridService │ CampaignSvc│
 │  ParserService │ ScraperService │ ProfilerService    │
-│  ScoringService │ SpiderEngine │ SupabaseService     │
-│  VectorStoreService (Qdrant)                         │
+│  ScoringService │ SpiderEngine │ VectorStoreService  │
 ├──────────────────────────────────────────────────────┤
 │  WORKERS (BullMQ)                                    │
 │  EnrichmentWorker (Vortex Pipeline + SPIDER V2)      │
@@ -78,7 +77,7 @@ El proyecto está dividido en un stack MERN moderno:
 - **FASE 2: Sanitización de Datos Crudos:** Verifica SEO básico (H1, meta descriptions). Extrae contactos y plica filtros de limpieza y deduplicación profunda (ignorando fechas, píxeles o IPs capturadas erróneamente en el HTML).
 - **FASE 3: Análisis de Performance:** Llama a Google PageSpeed API para medir LCP y TTFB. Usa regex y firmas para descubrir el Tech Stack (WordPress, Wix, React).
 - **🛡️ SPIDER INTERCEPT (entre FASE 3 y 4):** Antes de gastar tokens de OpenAI, `SpiderEngine.evaluateViability()` analiza si el lead posee infraestructura enterprise inexpugnable (Next.js + Vercel, React + AWS, etc.). Si 2+ tecnologías enterprise se detectan con un Lighthouse Score >85 y TTFB <400ms, el lead se marca como `disqualified` con `reason: DISCARD_PERFECT` y el pipeline se detiene. El frontend renderiza una tarjeta ámbar de "SPIDER Shield".
-- **FASE 4: Vectorización Híbrida:** Llama a `text-embedding-3-small` de OpenAI y guarda un resumen técnico en Supabase (pgvector) para memoria semántica de RAG.
+- **FASE 4: Vectorización Híbrida:** Llama a `text-embedding-3-small` de OpenAI y vectoriza los fragmentos procesados en Qdrant (colección `mario_knowledge`) para nutrir la memoria semántica de RAG.
 - **FASE 5: SPIDER V2 — Predicción de Táctica (READ-ONLY):** Genera un embedding del contexto comercial del lead, consulta Qdrant buscando leads ganados similares (status: `WON`), y predice la mejor táctica. Triple fallback: Qdrant → Heurístico → Emergencia. El embedding se guarda en MongoDB (`spider_context_vector`) para ingesta diferida.
 
 **Nivel 2: DEEP VISION (Auditoría Multimodal Avanzada)**
@@ -128,8 +127,16 @@ _(Toda la actividad en el VORTEX Engine emite streams asíncronos al Frontend ut
   3. _Reacción Favorable_: Elevación instantánea a Call (Zoom/Meet), prohibido vender por chat.
   4. _Reacción Objeción (Judo Comercial)_: Retirada cortés validando rivales para generar disonancia cognitiva.
 - **Modos de RAG:**
-  - **Micro-RAG:** Mirada a lead individual (Lighhouse Score, Mongoose, Supabase document extraction).
+  - **Micro-RAG:** Mirada a lead individual (Lighhouse Score, Mongoose, Qdrant document extraction).
   - **Macro-RAG:** Rol de "Analista de Campaña". Lee cientos de leads a la vez, se le restringe para no alucinar clientes, devolviendo un análisis estratégico táctico a nivel de dashboard.
+
+#### 🛡️ RAG Gatekeeper (Seguridad del Conocimiento)
+
+MARIO AI se nutre de una base de conocimiento RAG (Qdrant `mario_knowledge`). Para evitar contaminación ("Alucinaciones" provocadas por la inyección de documentos "Caballo de Troya"), se implementó un riguroso pipeline de validación al subir PDFs o TXTs (`/api/knowledge/upload`):
+
+1. **Deduplicación Criptográfica (Cache):** Hashea el archivo en SHA-256 (`file_hash`) y consulta MongoDB (`KnowledgeDocument`). Archivos previamente procesados (aceptados o rechazados) responden en 15ms con 0 coste de tokens.
+2. **LLM Gatekeeper (gpt-4o-mini):** Extrae de forma equidistante (inicio, centro, fin) fragmentos del documento y los audita buscando tópicos relevantes B2B (Marketing, Ventas, SEO, etc).
+3. **Rechazo Blindado:** Si el LLM dictamina que el documento es spam (ej. Recetas de cocina, historias de aviación), la petición devuelve un 406 Error y **se aborta la vectorización**, preservando la higiene vectorial de MARIO y la cuota de embeddings de OpenAI.
 
 ### 🛣️ Roadmap V2.0: La Transición al Ecosistema Neuro-Simbólico
 
@@ -264,38 +271,6 @@ QDRANT_URL=http://localhost:6333
 VITE_API_URL=http://localhost:5000/api
 ```
 
-### 💾 Preparación de Supabase (SQL Editor)
-
-```sql
-create extension if not exists vector;
-
-create table if not exists business_leads (
-  id uuid primary key default gen_random_uuid(),
-  lead_id text unique not null,
-  name text not null,
-  metadata jsonb default '{}'::jsonb,
-  content text not null,
-  embedding vector(1536) not null
-);
-
-create index on business_leads using hnsw (embedding vector_cosine_ops)
-with (m = 16, ef_construction = 64);
-
-create or replace function match_leads (
-  query_embedding vector(1536), match_threshold float, match_count int
-)
-returns table (id uuid, lead_id text, name text, content text, metadata jsonb, similarity float)
-language plpgsql as $$
-begin
-  return query
-  select bl.id, bl.lead_id, bl.name, bl.content, bl.metadata, 1 - (bl.embedding <=> query_embedding) as similarity
-  from business_leads bl
-  where 1 - (bl.embedding <=> query_embedding) > match_threshold
-  order by bl.embedding <=> query_embedding limit match_count;
-end;
-$$;
-```
-
 ### ⚡ Ejecución
 
 ```bash
@@ -310,8 +285,8 @@ cd backend && npm run dev
 cd backend && node src/workers/EnrichmentWorker.js
 cd frontend && npm run dev
 
-# 4. Tests de integración (SPIDER Vector Loop)
-cd backend && npm run test -- --forceExit tests/integration/SpiderVectorLoop.test.js
+# 4. Tests Automatizados (Unitarios e Integración)
+cd backend && npm run test
 ```
 
 ---
@@ -341,6 +316,7 @@ El backend usa un **3-Tier Modular Monolith** de Clean Architecture en varios do
   - `GET /api/intelligence/usage`
   - `GET /api/stats` (Métricas globales)
 - **AI & Vortex:**
+  - `POST /api/knowledge/upload` (RAG Gatekeeper: NLP PDF/TXT Ingestion & SHA-256 Deduplication)
   - `POST /api/ai/chat` (Flujo RAG de MARIO)
   - `POST /api/vortex/enrich/:id` (Pipeline de 5 fases: Scrape → Parse → Profile → **SPIDER Gate** → Vectorize + **SPIDER V2 Predict**)
   - `POST /api/vortex/deep-vision/:id` (Trigger Nivel 2 Multimodal)
