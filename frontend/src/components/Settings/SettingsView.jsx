@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Plus, Trash, User, Building2, MessageSquare, Briefcase, Database } from 'lucide-react';
+import { Save, Plus, Trash, User, Building2, MessageSquare, Briefcase, Database, Edit2, X, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getAgencySettings, updateAgencySettings } from '../../services/api';
 import RagKnowledgeManager from './RagKnowledgeManager';
 
 const SettingsView = () => {
+    const [originalSettings, setOriginalSettings] = useState(null);
     const [settings, setSettings] = useState({
         sales_rep_name: '',
         agency_name: '',
@@ -13,6 +14,7 @@ const SettingsView = () => {
         core_services: []
     });
     
+    const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -25,13 +27,15 @@ const SettingsView = () => {
             setIsLoading(true);
             const response = await getAgencySettings();
             if (response.data && response.data.success) {
-                setSettings({
+                const loadedSettings = {
                     sales_rep_name: response.data.sales_rep_name || '',
                     agency_name: response.data.agency_name || '',
                     linguistic_behavior: response.data.linguistic_behavior || 'AUTO',
                     value_proposition: response.data.value_proposition || '',
                     core_services: response.data.core_services || []
-                });
+                };
+                setSettings(loadedSettings);
+                setOriginalSettings(loadedSettings);
             }
         } catch (error) {
             console.error("Error loading agency settings:", error);
@@ -53,6 +57,8 @@ const SettingsView = () => {
 
         try {
             await savePromise;
+            setOriginalSettings(settings);
+            setIsEditing(false);
         } catch (error) {
             console.error("Error saving agency settings:", error);
         } finally {
@@ -104,16 +110,49 @@ const SettingsView = () => {
                 <p className="text-slate-500 dark:text-slate-400 mt-2">Manage your AI Agent identity, commercial offer, and core knowledge base.</p>
             </div>
 
-            {/* Global Save Button */}
-            <div className="flex justify-end mb-4">
-                <button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl transition-colors shadow-lg shadow-indigo-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <Save size={18} />
-                    {isSaving ? 'Saving...' : 'Save Configuration'}
-                </button>
+            {/* Global Actions */}
+            <div className="flex justify-between items-center mb-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-4">
+                <div className="flex items-center gap-3">
+                    {!isEditing && (
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg border border-emerald-200/50 dark:border-emerald-500/20">
+                            <Check size={16} />
+                            <span className="text-sm font-medium">Settings Saved & Active</span>
+                        </div>
+                    )}
+                </div>
+                <div className="flex items-center gap-3">
+                    {isEditing ? (
+                        <>
+                            <button
+                                onClick={() => {
+                                    if (originalSettings) setSettings(originalSettings);
+                                    setIsEditing(false);
+                                }}
+                                disabled={isSaving}
+                                className="flex items-center gap-2 px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <X size={18} />
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={isSaving}
+                                className="flex items-center gap-2 px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg transition-colors shadow-lg shadow-indigo-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Save size={18} />
+                                {isSaving ? 'Saving...' : 'Save Configuration'}
+                            </button>
+                        </>
+                    ) : (
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            className="flex items-center gap-2 px-6 py-2 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 font-medium rounded-lg transition-colors shadow-lg shadow-slate-900/10"
+                        >
+                            <Edit2 size={18} />
+                            Edit Settings
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Card 1: Identity & Tone */}
@@ -132,10 +171,11 @@ const SettingsView = () => {
                         </label>
                         <input
                             type="text"
+                            disabled={!isEditing}
                             value={settings.sales_rep_name}
                             onChange={(e) => handleChange('sales_rep_name', e.target.value)}
                             placeholder="e.g. Mario"
-                            className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/50 rounded-lg px-4 py-2.5 text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                            className={`w-full border rounded-lg px-4 py-2.5 text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-colors ${!isEditing ? 'bg-slate-100 dark:bg-slate-800/60 border-transparent text-slate-600 dark:text-slate-400 cursor-default' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700/50'}`}
                         />
                     </div>
                     <div className="space-y-2">
@@ -144,10 +184,11 @@ const SettingsView = () => {
                         </label>
                         <input
                             type="text"
+                            disabled={!isEditing}
                             value={settings.agency_name}
                             onChange={(e) => handleChange('agency_name', e.target.value)}
                             placeholder="e.g. Leads Pro AI"
-                            className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/50 rounded-lg px-4 py-2.5 text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                            className={`w-full border rounded-lg px-4 py-2.5 text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-colors ${!isEditing ? 'bg-slate-100 dark:bg-slate-800/60 border-transparent text-slate-600 dark:text-slate-400 cursor-default' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700/50'}`}
                         />
                     </div>
                     <div className="space-y-3 md:col-span-2 mt-2">
@@ -161,15 +202,16 @@ const SettingsView = () => {
                                     <div className="relative flex items-center">
                                         <input
                                             type="radio"
+                                            disabled={!isEditing}
                                             name="linguistic_behavior"
                                             value={option}
                                             checked={settings.linguistic_behavior === option}
                                             onChange={(e) => handleChange('linguistic_behavior', e.target.value)}
                                             className="peer sr-only"
                                         />
-                                        <div className="h-5 w-5 rounded-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 peer-checked:border-indigo-500 peer-checked:border-[6px] transition-all"></div>
+                                        <div className={`h-5 w-5 rounded-full border transition-all ${!isEditing ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 peer-checked:border-indigo-400/50 peer-checked:border-[6px] opacity-70' : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 peer-checked:border-indigo-500 peer-checked:border-[6px]'}`}></div>
                                     </div>
-                                    <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                    <span className={`text-sm transition-colors ${!isEditing ? 'text-slate-500 dark:text-slate-500' : 'text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'}`}>
                                         {option === 'AUTO' ? 'Auto Detect' : option === 'LATAM' ? 'Force LATAM (Voseo/Tuteo)' : 'Force EXPORT (Neutral/Spain)'}
                                     </span>
                                 </label>
@@ -192,23 +234,26 @@ const SettingsView = () => {
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Value Proposition</label>
                         <textarea
+                            disabled={!isEditing}
                             value={settings.value_proposition}
                             onChange={(e) => handleChange('value_proposition', e.target.value)}
                             placeholder="Describe your agency's core value proposition..."
-                            className="w-full h-24 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/50 rounded-xl p-4 text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all resize-none"
+                            className={`w-full h-24 border rounded-xl p-4 text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all resize-none ${!isEditing ? 'bg-slate-100 dark:bg-slate-800/60 border-transparent text-slate-600 dark:text-slate-400 cursor-default' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700/50'}`}
                         />
                     </div>
 
                     <div>
                         <div className="flex items-center justify-between mb-4 mt-2">
                             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Core Services</label>
-                            <button
-                                onClick={addService}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 rounded-md transition-colors border border-slate-200 dark:border-slate-700/50"
-                            >
-                                <Plus size={14} />
-                                <span className="text-xs font-semibold">Add New Service</span>
-                            </button>
+                            {isEditing && (
+                                <button
+                                    onClick={addService}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 rounded-md transition-colors border border-slate-200 dark:border-slate-700/50"
+                                >
+                                    <Plus size={14} />
+                                    <span className="text-xs font-semibold">Add New Service</span>
+                                </button>
+                            )}
                         </div>
 
                         <div className="space-y-4">
@@ -218,44 +263,49 @@ const SettingsView = () => {
                                 </div>
                             ) : (
                                 settings.core_services.map((service, index) => (
-                                    <div key={index} className="p-5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-xl relative group transition-all hover:border-indigo-500/30">
-                                        <button
-                                            onClick={() => removeService(index)}
-                                            className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors"
-                                            title="Remove Service"
-                                        >
-                                            <Trash size={16} />
-                                        </button>
+                                    <div key={index} className={`p-5 border rounded-xl relative group transition-all ${isEditing ? 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/50 hover:border-indigo-500/30' : 'bg-slate-50/50 dark:bg-slate-900/20 border-slate-100 dark:border-slate-800'}`}>
+                                        {isEditing && (
+                                            <button
+                                                onClick={() => removeService(index)}
+                                                className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors"
+                                                title="Remove Service"
+                                            >
+                                                <Trash size={16} />
+                                            </button>
+                                        )}
                                         
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-10">
+                                        <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${isEditing ? 'pr-10' : ''}`}>
                                             <div className="space-y-1.5">
                                                 <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Service Name</label>
                                                 <input
                                                     type="text"
+                                                    disabled={!isEditing}
                                                     value={service.name}
                                                     onChange={(e) => updateService(index, 'name', e.target.value)}
                                                     placeholder="e.g. B2B Lead Generation"
-                                                    className="w-full bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/50 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                                                    className={`w-full border rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-colors ${!isEditing ? 'bg-slate-100 dark:bg-slate-800/60 border-transparent text-slate-600 dark:text-slate-400 cursor-default' : 'bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-700/50'}`}
                                                 />
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Ideal For</label>
                                                 <input
                                                     type="text"
+                                                    disabled={!isEditing}
                                                     value={service.ideal_for}
                                                     onChange={(e) => updateService(index, 'ideal_for', e.target.value)}
                                                     placeholder="e.g. SaaS companies >$1M ARR"
-                                                    className="w-full bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/50 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                                                    className={`w-full border rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-colors ${!isEditing ? 'bg-slate-100 dark:bg-slate-800/60 border-transparent text-slate-600 dark:text-slate-400 cursor-default' : 'bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-700/50'}`}
                                                 />
                                             </div>
                                             <div className="space-y-1.5 md:col-span-2">
                                                 <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Description</label>
                                                 <input
                                                     type="text"
+                                                    disabled={!isEditing}
                                                     value={service.description}
                                                     onChange={(e) => updateService(index, 'description', e.target.value)}
                                                     placeholder="Detail what this service includes and how it is delivered."
-                                                    className="w-full bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/50 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                                                    className={`w-full border rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-colors ${!isEditing ? 'bg-slate-100 dark:bg-slate-800/60 border-transparent text-slate-600 dark:text-slate-400 cursor-default' : 'bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-700/50'}`}
                                                 />
                                             </div>
                                         </div>
