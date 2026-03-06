@@ -2,7 +2,7 @@
 
 Leads Pro AI ha evolucionado de un simple scraper de Google Maps a un **CRM Inteligente con toma de decisiones autónoma**. El sistema opera bajo una arquitectura de tres motores entrelazados que buscan, auditan y atacan prospectos de forma asimétrica.
 
-Este documento consolida toda la documentación técnica, arquitectónica, operativa y de configuración del proyecto.
+La **Versión 2.0 (MARIO V2)** introduce la consola de operaciones "War Room", retroalimentación humana (RLHF), Settings de Agencia RAG, y Venta Cruzada Dinámica (Upsells).
 
 ---
 
@@ -10,59 +10,44 @@ Este documento consolida toda la documentación técnica, arquitectónica, opera
 
 1. [Arquitectura Técnica Global](#%EF%B8%8F-1-arquitectura-t%C3%A9cnica-global)
 2. [Los Tres Motores de Inteligencia](#-2-los-tres-motores-de-inteligencia-spider-vortex-mario)
-   - [VORTEX Engine (Auditoría Técnica)](#%EF%B8%8F-vortex-engine-auditor%C3%ADa-t%C3%A9cnica)
-   - [SPIDER Engine (Triaje Simbólico)](#%EF%B8%8F-spider-engine-triaje-simb%C3%B3lico)
-   - [MARIO AI (Closer RAG)](#-mario-ai-closer-rag)
-3. [Flujos de Datos Principales](#-3-flujos-de-datos-principales)
-4. [Manual de Operaciones y CRM](#-4-manual-de-operaciones-y-crm)
+3. [Novedades en MARIO V2 (War Room & RLHF)](#-3-novedades-en-mario-v2-war-room--rlhf)
+4. [Flujos de Datos Principales](#-4-flujos-de-datos-principales)
 5. [Configuración Inicial y Despliegue (Local Setup)](#-5-configuraci%C3%B3n-inicial-y-despliegue)
-6. [Configuración de Google Cloud API](#-6-configuraci%C3%B3n-de-google-cloud-api)
-7. [Referencia de API](#-7-referencia-de-api)
+6. [Referencia de API](#-6-referencia-de-api)
 
 ---
 
 ## 🏗️ 1. Arquitectura Técnica Global
 
-El proyecto está dividido en un stack MERN moderno:
+El proyecto está construido sobre un stack MERN moderno y optimizado para IA:
 
-- **Frontend:** React + Vite, Tailwind CSS, Lucide Icons. Interfaz "Vantablack" ultraligera. Clean Architecture (Feature-Based).
+- **Frontend:** React + Vite, Tailwind CSS 4, Lucide Icons. Interfaz "Vantablack Cyberpunk" orientada a B2B. Clean Architecture.
 - **Backend:** Node.js con Express, ESM Modules.
-- **Base de Datos:** MongoDB (almacenamiento de Leads, Historial, Sesiones de Chat AI y Configuración).
+- **Base de Datos:** MongoDB (almacenamiento de Leads, Historial, Sesiones de Chat AI y Configuración de Agencia).
 - **Vector DB:** Qdrant (Self-hosted, Docker) con dos colecciones:
   - `spider_memory`: Tácticas ganadoras (WON leads) para predicción de SPIDER V2.
-  - `mario_knowledge`: Conocimiento RAG de leads enriquecidos para MARIO AI.
-- **Micro-servicios:** BullMQ/Redis para procesamiento asíncrono y tolerante a fallos, implementando un bus de eventos en la nube para streaming en vivo.
-- **Telecomunicaciones:** `libphonenumber-js` para sanitización matemática estricta de números de teléfono (formato E.164, rechazo de basura y duplicados).
-- **Telemetría en Vivo:** Integración nativa de Server-Sent Events (SSE) para emitir los logs asíncronos de BullMQ directamente a una consola "Vantablack" (Mac-Style) en el cliente.
-- **Testing:** Jest + Supertest + cross-env para pruebas de integración ESM en Windows.
+  - `mario_knowledge`: Memoria RAG de leads enriquecidos y documentos PDF/TXT de la agencia.
+- **Micro-servicios:** BullMQ/Redis para procesamiento asíncrono y tolerante a fallos.
+- **Telemetría en Vivo:** Integración nativa de Server-Sent Events (SSE) para emitir los logs de BullMQ a la UI en tiempo real.
 
 ```text
-┌──────────────────────────────────────────────────────┐
-│                    FRONTEND (React)                  │
-│  Dashboard │ SearchView │ LeadDetails │ DataIntel    │
-└──────────────────────┬───────────────────────────────┘
-                       │ HTTP/REST
-┌──────────────────────▼───────────────────────────────┐
-│                  BACKEND (Express)                   │
-│  SearchController │ AIController │ VortexController  │
-│  ManualLeadController │ DataIntelligenceController   │
-├──────────────────────────────────────────────────────┤
-│  SERVICES LAYER                                      │
-│  GooglePlaces │ AIService │ GridService │ CampaignSvc│
-│  ParserService │ ScraperService │ ProfilerService    │
-│  ScoringService │ SpiderEngine │ VectorStoreService  │
-├──────────────────────────────────────────────────────┤
-│  WORKERS (BullMQ)                                    │
-│  EnrichmentWorker (Vortex Pipeline + SPIDER V2)      │
-│  VisionWorker (Deep Vision Multimodal)               │
-├──────────────────────────────────────────────────────┤
-│  MODELS (Mongoose)                                   │
-│  Lead │ SearchHistory │ ApiUsage │ Settings          │
-└──────────────────────────────────────────────────────┘
-       │                 │                 │
-    MongoDB              Redis           Qdrant
-                                    (spider_memory +
-                                     mario_knowledge)
+┌─────────────────────────────────────────────────────────────┐
+│                       FRONTEND (React)                      │
+│  Dashboard │ War Room (MarioPanel) │ Settings (RAG Matrix)  │
+└───────────────────────────┬─────────────────────────────────┘
+                            │ HTTP/REST
+┌───────────────────────────▼─────────────────────────────────┐
+│                       BACKEND (Express)                     │
+│  AIController │ VortexController │ KnowledgeController      │
+├─────────────────────────────────────────────────────────────┤
+│  SERVICES LAYER                                             │
+│  MarioService │ SpiderEngine │ VectorStoreService │ AIService │
+├─────────────────────────────────────────────────────────────┤
+│  WORKERS (BullMQ)                                           │
+│  EnrichmentWorker (Vortex Pipeline) │ VisionWorker          │
+└────────────┬──────────────────┬──────────────────┬──────────┘
+             │                  │                  │
+          MongoDB             Redis              Qdrant
 ```
 
 ---
@@ -71,155 +56,47 @@ El proyecto está dividido en un stack MERN moderno:
 
 ### 🌪️ VORTEX Engine (Auditoría Técnica)
 
-**Propósito:** Motor asíncrono, concurrente (BullMQ/Redis) y tolerante a fallos para el enriquecimiento automatizado. Ingiere el lead crudo de Google y le inyecta metadatos técnicos.
+Motor asíncrono, concurrente y tolerante a fallos para el enriquecimiento automatizado.
 
-- **FASE 1: Evasión WAF y Extracción Base:** Usa `got-scraping` para bypassear barreras. Si falla (Cloudflare 403, etc.), hace fallback a Puppeteer Stealth (Chromium headless) bloqueando CSS/Imágenes para ahorrar RAM.
-- **FASE 2: Sanitización de Datos Crudos:** Verifica SEO básico (H1, meta descriptions). Extrae contactos y plica filtros de limpieza y deduplicación profunda (ignorando fechas, píxeles o IPs capturadas erróneamente en el HTML).
-- **FASE 3: Análisis de Performance:** Llama a Google PageSpeed API para medir LCP y TTFB. Usa regex y firmas para descubrir el Tech Stack (WordPress, Wix, React).
-- **🛡️ SPIDER INTERCEPT (entre FASE 3 y 4):** Antes de gastar tokens de OpenAI, `SpiderEngine.evaluateViability()` analiza si el lead posee infraestructura enterprise inexpugnable (Next.js + Vercel, React + AWS, etc.). Si 2+ tecnologías enterprise se detectan con un Lighthouse Score >85 y TTFB <400ms, el lead se marca como `disqualified` con `reason: DISCARD_PERFECT` y el pipeline se detiene. El frontend renderiza una tarjeta ámbar de "SPIDER Shield".
-- **FASE 4: Vectorización Híbrida:** Llama a `text-embedding-3-small` de OpenAI y vectoriza los fragmentos procesados en Qdrant (colección `mario_knowledge`) para nutrir la memoria semántica de RAG.
-- **FASE 5: SPIDER V2 — Predicción de Táctica (READ-ONLY):** Genera un embedding del contexto comercial del lead, consulta Qdrant buscando leads ganados similares (status: `WON`), y predice la mejor táctica. Triple fallback: Qdrant → Heurístico → Emergencia. El embedding se guarda en MongoDB (`spider_context_vector`) para ingesta diferida.
-
-**Nivel 2: DEEP VISION (Auditoría Multimodal Avanzada)**
-Si el usuario lo requiere (o si la automatización lo exige), VORTEX lanza un segundo worker que implementa:
-
-1. **Fotografía B2B Headless**: Instancia Puppeteer, emula un iPhone 13, inyecta pausas deliberadas (3 segundos) para purgar alucinaciones de frameworks "Asíncronos" y captura la página en formato JPEG optimizado.
-2. **Evaluación Estructural de Conversión**: Analiza paleta de colores, ubicaciones de CTAs, contraste y fricción de UX/UI mediante GPT-4o Multimodal. Redacta vulnerabilidades comprobables.
-
-_(Toda la actividad en el VORTEX Engine emite streams asíncronos al Frontend utilizando SSE: `job.updateProgress()` es volcado en real-time al usuario, suplantando los fallidos bucles de "Polling")._
+- **Extracción Híbrida:** Usa `got-scraping` con fallback a Puppeteer Stealth.
+- **Análisis de Performance:** Google PageSpeed API para LCP, TTFB y Stack Tech.
+- **Vectorización:** Genera embeddings vía OpenAI y los guarda en Qdrant.
+- **Deep Vision Multimodal:** Evaluación de paleta de colores y fricción UX/UI emulando un iPhone 13 frente a GPT-4o-Vision.
 
 ### 🕷️ SPIDER Engine (Triaje Simbólico)
 
-**Propósito:** El núcleo lógico y determinista. No alucina; aplica matemáticas y reglas crudas para escupir un Veredicto que la IA debe obedecer. Depende al 100% de la visión de VORTEX.
+El núcleo matemático y determinista. No alucina.
 
-#### V1: Disqualification Shield (Filtro de Rentabilidad)
+- **Disqualification Shield:** Descarta leads con ecosistemas inexpugnables (Ej: Next.js + Vercel perfecto) ahorrando tokens.
+- **Vector Memory:** Analiza y busca leads ganados históricamente en Qdrant para sugerir la táctica de más alta probabilidad de conversión.
+- **Motor de Fricción:** Escoge el dolor más agudo (Latencia, sin SEO, Stack viejo).
 
-- **Viability Gate (`evaluateViability`):** Antes de la vectorización, SPIDER analiza el tech stack contra una lista de tecnologías enterprise (Next.js, Nuxt, Gatsby, React, Vercel, AWS, Docker, Kubernetes, GraphQL, etc.). Si detecta 2+ tecnologías enterprise con rendimiento excepcional (Lighthouse >85, TTFB <400ms), o 3+ tecnologías enterprise sin importar performance, el lead se marca como `DISCARD_PERFECT` y el pipeline aborta. El frontend muestra una tarjeta ámbar con el veredicto.
-- **Rented Land Detection:** Dominios de tierra alquilada (linktr.ee, instagram.com, calendly.com, etc.) se detectan pre-pipeline y el lead se salta sin consumir recursos.
+### 🤖 MARIO AI (Sales Copilot RAG)
 
-#### V2: Vector Memory (Qdrant — Aprendizaje por Éxito)
-
-- **`generateLeadContext(lead)`:** Genera un string semántico con nicho, tech stack, performance, fricción y UX score del lead.
-- **`predictTactic(lead)`:** Orquestador principal:
-  1. Genera embedding vía `AIService.generateEmbedding()` (text-embedding-3-small, 1536D).
-  2. Consulta Qdrant (READ-ONLY) filtrando por `status: WON`.
-  3. Si hay resultados: retorna la táctica más frecuente entre los ganadores (frequency analysis).
-  4. Fallback: usa el heurístico determinista `analyzeLead()`.
-  5. Guarda el embedding en MongoDB (`spider_context_vector`) para ingesta diferida.
-- **Deferred Ingestion (`_ingestWonLeadToQdrant`):** Cuando un lead se marca como `Cerrado Ganado` en el CRM, el `SearchController` lee el `spider_context_vector` de MongoDB y lo upserta en Qdrant con payload `{ status: 'WON', tactic, niche }`. **Esta es la ÚNICA función autorizada para escribir en Qdrant.**
-- **Resilience:** Si Qdrant está caído, el pipeline continúa normalmente usando el fallback heurístico. Ningún fallo de Qdrant bloquea VORTEX.
-
-#### Reglas Clásicas
-
-- **El Códice de Nichos:** Mapea industrias (Tiers). Tier 1 (High Ticket) receta "Software a Medida", Tier 2 (Locales) receta "Web + SEO", Tier 3 se filtran como `NO-GO`.
-- **Motor de Fricción (Costo Hundido):** Si VORTEX detecta React o AWS, SPIDER deduce "Fricción Alta" (gastó mucho, la táctica cambia a "Auditoría"). Si detecta Wix o ausencia de web, la "Fricción Baja" indica quemar y rehacer completo o `NO_WEB_FOMO`.
-- **Jerarquía de Fallos Técnicos:** 1. Latencia Móvil (>3s) 2. Performance (<50) 3. Sin Identificación (Meta Titles) 4. Sin SEO Estructural. Escoge el peor para atacar.
-- **Machine Learning Heurístico:** Revisa MongoDB. Si una táctica sugerida tiene un _Win Rate_ < 15% histórico, SPIDER muta espontáneamente y sugiere un servicio contingente/secundario en su lugar.
-
-### 🤖 MARIO AI (Closer RAG)
-
-**Propósito:** El actor de voz (OpenAI `gpt-4o-mini` u `4o`). Lee el veredicto rígido de SPIDER y redacta el armamento de ventas humano usando RAG (Retrieval-Augmented Generation).
-
-- **Nano Banana Context:** Identidad estricta y editable de tu agencia que impide que MARIO ofrezca servicios irreales.
-- **El Framework de Cuatro Puntas (JSON Estricto):** Genera 4 tácticas secuenciales:
-  1. _Ataque Inicial_: Dolor técnico y pregunta asimétrica.
-  2. _Reacción Ignorado_: Prueba empírica a las 48hs.
-  3. _Reacción Favorable_: Elevación instantánea a Call (Zoom/Meet), prohibido vender por chat.
-  4. _Reacción Objeción (Judo Comercial)_: Retirada cortés validando rivales para generar disonancia cognitiva.
-- **Modos de RAG:**
-  - **Micro-RAG:** Mirada a lead individual (Lighhouse Score, Mongoose, Qdrant document extraction).
-  - **Macro-RAG:** Rol de "Analista de Campaña". Lee cientos de leads a la vez, se le restringe para no alucinar clientes, devolviendo un análisis estratégico táctico a nivel de dashboard.
-
-#### 🛡️ RAG Gatekeeper (Seguridad del Conocimiento)
-
-MARIO AI se nutre de una base de conocimiento RAG (Qdrant `mario_knowledge`). Para evitar contaminación ("Alucinaciones" provocadas por la inyección de documentos "Caballo de Troya"), se implementó un riguroso pipeline de validación al subir PDFs o TXTs (`/api/knowledge/upload`):
-
-1. **Deduplicación Criptográfica (Cache):** Hashea el archivo en SHA-256 (`file_hash`) y consulta MongoDB (`KnowledgeDocument`). Archivos previamente procesados (aceptados o rechazados) responden en 15ms con 0 coste de tokens.
-2. **LLM Gatekeeper (gpt-4o-mini):** Extrae de forma equidistante (inicio, centro, fin) fragmentos del documento y los audita buscando tópicos relevantes B2B (Marketing, Ventas, SEO, etc).
-3. **Rechazo Blindado:** Si el LLM dictamina que el documento es spam (ej. Recetas de cocina, historias de aviación), la petición devuelve un 406 Error y **se aborta la vectorización**, preservando la higiene vectorial de MARIO y la cuota de embeddings de OpenAI.
-
-### 🛣️ Roadmap V2.0: La Transición al Ecosistema Neuro-Simbólico
-
-Actualmente, Leads Pro AI es un motor experto altamente eficiente. Sin embargo, los mercados B2B se saturan rápido. Si todos usan el mismo argumento de venta, el prospecto deja de responder.
-Para la versión 2.0, el sistema evolucionará de ser una máquina de "causa y efecto" a un organismo adaptativo.
-
-Aquí detallamos hacia dónde vamos, por qué es imperativo a nivel de negocio, y cómo funcionará en la práctica.
-
-#### 👁️ 1. [VORTEX] Análisis de Visión Multimodal (Pixel Parsing)
-
-**Hacia dónde vamos:** VORTEX dejará de leer únicamente el código fuente (DOM/HTML) y comenzará a "ver" la página web como lo hace un humano. Usaremos navegadores Headless para tomar capturas de pantalla de la versión móvil y de escritorio, pasándolas por modelos multimodales (como gpt-4o-vision).
-
-**El Por Qué (Business Case):** El código no cuenta toda la historia. Un sitio web puede tener un código perfecto y cargar en 1 segundo (Lighthouse Score de 99), pero si su diseño parece de 1998, los colores lastiman la vista o los botones están superpuestos en el celular, el prospecto está perdiendo clientes. Vender "mejora de código" es técnico; vender "tu cliente no puede hacer clic en comprar" es visceral.
-
-**Ejemplo Práctico:**
-
-- **VORTEX V1 (Actual):** "El sitio usa WordPress. El LCP es de 1.2s. No hay errores graves." -> SPIDER se queda sin munición.
-- **VORTEX V2 (Multimodal):** Toma un screenshot. La IA detecta que el banner principal tapa el número de teléfono en la versión móvil y que la paleta de colores carece de contraste.
-- **Táctica Generada:** "Hola [Nombre], entré a tu web desde mi iPhone y noté que el menú flotante está tapando el botón de WhatsApp. Tienes un embudo roto ahí..."
-
-#### ⚖️ 2. [SPIDER] Inferencia Bayesiana y Feedback Loops
-
-**Hacia dónde vamos:** SPIDER reemplazará sus árboles de decisión estáticos (if/else) por un motor de probabilidad matemática. Se conectará directamente a los estados del tablero Kanban del CRM. Cada vez que muevas un lead a "Cerrado Ganado" o "Perdido", SPIDER actualizará los pesos matemáticos de las tácticas que recomendó.
-
-**El Por Qué (Business Case):** Los nichos sufren de "ceguera de marketing". Si durante 6 meses le vendes "Velocidad de Carga" a las clínicas dentales, eventualmente todos los dentistas ignorarán ese correo. El sistema necesita darse cuenta por sí solo de que una táctica dejó de funcionar y pivotar hacia un ángulo nuevo sin intervención humana.
-
-**Ejemplo Práctico:**
-
-- **Escenario:** SPIDER recomienda usar el ángulo "Falta de SEO" para 100 plomeros.
-- **Feedback:** Cierras 0 ventas. Tasa de conversión: 0%.
-- **Adaptación Bayesiana:** El sistema degrada la probabilidad de éxito de "SEO para Plomeros". Para los siguientes 100 plomeros, SPIDER analiza los datos y nota que la táctica "Automatización de WhatsApp" tuvo un 12% de éxito en el pasado. Muta la estrategia global y le ordena a MARIO que empiece a vender automatización en lugar de SEO a ese nicho específico.
-
-#### 🤺 3. [MARIO] Arquitectura Multi-Agente (Agentic Reflection)
-
-**Hacia dónde vamos:** MARIO dejará de ser un solo prompt escupiendo texto. Implementaremos un flujo de trabajo "Adversarial" (Multi-Agente). Cuando se requiera un guion de ventas, el sistema instanciará tres IA separadas en el backend que debatirán antes de mostrarte el resultado.
-
-**El Por Qué (Business Case):** Los Modelos de Lenguaje Grandes (LLMs) son complacientes por naturaleza. Suelen usar palabras pomposas ("sinergia", "potenciar", "en la era digital") que los delatan instantáneamente como Inteligencia Artificial, arruinando la confianza B2B. Necesitamos un agente "Crítico" que filtre esa basura corporativa.
-
-**Ejemplo Práctico:**
-
-- **Paso 1 (El Redactor):** Genera el borrador inicial. "Espero que este correo te encuentre bien. Somos una agencia líder y queremos potenciar tu embudo digital..."
-- **Paso 2 (El Crítico):** Evalúa el borrador contra el Códice de la agencia. "Rechazado. Suena a bot de spam genérico. Estás usando la palabra 'potenciar'. Borra el saludo inicial, ve directo al dolor técnico del TTFB que encontró VORTEX y usa un tono casual de un solo párrafo."
-- **Paso 3 (El Editor):** Reescribe el texto final. "Vi que tu sitio tarda 4 segundos en responder el primer byte. Con la pauta que estás pagando en Google, estás tirando clics a la basura. ¿Lo revisaron tus desarrolladores?"
-- **Resultado:** Un mensaje asimétrico, clínico e imposible de distinguir de un humano experto.
+El redactor de asimetría bélica comercial (basado en `gpt-4o-mini` o `4o`).
+Lee el veredicto rígido de SPIDER y formula la estrategia en un JSON estricto (`opening_message`, `ignore_follow_up`, `favorable_response`, `objection_handling`). Su prompt depende del **Agency Profile**, inyectando el nombre del closer, oferta core de la agencia y estilo lingüístico.
 
 ---
 
-## 🔄 3. Flujos de Datos Principales
+## ⚔️ 3. Novedades en MARIO V2 (War Room & RLHF)
 
-### Búsqueda Nominal y Grid Search
+La versión 2.0 replantea la estructura de interacción humano-máquina:
 
-1.  **POST `/api/search`**: Se lanza búsqueda. Retorna un ID para polling.
-2.  **Google Places V1 API**: Extrae a costo $0 con FieldMasks restrictivos (Solo status operational, websites y phones).
-3.  **Grid Search (Expansión)**: Mueve las coordenadas en malla NxN para evadir el límite de 60 resultados de Google API. Multiplica la adquisición.
-4.  **Higiene**: Deduplicación por dominio, filtro de dominios de parqueo (Sinkhole Detections).
-5.  **Data Intelligence**: El sistema rastrea cuántos USD (Costo Semanal) ha incurrido contra el free tier de Google ($200) y OpenAI.
-
-### Ciclo de Mando (LeadDetails)
-
-El usuario abre un Lead de la tabla:
-
-1. MARIO lee el Veredicto SPIDER en el backend, genera JSON y el frontend renderiza la `Battlecard`.
-2. Las Action Cards inyectan un link dinámico de `wa.me/` (habiendo antes sanitizado matemáticamente con `libphonenumber-js`).
-3. El Agente Humano hace click y envía la artillería en 1 segundo.
-4. Si los metadatos o las capturas están desfasadas por la latencia, el humano usa el protocolo **Hard Reset**, purgando el Lead y reencolando las 4 fases técnicas desde cero mediante telemetría SSE en vivo, emitiendo un JobID inmutable.
+- **Agency Settings & RAG Dropzone:** Una nueva vista centralizada (`SettingsView`) donde se configura el perfil de la agencia (Nombre, Value Proposition, Core Services) y se suben PDFs de conocimiento (Casos de estudio, Tarifarios). Todo vectorizado en Qdrant y consumido por MARIO.
+- **War Room B2B (MarioPanel):** Una interfaz Cyberpunk que separa el _Resumen Estratégico_ (Arriba) de las _Tarjetas de Pipeline_ (Abajo).
+- **RLHF (Reinforcement Learning from Human Feedback):** MARIO aprende de sus errores. Si el copy es malo, el usuario deja un score de 1 a 5 estrellas y un mensaje de feedback. Cuando clica en "Regenerar Estrategia", el backend inyecta los últimos 3 fallos humanos directamente en el prompt para que la IA corrija su trayectoria de inmediato.
+- **Dynamic Upsell Injection:** Un botón táctico minimalista en el War Room permite al usuario inyectar un servicio secundario (Ej: _Chatbot RAG Automático_) en el copy de ventas con un solo clic. El LLM reescribe el mensaje integrando la venta cruzada usando "Beneficios de Negocio" en vez de "Jerga Técnica".
+- **Zero-Data Robustness:** MARIO V2 no explota con errores 500 si la base de datos de Settings de la agencia está vacía. Emplea _Fallbacks_ lógicos y le notifica amablemente al usuario con alertas ámbar en el War Room B2B.
 
 ---
 
-## 🎯 4. Manual de Operaciones y CRM
+## 🔄 4. Flujos de Datos Principales
 
-El CRM opera bajo un pipeline estricto de estatus. La transición alimenta a la telemetría global (Velocity Pipeline, Win Rates de SPIDER, ROI).
-
-1.  **Nuevo**: Recién escaneado, 0 interacciones. VORTEX procesó de fondo, SPIDER dio veredicto.
-2.  **Contactado**: El Humano hizo click en un Macro-Botón táctico. Este cambio inyecta volumen saliente al Dashboard de Finanzas y diluye el costo contable.
-3.  **Gestión de la Respuesta (Routing MARIO):**
-    - Si ignoran → Macro: Empuje Asimétrico de 48hs.
-    - Si aceptan → Macro: Aislamiento (Meeting/Agenda).
-    - Si objetan → Macro: Judo de Reversión.
-4.  **Estados Terminales/Inflexión:**
-    - **Cita Agendada / Propuesta Enviada:** Éxito en la penetración inicial.
-    - **En Espera:** Dilatación corporativa prolongada. (Mueve Leads de "No Phone/No Web").
-    - **Descartados / Perdido:** Fallo financiero o mortalidad del Lead.
-    - **Cerrado Ganado:** Éxito económico B2B.
+1.  **Ingesta de Leads (`/api/search`)**: Busca leads vía Google Places V1 (costo $0) con grid-search geográfico.
+2.  **Triaje VORTEX (`/api/vortex/enrich/:id`)**: Se evalúa performance y SEO del lead. SPIDER decreta una táctica.
+3.  **War Room (`MarioPanel`)**: El humano abre el lead. MARIO genera el copy de ventas (RAG).
+4.  **Alineación (RLHF):** Si la estrategia es débil, el agente vota 1 estrella, deja feedback ("Suena muy técnico") y regenera.
+5.  **Ataque Final:** El agente inyecta el Upsell Dinámico si es necesario, aprueba el copy definitivo y lo lanza vía WhatsApp / Email usando las macros dinámicas del CRM.
 
 ---
 
@@ -227,99 +104,51 @@ El CRM opera bajo un pipeline estricto de estatus. La transición alimenta a la 
 
 ### 📋 Prerrequisitos
 
-- **Node.js v18+**, **MongoDB** local o Atlas, **Docker** (para Qdrant y Redis), **Cuenta OpenAI**.
+- Node.js v18+, MongoDB local/Atlas, Docker (para Qdrant y Redis).
 
-### 🐳 Infraestructura Docker
-
-El proyecto incluye un `docker-compose.yml` que levanta Qdrant (memoria vectorial de SPIDER) y Redis (BullMQ) con persistencia:
+### 🐳 Infraestructura Local
 
 ```bash
-# Levantar infraestructura (desde la raíz del proyecto)
+# Levantar Qdrant y Redis
 docker compose up -d
-
-# Verificar contenedores
-docker ps
-# Esperado: spider_qdrant (puerto 6333) + spider_redis (puerto 6379)
 ```
 
-### 🛠️ Instalación de Dependencias
+### 🛠️ Configuración (.env)
 
-```bash
-npm run install-all
-```
-
-### 🔑 Configuración del Entorno (.env)
-
-En `backend/.env`:
+Variables requeridas en `backend/.env`:
 
 ```env
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/tu_db
-GOOGLE_PLACES_API_KEY=tu_google_api_key
-
-# --- AI CONFIGURATION ---
+MONGODB_URI=mongodb://localhost:27017/leads_pro
 OPENAI_API_KEY=tu_clave_de_openai
+GOOGLE_PLACES_API_KEY=tu_clave_google
 
-# Redis (BullMQ)
 REDIS_HOST=localhost
 REDIS_PORT=6379
-
-# Qdrant (SPIDER V2 + MARIO RAG)
 QDRANT_URL=http://localhost:6333
-
-# Frontend
 VITE_API_URL=http://localhost:5000/api
 ```
 
-### ⚡ Ejecución
+### ⚡ Ejecución concurrente
+
+La raíz del proyecto cuenta con los scripts para levantar ambos entornos:
 
 ```bash
-# 1. Levantar infraestructura (Qdrant + Redis)
-docker compose up -d
-
-# 2. Desarrollo (Frontend + Backend concurrente)
+# Instalar todo e iniciar backend + frontend
+npm install
 npm run dev
-
-# 3. Ejecución Manual de los 3 procesos
-cd backend && npm run dev
-cd backend && node src/workers/EnrichmentWorker.js
-cd frontend && npm run dev
-
-# 4. Tests Automatizados (Unitarios e Integración)
-cd backend && npm run test
 ```
 
 ---
 
-## 🌍 6. Configuración de Google Cloud API
+## 🔌 6. Referencia de API
 
-1.  Consola Google Cloud → "Proyecto nuevo".
-2.  Habilitar **Places API (New)** y **Geocoding API**.
-3.  Credenciales → Clave de API → **Restringir** la llave solo a esas APIs.
-4.  Activar Facturación (Free tier $200 USD).
-
----
-
-## 🔌 7. Referencia de API
-
-El backend usa un **3-Tier Modular Monolith** de Clean Architecture en varios dominios (Routes → Controller → UseCases/Services).
-
-- **Search:**
-  - `POST /api/search` (Líder principal de ingestión, transacción Mongoose segura)
-  - `GET /api/history`
-  - `DELETE /api/history/:id`
-- **Leads / CRM:**
-  - `PATCH /api/leads/:id/status` (Trigger automágico de estado de campaña + **ingesta Qdrant** al marcar `Cerrado Ganado`)
-  - `POST /api/leads/manual`
-  - `DELETE /api/leads`
-- **Data Intelligence (Billing/Usage):**
-  - `GET /api/intelligence/usage`
-  - `GET /api/stats` (Métricas globales)
-- **AI & Vortex:**
-  - `POST /api/knowledge/upload` (RAG Gatekeeper: NLP PDF/TXT Ingestion & SHA-256 Deduplication)
-  - `POST /api/ai/chat` (Flujo RAG de MARIO)
-  - `POST /api/vortex/enrich/:id` (Pipeline de 5 fases: Scrape → Parse → Profile → **SPIDER Gate** → Vectorize + **SPIDER V2 Predict**)
-  - `POST /api/vortex/deep-vision/:id` (Trigger Nivel 2 Multimodal)
-  - `POST /api/vortex/reset/:id` (Hard Reset Engine)
-  - `GET /api/vortex/status/:id`
-  - `GET /api/vortex/stream/:jobId` (EventSource API con anti-buffering de proxies)
+- **Leads & Search:** `POST /api/search`, `PATCH /api/leads/:id/status` (Guarda en Qdrant el éxito).
+- **Settings & RAG:**
+  - `GET /api/settings/agency`, `PUT /api/settings/agency`
+  - `POST /api/knowledge/upload` (Hashea PDFs e ingesta vectores en Qdrant).
+- **AI & Vortex (V2):**
+  - `GET /api/ai/spider-analysis/:id` (Ejecuta War Room y Veredicto Spider).
+  - `POST /api/ai/mario/score/:id` (Feedback Humano RLHF).
+  - `POST /api/ai/mario/regenerate/:id` (Regeneración inyectando Múltiples Fallos o Forzando Upsell).
+  - `POST /api/vortex/deep-vision/:id` (Gatilla auditoría Multimodal iOS/Desktop UI Chrome).
