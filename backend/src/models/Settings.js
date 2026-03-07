@@ -21,6 +21,10 @@ const SettingsSchema = new mongoose.Schema({
       ideal_for: String,
     },
   ],
+  rag_predefined_tags: {
+    type: [String],
+    default: ['abogados', 'clinicas', 'e-commerce', 'inmobiliarias', 'seguros', 'general'],
+  },
   updatedAt: {
     type: Date,
     default: Date.now,

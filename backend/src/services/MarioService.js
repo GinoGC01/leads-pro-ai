@@ -43,20 +43,47 @@ class MarioService {
       // 2. RAG Injection: Search mario_knowledge in Qdrant based on Lead's applied tactic or niche
       let ragContext = "";
       try {
-        const searchNiche =
-          lead.spider_memory?.applied_tactic ||
-          lead.spider_verdict?.pain ||
-          lead.name;
+        // Construir un query rico semánticamente combinando los atributos del lead
+        const searchNiche = `Empresa/Cliente: ${lead.name}. Sector/Dolor detectado: ${lead.spider_verdict?.pain || "No especificado"}. Táctica a aplicar: ${lead.spider_memory?.applied_tactic || "Venta de servicios IT"}.`;
+        
+        console.log(`[MarioService] RAG Query Term: "${searchNiche}"`);
         const queryEmbedding = await AIService.generateEmbedding(searchNiche);
+
+        // ── HYBRID FILTER: Extract niche keywords for Qdrant tag matching ──
+        const leadNiche = lead.spider_verdict?.pain || lead.category || null;
+        let qdrantFilter = null;
+
+        if (leadNiche) {
+          // Build niche keywords from the pain/category (e.g. "Sector Legal" → "legal")
+          const nicheKeywords = leadNiche
+            .toLowerCase()
+            .replace(/[^a-záéíóúüñ\s]/gi, '')
+            .split(/\s+/)
+            .filter(w => w.length > 3); // Only meaningful words
+
+          if (nicheKeywords.length > 0) {
+            // Qdrant filter: match any document whose tags array contains any of these keywords
+            qdrantFilter = {
+              should: nicheKeywords.map(keyword => ({
+                key: 'tags',
+                match: { value: keyword }
+              }))
+            };
+            console.log(`[MarioService] RAG Hybrid Filter: tags should match any of [${nicheKeywords.join(', ')}]`);
+          }
+        }
+
         const results = await VectorStoreService.searchSimilar(
           COLLECTIONS.MARIO_KNOWLEDGE,
           queryEmbedding,
-          null,
-          3, // Top 3 documents
-          0.4, // Confidence threshold
+          qdrantFilter,
+          5, // Top 5 chunks for richer context
+          0.25, // Permissive threshold
         );
 
+        console.log(`[MarioService] RAG Results Count: ${results?.length || 0}`);
         if (results && results.length > 0) {
+          results.forEach((r, i) => console.log(`  -> Match ${i}: Score = ${r.score.toFixed(4)}, Source = ${r.payload?.source}`));
           const texts = results
             .map((r) => r.payload?.text_chunk)
             .filter(Boolean);
@@ -134,7 +161,7 @@ Debes debatir internamente y generar una estrategia implacable. Tu respuesta DEB
     "technical_rationale": "Por qué esta arquitectura soluciona el problema de fricción técnica o UX detectado."
   },
   "sales_funnel_copy": {
-    "opening_message": "Mensaje de contacto inicial (Directo, casual, humano, atacando el dolor técnico. OMITIR saludos corporativos y despedidas).",
+    "opening_message": "Mensaje de contacto inicial. REGLA ESTRICTA: EL MENSAJE DEBE COMENZAR OBLIGATORIAMENTE PRESENTÁNDOTE CORTAMENTE ASÍ: 'Hola, soy ${salesRep} de ${agencyName}...'. (Mantenlo casual y humano, ataca directo el dolor técnico después de presentarte. OMITIR despedidas corporativas).",
     "follow_up_pressure": "Copy abrasivo pero profesional para seguimiento si hay silencio a las 48hs.",
     "objection_handling": "Manejo corto de la objeción más probable.",
     "closing_script": "Call to action exacto para moverlos a una videollamada de cierre (Zoom/Meet)."

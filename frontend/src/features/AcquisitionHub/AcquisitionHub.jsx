@@ -56,7 +56,7 @@ const AcquisitionHub = () => {
 
     const handleDeleteClick = useCallback((id) => {
         setCampaignToDelete(id);
-        deleteModal.open();
+        deleteModal.openModal();
     }, [deleteModal]);
 
     const handleOpenDashboard = useCallback((id) => {
@@ -67,7 +67,7 @@ const AcquisitionHub = () => {
         if (!campaignToDelete) return;
         
         purgeCampaign(campaignToDelete).then(() => {
-            deleteModal.close();
+            deleteModal.closeModal();
         });
     }, [campaignToDelete, purgeCampaign, deleteModal]);
 
@@ -122,7 +122,7 @@ const AcquisitionHub = () => {
                 {/* Global Modals */}
                 <DeleteConfirmationModal
                     isOpen={deleteModal.isOpen}
-                    onClose={deleteModal.close}
+                    onClose={deleteModal.closeModal}
                     onConfirm={confirmDelete}
                     customMessage="Todos los prospectos y datos de la campaña web serán destruidos. Esta acción es irreversible."
                 />

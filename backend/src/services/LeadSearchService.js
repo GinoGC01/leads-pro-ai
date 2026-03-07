@@ -428,6 +428,13 @@ class LeadSearchService {
      */
     static async _startSession() {
         try {
+            const uri = process.env.MONGO_URI || '';
+            const isReplicaSet = uri.includes('replicaSet') || uri.startsWith('mongodb+srv://');
+            
+            if (!isReplicaSet) {
+                return null;
+            }
+            
             const session = await mongoose.startSession();
             return session;
         } catch (err) {

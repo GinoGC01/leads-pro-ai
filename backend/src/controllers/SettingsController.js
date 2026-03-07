@@ -19,6 +19,7 @@ class SettingsController {
           linguistic_behavior: "AUTO",
           value_proposition: "",
           core_services: [],
+          rag_predefined_tags: ['abogados', 'clinicas', 'e-commerce', 'inmobiliarias', 'seguros', 'general'],
         });
       }
 
@@ -29,6 +30,7 @@ class SettingsController {
         linguistic_behavior: settings.linguistic_behavior,
         value_proposition: settings.value_proposition,
         core_services: settings.core_services || [],
+        rag_predefined_tags: settings.rag_predefined_tags || [],
       });
     } catch (error) {
       console.error(
@@ -52,6 +54,7 @@ class SettingsController {
         linguistic_behavior,
         core_services,
         value_proposition,
+        rag_predefined_tags,
       } = req.body;
 
       const settings = await Settings.findOneAndUpdate(
@@ -62,6 +65,7 @@ class SettingsController {
           linguistic_behavior: linguistic_behavior || "AUTO",
           core_services: core_services || [],
           value_proposition: value_proposition || "",
+          rag_predefined_tags: rag_predefined_tags || undefined,
           updatedAt: Date.now(),
         },
         { new: true, upsert: true },
@@ -76,6 +80,7 @@ class SettingsController {
         linguistic_behavior: settings.linguistic_behavior,
         core_services: settings.core_services,
         value_proposition: settings.value_proposition,
+        rag_predefined_tags: settings.rag_predefined_tags || [],
       });
     } catch (error) {
       console.error(

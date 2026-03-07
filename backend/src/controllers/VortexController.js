@@ -267,6 +267,41 @@ class VortexController {
         // Send Initial Connected Event
         writeEvent('connected', { message: 'SSE Stream Connected to VORTEX Engine' });
 
+        // RACE CONDITION SHIELD: Check if job is already finished
+        (async () => {
+            try {
+                // Determine which queue to check
+                const targetQueue = isVisionJob ? QueueService.visionQueue : QueueService.enrichmentQueue;
+                
+                if (!targetQueue) return;
+
+                const job = await targetQueue.getJob(jobId);
+                
+                // Si el job no existe (fue removido por removeOnComplete) o ya está completado
+                if (!job) {
+                    writeEvent('completed', { returnvalue: null });
+                    cleanup();
+                    res.end();
+                } else {
+                    const isCompleted = await job.isCompleted();
+                    if (isCompleted) {
+                        writeEvent('completed', { returnvalue: job.returnvalue });
+                        cleanup();
+                        res.end();
+                    } else {
+                        const isFailed = await job.isFailed();
+                        if (isFailed) {
+                            writeEvent('failed', { failedReason: job.failedReason });
+                            cleanup();
+                            res.end();
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('[VortexController] Error checking job status on stream connection:', err);
+            }
+        })();
+
         // Centralized cleanup function
         const cleanup = () => {
             clearInterval(keepAliveInterval);

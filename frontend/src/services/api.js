@@ -104,15 +104,22 @@ export const getAgencySettings = () => api.get("/settings/agency");
 export const updateAgencySettings = (data) => api.put("/settings/agency", data);
 
 // RAG Knowledge Ingestion
-export const uploadKnowledgeDocument = (file) => {
+export const uploadKnowledgeDocument = (file, options = {}) => {
   const formData = new FormData();
   formData.append("file", file);
+  if (options.metadata) formData.append("metadata", options.metadata);
+  if (options.chunkSize) formData.append("chunkSize", String(options.chunkSize));
+  if (options.overlap) formData.append("overlap", String(options.overlap));
   return api.post("/knowledge/upload", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
     },
   });
 };
+
+export const getKnowledgeDocuments = () => api.get("/knowledge/documents");
+export const deleteKnowledgeDocument = (id) => api.delete(`/knowledge/documents/${id}`);
+export const flushKnowledgeDocuments = () => api.delete("/knowledge/flush");
 
 // AI Strategy (Mario RLHF)
 export const scoreStrategy = (strategyId, score, feedback) =>

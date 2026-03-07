@@ -205,31 +205,61 @@ class VectorStoreService {
     );
   }
 
-  // ─── UTILITIES ─────────────────────────────────────────────────────
+  // ─── ISOLATED DELETION (AGENT-SCOPED) ────────────────────────────
 
   /**
-   * Drop and recreate a collection (testing/reset).
+   * Delete all vectors belonging to a specific document, scoped by agent.
+   * Uses Qdrant's filter-based deletion to avoid touching other agents' data.
+   * @param {string} collectionName - Target collection
+   * @param {string} documentId - The UUID document_id stored in payload
+   * @param {string} agentId - The agent owner (e.g. 'MARIO')
    */
-  async clearCollection(collectionName = COLLECTIONS.SPIDER_MEMORY) {
+  async deleteByDocumentId(collectionName, documentId, agentId = 'MARIO') {
     try {
       const client = this.getClient();
-      const collections = await client.getCollections();
-      const exists = collections.collections.some(
-        (c) => c.name === collectionName,
-      );
-      if (exists) {
-        await client.deleteCollection(collectionName);
-      }
-      await client.createCollection(collectionName, {
-        vectors: { size: VECTOR_DIM, distance: "Cosine" },
+      await client.delete(collectionName, {
+        wait: true,
+        filter: {
+          must: [
+            { key: 'document_id', match: { value: documentId } },
+            { key: 'agent_id', match: { value: agentId } }
+          ]
+        }
       });
-      console.log(
-        `[VectorStore] 🧹 Collection "${collectionName}" cleared and recreated.`,
-      );
+      console.log(`[VectorStore] 🗑️ Deleted vectors for document "${documentId}" (agent: ${agentId}) from "${collectionName}".`);
+      return true;
     } catch (err) {
-      console.error(`[VectorStore] ⚠️ clearCollection failed: ${err.message}`);
+      console.error(`[VectorStore] ⚠️ deleteByDocumentId failed: ${err.message}`);
+      return false;
     }
   }
+
+  /**
+   * Flush ALL vectors belonging to a specific agent from a collection.
+   * NEVER drops the collection — only removes vectors matching the agent_id filter.
+   * @param {string} collectionName - Target collection
+   * @param {string} agentId - The agent owner (e.g. 'MARIO')
+   */
+  async flushByAgent(collectionName, agentId = 'MARIO') {
+    try {
+      const client = this.getClient();
+      await client.delete(collectionName, {
+        wait: true,
+        filter: {
+          must: [
+            { key: 'agent_id', match: { value: agentId } }
+          ]
+        }
+      });
+      console.log(`[VectorStore] 🧹 Flushed all vectors for agent "${agentId}" from "${collectionName}".`);
+      return true;
+    } catch (err) {
+      console.error(`[VectorStore] ⚠️ flushByAgent failed: ${err.message}`);
+      return false;
+    }
+  }
+
+  // ─── UTILITIES ─────────────────────────────────────────────────────
 
   /**
    * Convert a MongoDB ObjectId string to a Qdrant-compatible unsigned integer.

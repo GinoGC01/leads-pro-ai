@@ -121,6 +121,13 @@ const useVortexAnalysis = (lead, setLead, onLeadUpdate) => {
                 }
             } else if (updatedLead.vortex_status === 'failed' || updatedLead.enrichmentStatus === 'failed') {
                 AlertService.error('Vortex falló o fue bloqueado.');
+            } else if (updatedLead.enrichmentStatus === 'skipped_rented_land') {
+                if (vortexToastIdRef.current) {
+                    AlertService.errorUpdate(vortexToastIdRef.current, 'Auditoría omitida (Tierra Alquilada).');
+                    vortexToastIdRef.current = null;
+                } else {
+                    AlertService.error('Auditoría omitida (Tierra Alquilada).');
+                }
             }
         } catch (err) {
             console.error('[useVortexAnalysis] Error refetching after stream:', err);

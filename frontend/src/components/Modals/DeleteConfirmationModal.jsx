@@ -1,7 +1,7 @@
 import React from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 
-const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, count }) => {
+const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, count, customMessage }) => {
     if (!isOpen) return null;
 
     return (
@@ -20,8 +20,12 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, count }) => {
 
                     <div className="p-4 bg-red-50 rounded-xl border border-red-100 mb-6">
                         <p className="text-sm text-red-700 leading-relaxed">
-                            Estás a punto de eliminar <span className="font-bold">{count} leads</span> del sistema.
-                            Se borrarán todos sus datos, métricas y la inteligencia vectorial de forma irreversible.
+                            {customMessage ? customMessage : (
+                                <>
+                                    Estás a punto de eliminar <span className="font-bold">{count} leads</span> del sistema.
+                                    Se borrarán todos sus datos, métricas y la inteligencia vectorial de forma irreversible.
+                                </>
+                            )}
                         </p>
                     </div>
 

@@ -76,5 +76,8 @@ router.post(
   KnowledgeController.uploadMiddleware,
   KnowledgeController.uploadDocument,
 );
+router.get("/knowledge/documents", KnowledgeController.listDocuments);
+router.delete("/knowledge/documents/:id", KnowledgeController.deleteDocument);
+router.delete("/knowledge/flush", KnowledgeController.flushDocuments);
 
 export default router;

@@ -44,6 +44,18 @@ const knowledgeDocumentSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    metadata: {
+        type: Object,
+        default: {}
+    },
+    chunk_size: {
+        type: Number,
+        default: 1000
+    },
+    overlap: {
+        type: Number,
+        default: 200
+    },
     uploaded_by: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
