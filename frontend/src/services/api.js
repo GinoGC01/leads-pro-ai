@@ -107,7 +107,8 @@ export const updateAgencySettings = (data) => api.put("/settings/agency", data);
 export const uploadKnowledgeDocument = (file, options = {}) => {
   const formData = new FormData();
   formData.append("file", file);
-  if (options.metadata) formData.append("metadata", options.metadata);
+  if (options.niche) formData.append("niche", options.niche);
+  if (options.is_global !== undefined) formData.append("is_global", String(options.is_global));
   if (options.chunkSize) formData.append("chunkSize", String(options.chunkSize));
   if (options.overlap) formData.append("overlap", String(options.overlap));
   return api.post("/knowledge/upload", formData, {

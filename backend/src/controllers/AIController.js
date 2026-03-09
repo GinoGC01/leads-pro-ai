@@ -297,7 +297,10 @@ class AIController {
       );
 
       // 2. Capa Neuronal (War Room JSON + RLHF)
-      const marioResult = await MarioService.generateStrategy(lead._id);
+      const objectionMode = req.body?.objection_mode || "STANDARD";
+      const marioResult = await MarioService.generateStrategy(lead._id, [], {
+        objection_mode: objectionMode,
+      });
 
       return res.status(200).json({
         spider_verdict: spiderVerdict,
@@ -360,10 +363,14 @@ class AIController {
         `[RLHF] Regenerando estrategia para lead ${leadId} inyectando ${failedStrategies.length} fallos humanos. (Force Upsell: ${force_upsell})`,
       );
 
+      const objectionMode = req.body?.objection_mode || "STANDARD";
       const marioResult = await MarioService.generateStrategy(
         leadId,
         failedStrategies,
-        { forceUpsell: force_upsell === true },
+        {
+          forceUpsell: force_upsell === true,
+          objection_mode: objectionMode,
+        },
       );
 
       return res.status(200).json({

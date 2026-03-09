@@ -54,12 +54,9 @@ class KnowledgeController {
             // ─── PARSE CONFIGURABLE PARAMS FROM MULTIPART BODY ──────
             const chunkSize = parseInt(req.body.chunkSize) || 1000;
             const overlap = parseInt(req.body.overlap) || 200;
-            let metadataTags = [];
-            if (req.body.metadata) {
-                // Accept comma-separated string: "abogados, legal, penal"
-                metadataTags = req.body.metadata.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
-            }
-            console.log(`[Knowledge] ⚙️ Config: chunkSize=${chunkSize}, overlap=${overlap}, tags=[${metadataTags.join(', ')}]`);
+            const niche = (req.body.niche || 'general').trim().toLowerCase();
+            const isGlobal = req.body.is_global === 'true' || req.body.is_global === true;
+            console.log(`[Knowledge] ⚙️ Config: chunkSize=${chunkSize}, overlap=${overlap}, niche="${niche}", is_global=${isGlobal}`);
 
             // ─── STEP 1: SHA-256 Deduplication ─────────────────────────
             const fileHash = DocumentProcessor.generateHash(buffer);
@@ -148,7 +145,8 @@ class KnowledgeController {
                             source: originalname,
                             chunk_index: i,
                             total_chunks: chunks.length,
-                            tags: metadataTags,
+                            niche: niche,
+                            is_global: isGlobal,
                             agent_id: 'MARIO'
                         }
                     );
@@ -171,7 +169,8 @@ class KnowledgeController {
                 document_id: documentId,
                 status: 'ACCEPTED',
                 chunks_count: successCount,
-                metadata: { tags: metadataTags },
+                niche: niche,
+                is_global: isGlobal,
                 chunk_size: chunkSize,
                 overlap
             });
@@ -218,7 +217,7 @@ class KnowledgeController {
         try {
             const documents = await KnowledgeDocument.find()
                 .sort({ createdAt: -1 })
-                .select('filename status metadata chunks_count chunk_size overlap reject_reason size_bytes createdAt')
+                .select('filename status niche is_global chunks_count chunk_size overlap reject_reason size_bytes createdAt')
                 .lean();
 
             return res.status(200).json({

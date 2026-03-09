@@ -117,40 +117,23 @@ class SpiderEngine {
         const hasWebsite = !!(lead.website || lead.websiteUri);
 
         if (!hasWebsite) {
-
-
-            let reputationContext = "";
-            let intentString = "";
-
-            if (reviews === 0) {
-                reputationContext = "Invisibilidad digital y cero validación social en Google Maps.";
-                intentString = "Ruptura de patrón: 'Vi que no tienen página web ni suficientes reseñas en Google para generar confianza. La competencia se está llevando a los clientes que buscan su servicio'.";
-            } else if (rating >= 4.5) {
-                reputationContext = "Atrapados por falta de ecosistema, a pesar de tener excelente validación social.";
-                intentString = `Ruptura de patrón: 'Vi que tienen excelentes calificaciones en Google Maps pero al no tener página web, están perdiendo a los clientes premium que buscan más validación'.`;
-            } else if (rating >= 4.0) {
-                reputationContext = "Validación social buena pero estándar. Sin web pierden autoridad frente al top 1%.";
-                intentString = `Ruptura de patrón: 'Vi que tienen buenas referencias en Google Maps, pero al no tener página web profesional, se están quedando atrás y perdiendo clientes premium ante la competencia'.`;
-            } else {
-                reputationContext = "Crisis de confianza: Mala reputación en Maps combinada con inexistencia de página web que los defienda.";
-                intentString = `Ruptura de patrón: 'Asumo que están sintiendo la baja de volumen. Teniendo una baja puntuación en Maps y sin una página web profesional que eleve su autoridad, están regalando los clientes a la competencia'.`;
-            }
-
+            const description = "Su marca es invisible para los procesos de decisión modernos. No estar presente con un ecosistema propio significa ceder una parte crítica de la demanda a competidores que sí interceptan la intención de búsqueda.";
+            
             return {
                 status: "GO",
                 isRentable: true,
                 tier: 2,
-                pain: reputationContext,
-                service: "Creación de Identidad Digital (Web + SEO Local)",
-                tactic_name: "NO_WEB_FOMO",
+                pain: reputation_context,
+                service: "Creación de Identidad Digital (Ecosistema Propio)",
+                tactic_name: "INVISIBILIDAD_TOTAL",
                 cadence: [
-                    { step: 1, channel: "WhatsApp", intent: intentString },
-                    { step: 2, channel: "Email", intent: "Mockup de cómo luciría su web frente a su competencia directa." },
-                    { step: 3, channel: "WhatsApp", intent: "Takeaway/Breakup: 'Asumo que están a reventar de clientes en el local y no necesitan presencia digital'." }
+                    { step: 1, channel: "WhatsApp", intent: `Ruptura de patrón: '${description}'` },
+                    { step: 2, channel: "Email", intent: "Proyección de mercado: Cómo la competencia captura el tráfico que ellos no pueden ver." },
+                    { step: 3, channel: "WhatsApp", intent: "Takeaway: 'Asumo que prefieren mantener el perfil bajo a pesar de la fuga de demanda digital'." }
                 ],
-                technical_flaw: "No poseen dominio web ni infraestructura detectable.",
+                technical_flaw: description,
                 friction_score: "N/A",
-                friction_angle: "No tienen web. Cero costo hundido. Es un lienzo en blanco.",
+                friction_angle: "Inexistencia de infraestructura. Lienzo en blanco.",
                 historical_confidence: 90,
                 has_website_flag: false,
                 reputation_context: reputation_context
@@ -162,22 +145,23 @@ class SpiderEngine {
         const isRentedLand = RENTED_LAND_DOMAINS.some(domain => urlString.includes(domain));
 
         if (isRentedLand) {
+            const description = "Al no tener web propia, su marca está en 'tierra alquilada'. Mandar tráfico a un link genérico destruye su autoridad, los hace parecer un negocio amateur y les quita el control total sobre su reputación y sus datos.";
             return {
                 status: "GO",
                 isRentable: true,
-                tier: 1, // Mantén la lógica de asignar el tier correcto o déjalo en 1 temporalmente para priorizar la migración
-                pain: "Inestabilidad de marca. Construir un negocio sobre un dominio prestado (SaaS/Redes) destruye la autoridad frente a clientes premium y mata el SEO Local.",
-                service: "Web Propia de Alta Autoridad + Migración de Sistema",
-                tactic_name: "RENTED_LAND_AUTHORITY",
+                tier: 1,
+                pain: "Inestabilidad de marca y pérdida de autoridad por dependencia de terceros.",
+                service: "Ecosistema Digital Propio de Alta Autoridad",
+                tactic_name: "TIERRA_ALQUILADA_AUDIT",
                 cadence: [
-                    { step: 1, channel: "WhatsApp", intent: "Ruptura de patrón: 'Mandar prospectos a un dominio genérico destruye tu autoridad frente a clientes High-Ticket'." }
+                    { step: 1, channel: "WhatsApp", intent: `Ruptura de patrón: '${description}'` }
                 ],
-                technical_flaw: "Tierra Alquilada: El negocio redirige su tráfico a un dominio de un tercero (SaaS/RRSS) que no controlan.",
-                friction_score: "LOW", // No tienen inversión propia real
-                friction_angle: "Están alquilando su presencia digital. Cero costo hundido en código propio.",
+                technical_flaw: description,
+                friction_score: "LOW",
+                friction_angle: "Presencia delegada en plataformas de terceros. Bajo costo hundido.",
                 historical_confidence: 85,
                 has_website_flag: true,
-                is_rented_land_flag: true, // CRÍTICO PARA MARIO
+                is_rented_land_flag: true,
                 reputation_context: reputation_context
             };
         }
@@ -213,37 +197,25 @@ class SpiderEngine {
             };
         }
 
-        // 3. Technical Cross-referencing
-        let technical_flaw = "Ninguna falla crítica obvia.";
+        // 3. Technical Cross-referencing (Hierarchy of Attack)
+        let technical_flaw = "Su infraestructura digital presenta puntos ciegos que afectan la captura de demanda.";
 
-        const { performance_metrics, seo_audit, enrichmentStatus, enrichmentError } = lead;
+        const { performance_metrics, seo_audit, enrichmentStatus, vision_analysis } = lead;
 
         if (enrichmentStatus === 'failed') {
-            technical_flaw = `La web no carga o está caída. Los clientes que buscan su negocio en Google ven un error.`;
+            technical_flaw = "Su plataforma tiene un punto de rebote forzado; la web no carga correctamente, lo que desconecta cualquier intención de compra de sus resultados.";
         } else {
-            let flaws = [];
-
-            if (performance_metrics?.lcp > 3000) {
-                flaws.push("la web tarda demasiado en abrir desde el celular");
-            } else if (performance_metrics?.performanceScore < 50) {
-                flaws.push("la web funciona muy mal en celulares");
+            // Priority 2: Desempeño Crítico
+            if (performance_metrics?.lcp > 3000 || performance_metrics?.performanceScore < 50) {
+                technical_flaw = "Su plataforma tiene un punto de rebote forzado. La espera para cargar es mayor a la paciencia del cliente premium, lo que hace que usted pague por visitas que nunca llegan a ver su oferta.";
+            } 
+            // Priority 3: Fricción de Contacto (UX/Vision)
+            else if (vision_analysis && vision_analysis.ux_score < 6) {
+                technical_flaw = "Existe una fricción de acceso crítica en su interfaz. El cliente hoy busca gratificación inmediata; si el contacto es confuso o requiere demasiados pasos, la venta se desplaza hacia quien ofrece el camino de menor resistencia.";
             }
-
-            if (seo_audit) {
-                if (!seo_audit.title) {
-                    flaws.push("la web no tiene identificación para Google (es como un local sin cartel en la calle)");
-                }
-                if (seo_audit.h1_tags && seo_audit.h1_tags.length === 0) {
-                    flaws.push("Google no puede leer bien la web y no la muestra a los clientes que buscan su servicio");
-                }
-            }
-
-            // Implement Hierarchy & Natural Aggregation
-            if (flaws.length === 1) {
-                technical_flaw = flaws[0];
-            } else if (flaws.length > 1) {
-                // Take the most severe flaw (the first one pushed) and aggregate the rest naturally
-                technical_flaw = `${flaws[0]}, y otros puntos débiles más`;
+            // SEO/Others as fallback
+            else if (seo_audit && (!seo_audit.title || (seo_audit.h1_tags && seo_audit.h1_tags.length === 0))) {
+                technical_flaw = "Su marca sufre de una invisibilidad técnica ante los motores de búsqueda; es como tener un local premium sin cartel en la calle más transitada.";
             }
         }
 

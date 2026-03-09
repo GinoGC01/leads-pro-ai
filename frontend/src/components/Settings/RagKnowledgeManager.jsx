@@ -8,7 +8,8 @@ import useModal from '../../hooks/useModal';
 const RagKnowledgeManager = () => {
     // Tag dictionary from Settings
     const [predefinedTags, setPredefinedTags] = useState([]);
-    const [selectedTags, setSelectedTags] = useState([]);
+    const [selectedNiche, setSelectedNiche] = useState('general');
+    const [isGlobal, setIsGlobal] = useState(false);
     const [newTagInput, setNewTagInput] = useState('');
 
     // Ingestion config
@@ -16,6 +17,7 @@ const RagKnowledgeManager = () => {
     const [overlap, setOverlap] = useState(200);
 
     // Upload state
+    const [selectedFile, setSelectedFile] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef(null);
@@ -60,8 +62,8 @@ const RagKnowledgeManager = () => {
     };
 
     // ─── Tag Dictionary Management ────────────────────────────────
-    const toggleTag = (tag) => {
-        setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+    const selectNiche = (niche) => {
+        if (!isGlobal) setSelectedNiche(niche);
     };
 
     const addNewTag = async () => {
@@ -86,7 +88,7 @@ const RagKnowledgeManager = () => {
     const removeTagFromDictionary = async (tagToRemove) => {
         const updatedTags = predefinedTags.filter(t => t !== tagToRemove);
         setPredefinedTags(updatedTags);
-        setSelectedTags(prev => prev.filter(t => t !== tagToRemove));
+        if (selectedNiche === tagToRemove) setSelectedNiche('general');
 
         try {
             await updateAgencySettings({ rag_predefined_tags: updatedTags });
@@ -98,28 +100,33 @@ const RagKnowledgeManager = () => {
     // ─── File Upload ──────────────────────────────────────────────
     const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
     const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
-    const handleDrop = (e) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files?.[0]) processFile(e.dataTransfer.files[0]); };
-    const handleFileSelect = (e) => { if (e.target.files?.[0]) processFile(e.target.files[0]); if (fileInputRef.current) fileInputRef.current.value = ''; };
-    const handleBoxClick = () => { if (!isUploading && fileInputRef.current) fileInputRef.current.click(); };
+    const handleDrop = (e) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files?.[0]) setSelectedFile(e.dataTransfer.files[0]); };
+    const handleFileSelect = (e) => { if (e.target.files?.[0]) setSelectedFile(e.target.files[0]); if (fileInputRef.current) fileInputRef.current.value = ''; };
+    const handleBoxClick = () => { if (!isUploading && !selectedFile && fileInputRef.current) fileInputRef.current.click(); };
 
-    const processFile = async (file) => {
-        if (!file) return;
+    const processFile = async () => {
+        if (!selectedFile) return;
         setIsUploading(true);
 
         const options = {
-            metadata: selectedTags.length > 0 ? selectedTags.join(', ') : undefined,
+            niche: selectedNiche,
+            is_global: isGlobal,
             chunkSize: chunkSize || undefined,
             overlap: overlap || undefined
         };
 
-        const uploadPromise = uploadKnowledgeDocument(file, options);
+        const uploadPromise = uploadKnowledgeDocument(selectedFile, options);
         toast.promise(uploadPromise, {
             loading: 'Analizando documento con IA Guardian...',
             success: 'Documento vectorizado e ingresado a la base de conocimiento.',
             error: 'Gatekeeper rechazó el documento o falló la ingesta.'
         });
 
-        try { await uploadPromise; } catch { /* handled by toast */ }
+        try {
+            await uploadPromise;
+            setSelectedFile(null); // Clear selected file on success so dropzone resets
+        } catch { /* handled by toast */ }
+        
         await fetchDocuments();
         setIsUploading(false);
     };
@@ -190,19 +197,31 @@ const RagKnowledgeManager = () => {
                     Upload PDFs or TXT files. IA Guardian will evaluate quality before ingesting.
                 </p>
 
-                {/* Controlled Tag Selector (Pills) */}
+                {/* Controlled Niche Selector (Radio Pills) & Global Toggle */}
                 <div className="space-y-3 mb-5">
-                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Tag size={13} className="text-indigo-400" />
-                        Etiquetas de Nicho
+                    <label className="flex items-center justify-between text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                        <span className="flex items-center gap-1.5">
+                            <Tag size={13} className="text-indigo-400" />
+                            Nicho (Único)
+                        </span>
+                        
+                        <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                            <span className={`text-[11px] font-bold tracking-wider uppercase transition-colors ${isGlobal ? 'text-amber-400' : 'text-slate-500 leading-none mt-0.5'}`}>Documento Global</span>
+                            <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isGlobal ? 'bg-amber-500' : 'bg-slate-700'}`}>
+                                <input type="checkbox" className="sr-only" checked={isGlobal} onChange={(e) => setIsGlobal(e.target.checked)} />
+                                <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${isGlobal ? 'translate-x-5' : 'translate-x-1'}`} />
+                            </div>
+                        </label>
                     </label>
                     <div className="flex flex-wrap gap-2">
                         {predefinedTags.map(tag => (
                             <button
                                 key={tag}
-                                onClick={() => toggleTag(tag)}
+                                onClick={() => selectNiche(tag)}
+                                disabled={isGlobal}
                                 className={`group relative px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider border transition-all duration-200 ${
-                                    selectedTags.includes(tag)
+                                    isGlobal ? 'opacity-40 cursor-not-allowed bg-slate-800/50 text-slate-500 border-slate-700/30' :
+                                    selectedNiche === tag
                                         ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40 shadow-[0_0_12px_rgba(99,102,241,0.15)]'
                                         : 'bg-slate-800/50 text-slate-400 border-slate-700/50 hover:border-slate-600 hover:text-slate-300'
                                 }`}
@@ -267,31 +286,62 @@ const RagKnowledgeManager = () => {
                     </div>
                 </div>
 
-                {/* Dropzone */}
+                {/* Dropzone or Selected File */}
                 <div onClick={handleBoxClick} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
-                    className={`group border-dashed border-2 rounded-xl p-10 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 relative overflow-hidden ${
+                    className={`group border-dashed border-2 rounded-xl p-10 flex flex-col items-center justify-center transition-all duration-300 relative overflow-hidden ${
                         isDragging ? 'border-indigo-500 bg-indigo-500/10'
-                            : 'border-slate-600 bg-slate-800/30 hover:border-indigo-400 hover:bg-slate-800/60'
-                    } ${isUploading ? 'pointer-events-none border-indigo-500/50 bg-indigo-500/5' : ''}`}>
+                            : selectedFile ? 'border-indigo-500/50 bg-indigo-500/5' 
+                            : 'border-slate-600 bg-slate-800/30 hover:border-indigo-400 hover:bg-slate-800/60 cursor-pointer'
+                    } ${isUploading ? 'pointer-events-none opacity-50' : ''}`}>
+                    
                     {isUploading ? (
                         <div className="flex flex-col items-center animate-in zoom-in duration-300">
                             <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
-                            <p className="text-indigo-400 font-medium animate-pulse">Processing via Guardian...</p>
+                            <p className="text-indigo-400 font-medium animate-pulse">Procesando con IA Guardian...</p>
+                        </div>
+                    ) : selectedFile ? (
+                        <div className="flex flex-col items-center w-full max-w-sm animate-in zoom-in duration-300">
+                            <div className="flex items-center justify-between w-full p-4 bg-slate-800/80 rounded-xl border border-indigo-500/30 shadow-lg mb-6">
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <div className="p-2 bg-indigo-500/20 text-indigo-400 rounded-lg">
+                                        <FileText size={24} />
+                                    </div>
+                                    <div className="overflow-hidden">
+                                        <p className="text-sm font-semibold text-white truncate">{selectedFile.name}</p>
+                                        <p className="text-xs text-slate-400">{formatBytes(selectedFile.size)}</p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
+                                    className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors ml-2 flex-shrink-0"
+                                    title="Quitar archivo"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                            
+                            <button
+                                onClick={(e) => { e.stopPropagation(); processFile(); }}
+                                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                            >
+                                <UploadCloud size={20} />
+                                Subir y Procesar Archivo
+                            </button>
                         </div>
                     ) : (
                         <div className="flex flex-col items-center">
                             <div className="p-4 bg-slate-800 rounded-full mb-4 shadow-lg ring-1 ring-white/5 group-hover:bg-slate-700 transition-colors">
                                 <UploadCloud size={32} className="text-indigo-400 group-hover:scale-110 transition-transform duration-300" />
                             </div>
-                            <p className="text-white font-medium mb-1 group-hover:text-indigo-300 transition-colors">Click to select or drag and drop</p>
+                            <p className="text-white font-medium mb-1 group-hover:text-indigo-300 transition-colors">Click o arrastrar archivo aquí</p>
                             <p className="text-sm text-slate-500">PDF, TXT (Max 10MB)</p>
-                            {selectedTags.length > 0 && (
-                                <div className="flex gap-1.5 mt-3">
-                                    {selectedTags.map(t => (
-                                        <span key={t} className="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 text-[10px] font-semibold border border-indigo-500/20 uppercase">{t}</span>
-                                    ))}
-                                </div>
-                            )}
+                            <div className="flex gap-1.5 mt-3">
+                                {isGlobal ? (
+                                    <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 text-[10px] font-bold border border-amber-500/20 uppercase">GLOBAL</span>
+                                ) : (
+                                    <span className="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 text-[10px] font-bold border border-indigo-500/20 uppercase">{selectedNiche}</span>
+                                )}
+                            </div>
                         </div>
                     )}
                     <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} accept=".pdf,.txt" />
@@ -323,7 +373,7 @@ const RagKnowledgeManager = () => {
                                 <tr className="border-b border-slate-700/50 bg-slate-800/50">
                                     <th className="p-4 text-xs font-semibold tracking-wide text-slate-400 uppercase">Document</th>
                                     <th className="p-4 text-xs font-semibold tracking-wide text-slate-400 uppercase">Status</th>
-                                    <th className="p-4 text-xs font-semibold tracking-wide text-slate-400 uppercase hidden md:table-cell">Tags</th>
+                                    <th className="p-4 text-xs font-semibold tracking-wide text-slate-400 uppercase hidden md:table-cell">Niche</th>
                                     <th className="p-4 text-xs font-semibold tracking-wide text-slate-400 uppercase hidden sm:table-cell text-center">Chunks</th>
                                     <th className="p-4 text-xs font-semibold tracking-wide text-slate-400 uppercase hidden lg:table-cell text-center">Config</th>
                                     <th className="p-4 text-xs font-semibold tracking-wide text-slate-400 uppercase text-right">Date</th>
@@ -350,9 +400,11 @@ const RagKnowledgeManager = () => {
                                         </td>
                                         <td className="p-4 hidden md:table-cell">
                                             <div className="flex flex-wrap gap-1.5">
-                                                {doc.metadata?.tags?.length > 0 ? doc.metadata.tags.map((tag, i) => (
-                                                    <span key={i} className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-[10px] font-semibold border border-indigo-500/20 uppercase tracking-wider">{tag}</span>
-                                                )) : <span className="text-xs text-slate-600 italic">—</span>}
+                                                {doc.is_global ? (
+                                                    <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 text-[10px] font-bold border border-amber-500/20 uppercase tracking-wider">GLOBAL</span>
+                                                ) : (
+                                                    <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-[10px] font-bold border border-indigo-500/20 uppercase tracking-wider">{doc.niche || 'general'}</span>
+                                                )}
                                             </div>
                                         </td>
                                         <td className="p-4 hidden sm:table-cell text-center">
@@ -361,8 +413,8 @@ const RagKnowledgeManager = () => {
                                         <td className="p-4 hidden lg:table-cell text-center">
                                             <span className="text-[11px] text-slate-500 font-mono">{doc.chunk_size || 1000}/{doc.overlap || 200}</span>
                                         </td>
-                                        <td className="p-4 text-right">
-                                            <div className="flex items-center justify-end gap-1.5 text-xs text-slate-500">
+                                        <td className="p-4 pr-0 text-right">
+                                            <div className="flex items-center justify-end gap-1.5 text-[10px] text-slate-500">
                                                 <Calendar size={12} /> {formatDate(doc.createdAt)}
                                             </div>
                                         </td>

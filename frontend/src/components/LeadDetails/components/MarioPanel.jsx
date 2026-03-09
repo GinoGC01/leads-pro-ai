@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Loader2, RefreshCw, Target, Bot, AlertTriangle, Star, CheckCircle2, MessageSquareText, ShieldAlert, Zap } from 'lucide-react';
 import ActionCard from './ActionCard';
-import { scoreStrategy, regenerateStrategy } from '../../../services/api'; 
+import { scoreStrategy, regenerateStrategy, getAgencySettings } from '../../../services/api'; 
 import toast from 'react-hot-toast';
+import { useEffect } from 'react';
 
 /**
  * MarioPanel
@@ -12,14 +13,38 @@ import toast from 'react-hot-toast';
  */
 const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading, onRegenerate, onFetchSpider }) => {
     
+    // V10.4 State
+    const [messageType, setMessageType] = useState('base'); // 'base' or 'upsell'
+    const [activeObjection, setActiveObjection] = useState(null);
+
     // RLHF State
     const [rating, setRating] = useState(0);
     const [hoverRating, setHoverRating] = useState(0);
     const [feedback, setFeedback] = useState('');
     const [isRegenerating, setIsRegenerating] = useState(false);
-    const [isUpsellAdded, setIsUpsellAdded] = useState(false);
+    const [agencySettings, setAgencySettings] = useState({ sales_rep_name: 'Mario', agency_name: 'Leads Pro AI' });
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const response = await getAgencySettings();
+                if (response.data && response.data.success) {
+                    setAgencySettings({
+                        sales_rep_name: response.data.sales_rep_name || 'Mario',
+                        agency_name: response.data.agency_name || 'Leads Pro AI'
+                    });
+                }
+            } catch (error) {
+                console.warn("[MarioPanel] Error fetching settings, using defaults:", error);
+            }
+        };
+        fetchSettings();
+    }, []);
+
+    const personalizedGreeting = `Hola! soy ${agencySettings.sales_rep_name} de ${agencySettings.agency_name}.`;
 
     const handleRLHFSubmit = async () => {
+        // ... (keep existing handleRLHFSubmit logic)
         if (!strategyId) {
             toast.error("No hay ID de estrategia para enviar feedback.");
             return;
@@ -27,16 +52,10 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
         
         try {
             setIsRegenerating(true);
-            
-            // 1. Submit the score and feedback
             await scoreStrategy(strategyId, rating, feedback);
-            
-            // 2. Trigger regeneration if low score
             toast.loading("Reforzando aprendizaje y regenerando estrategia...", { id: 'rlhf' });
             await onRegenerate(true);
             toast.success("Estrategia regenerada vía RLHF", { id: 'rlhf' });
-            
-            // Reset state
             setRating(0);
             setFeedback('');
         } catch (error) {
@@ -61,11 +80,11 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
                         </span>
                     </div>
                     <div>
-                        <h1 className="text-xs font-bold tracking-widest uppercase text-slate-400">MARIO V2</h1>
-                        <p className="text-[14px] font-bold leading-none text-slate-100 mt-1">Neuro-Symbolic Closer</p>
+                        <h1 className="text-xs font-bold tracking-widest uppercase text-slate-400">MARIO V10.4</h1>
+                        <p className="text-[14px] font-bold leading-none text-slate-100 mt-1">Sales Orchestration Engine</p>
                     </div>
                 </div>
-                {!isSpiderLoading && !isAiLoading && !isRegenerating && aiResponse && (
+                {(!isSpiderLoading && !isAiLoading && !isRegenerating && aiResponse && ['Nuevo', 'Descartados', 'Sin WhatsApp'].includes(lead?.status)) && (
                     <button
                         onClick={() => onRegenerate(false)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#27272a] bg-[#18181b] hover:bg-slate-800 transition-colors text-xs font-bold text-slate-300"
@@ -82,7 +101,7 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
                 {isSpiderLoading || isAiLoading || isRegenerating ? (
                     <div className="h-full w-full flex flex-col items-center justify-center text-[10px] text-slate-500 font-mono uppercase gap-4 absolute inset-0 z-50 bg-[#09090b]/80 backdrop-blur-sm">
                         <Loader2 className="w-8 h-8 animate-spin text-[#0d59f2]" />
-                        <span>MARIO procesando war room...</span>
+                        <span>MARIO orquestando embudo V10.4...</span>
                     </div>
                 ) : (
                     aiResponse ? (
@@ -108,129 +127,164 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
                                     }
                                 }
 
-                                const ragCited = parsedStrategy?.internal_reasoning?.rag_sources_cited;
-                                const isNoContext = ragCited === 'NO_CONTEXT_FOUND';
-                                
-                                const approachOverview = parsedStrategy?.strategic_planning?.approach_overview;
-                                const coreOffer = parsedStrategy?.solution_architecture?.core_offer;
-                                const innovativeUpsell = parsedStrategy?.solution_architecture?.innovative_upsell;
-
-                                const copyData = parsedStrategy?.sales_funnel_copy || parsedStrategy;
-
-                                const cards = [
-                                    { key: parsedStrategy.sales_funnel_copy ? 'opening_message' : 'ataque_inicial', title: 'Primer Contacto', colorClass: 'text-[#0d59f2]', borderColor: 'border-l-[#0d59f2]', icon: <MessageSquareText className="w-5 h-5" />, subtitle: 'Ataque sugerido' },
-                                    { key: parsedStrategy.sales_funnel_copy ? 'follow_up_pressure' : 'reaccion_ignorado', title: 'Seguimiento (48hs)', colorClass: 'text-emerald-500', borderColor: 'border-l-emerald-500', icon: <RefreshCw className="w-5 h-5" />, subtitle: 'Reactivación' },
-                                    { key: parsedStrategy.sales_funnel_copy ? 'closing_script' : 'reaccion_favorable', title: 'Script de Cierre', colorClass: 'text-slate-100', borderColor: 'border-l-slate-600', icon: <Zap className="w-5 h-5" />, subtitle: 'Llamado a la acción' },
-                                    { key: parsedStrategy.sales_funnel_copy ? 'objection_handling' : 'reaccion_objecion', title: 'Resolución de Objeciones', colorClass: 'text-amber-500', borderColor: 'border-l-amber-500', icon: <ShieldAlert className="w-5 h-5" />, subtitle: 'Manejo defensivo' },
-                                ];
+                                const isV10_4 = !!parsedStrategy.timeline;
+                                const resume = parsedStrategy.resumen_orquestacion || parsedStrategy.strategic_planning?.approach_overview;
+                                const timeline = parsedStrategy.timeline || [];
+                                const coreTarget = parsedStrategy.core_target;
+                                const objectionTree = parsedStrategy.objection_tree || {};
 
                                 return (
                                     <>
-                                        {/* AI Context Alert */}
-                                        {isNoContext && (
-                                            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-                                                <div className="flex items-start gap-3">
-                                                    <div className="bg-amber-500/20 p-2 rounded-lg shrink-0">
-                                                        <AlertTriangle className="text-amber-500 w-5 h-5" />
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <h3 className="text-amber-500 font-bold text-sm uppercase tracking-wider mb-1">Falta de Contexto</h3>
-                                                        <p className="text-slate-300 text-[13px] leading-relaxed">
-                                                            <code className="text-amber-500/80 font-mono text-xs bg-amber-500/10 px-1 py-0.5 rounded mr-1">NO_CONTEXT_FOUND</code> 
-                                                            Se requiere información de nicho en la base de datos RAG para optimizar. MARIO aplicó lógica comercial genérica de alta conversión como respaldo.
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Strategic Block */}
-                                        {approachOverview && (
+                                        {/* V10.4 Strategic Timeline */}
+                                        {isV10_4 && (
                                             <section>
                                                 <div className="flex items-center justify-between mb-4">
                                                     <h2 className="text-lg font-bold flex items-center gap-2 text-slate-100">
                                                         <Target className="w-5 h-5 text-emerald-500" />
-                                                        Resumen Estratégico
+                                                        Pipeline Orchestration
                                                     </h2>
-                                                    <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 uppercase">Live Ops</span>
-                                                </div>
-                                                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 shadow-inner">
-                                                    <p className="text-[14px] text-slate-300 leading-relaxed font-light mb-5">
-                                                        {approachOverview}
-                                                    </p>
-                                                    
-                                                    {(coreOffer || innovativeUpsell) && (
-                                                        <div className="flex flex-wrap gap-3">
-                                                            {coreOffer && (
-                                                                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#09090b] border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.05)]">
-                                                                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                                    <span className="text-xs font-medium text-slate-200">Core Offer: {coreOffer}</span>
-                                                                </div>
-                                                            )}
-                                                            {innovativeUpsell && (
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#09090b] border border-[#0d59f2]/30 shadow-[0_0_10px_rgba(13,89,242,0.05)]">
-                                                                        <span className="w-2 h-2 rounded-full bg-[#0d59f2]"></span>
-                                                                        <span className="text-xs font-medium text-slate-200">Upsell: {innovativeUpsell}</span>
-                                                                    </div>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            if (isRegenerating || isUpsellAdded) return;
-                                                                            setIsRegenerating(true);
-                                                                            onRegenerate(true, { force_upsell: true })
-                                                                                .then(() => setIsUpsellAdded(true))
-                                                                                .catch((e) => toast.error("Error al inyectar upsell."))
-                                                                                .finally(() => setIsRegenerating(false));
-                                                                        }}
-                                                                        disabled={isRegenerating || isUpsellAdded}
-                                                                        className={`text-[10px] uppercase font-bold tracking-widest flex items-center gap-1.5 transition-all outline-none ${
-                                                                            isUpsellAdded 
-                                                                                ? 'text-emerald-500 cursor-default' 
-                                                                                : 'text-slate-500 hover:text-slate-200'
-                                                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
-                                                                        title="Inyectar estratégico en copy"
-                                                                    >
-                                                                        {isRegenerating ? (
-                                                                            <Loader2 className="w-3 h-3 animate-spin" />
-                                                                        ) : isUpsellAdded ? (
-                                                                            <CheckCircle2 className="w-3.5 h-3.5" />
-                                                                        ) : null}
-                                                                        {isUpsellAdded ? 'Agregado' : 'Añadir al Copy'}
-                                                                    </button>
-                                                                </div>
-                                                            )}
-                                                        </div>
+                                                    {coreTarget && (
+                                                        <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 uppercase">
+                                                            Target: {coreTarget}
+                                                        </span>
                                                     )}
+                                                </div>
+                                                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 mb-6">
+                                                    <p className="text-[13px] text-slate-400 italic mb-6">"{resume}"</p>
+                                                    <div className="space-y-4">
+                                                        {timeline.map((step, idx) => (
+                                                            <div key={idx} className="flex gap-4 group">
+                                                                <div className="flex flex-col items-center">
+                                                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${idx === 0 ? 'bg-emerald-500 text-slate-900' : 'bg-[#27272a] text-slate-500'}`}>
+                                                                        {step.step || idx + 1}
+                                                                    </div>
+                                                                    {idx < timeline.length - 1 && <div className="w-px h-full bg-[#27272a] my-1"></div>}
+                                                                </div>
+                                                                <div className="pb-4">
+                                                                    <p className="text-[13px] text-slate-200 group-hover:text-emerald-400 transition-colors uppercase font-bold tracking-tight mb-1">Paso {step.step || idx + 1}</p>
+                                                                    <p className="text-[12px] text-slate-500 leading-relaxed font-mono">{step.action}</p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </section>
                                         )}
 
-                                        {/* Sales Funnel Action Cards */}
+                                        {/* Dual-Copy Selector & Main Message */}
                                         <section className="space-y-4">
-                                            <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4">Pipeline Protocol</h2>
-                                            
-                                            {cards.map(card => {
-                                                const textContent = copyData[card.key];
-                                                if (!textContent || typeof textContent !== 'string') return null;
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em]">Primary Weapon</h2>
+                                                {isV10_4 && (
+                                                    <div className="flex bg-[#18181b] border border-[#27272a] rounded-lg p-1">
+                                                        <button 
+                                                            onClick={() => setMessageType('base')}
+                                                            className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${messageType === 'base' ? 'bg-[#0d59f2] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                                        >
+                                                            Base
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => setMessageType('upsell')}
+                                                            className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${messageType === 'upsell' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                                        >
+                                                            Upsell
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
 
-                                                const salesRep = localStorage.getItem('salesRepName') || 'nuestro equipo';
-                                                const processedForWA = textContent.replace(/\[TÚ\]/g, salesRep).replace(/\[Nombre del Prospector\]/g, salesRep).replace(/\[Tu Nombre\]/g, salesRep);
+                                            {(() => {
+                                                const textContent = isV10_4 
+                                                    ? (messageType === 'base' ? parsedStrategy.mensaje_base : parsedStrategy.mensaje_con_upsell)
+                                                    : (parsedStrategy.sales_funnel_copy?.opening_message || parsedStrategy.ataque_inicial);
+                                                
+                                                if (!textContent) return null;
+
+                                                const salesRep = localStorage.getItem('salesRepName') || agencySettings.sales_rep_name || 'nuestro equipo';
+                                                
+                                                // Robust Injection: Prepend if token is missing
+                                                let finalContent = textContent;
+                                                if (!finalContent.includes('[PERSONALIZED_GREETING]')) {
+                                                    finalContent = `[PERSONALIZED_GREETING] ${finalContent}`;
+                                                }
+
+                                                const processedForWA = finalContent
+                                                    .replace(/\[PERSONALIZED_GREETING\]/g, personalizedGreeting)
+                                                    .replace(/\[TÚ\]/g, salesRep).replace(/\[Nombre del Prospector\]/g, salesRep).replace(/\[Tu Nombre\]/g, salesRep);
+                                                
+                                                const displayContent = finalContent.replace(/\[PERSONALIZED_GREETING\]/g, personalizedGreeting);
 
                                                 return (
                                                     <ActionCard
-                                                        key={card.key}
-                                                        title={card.title}
-                                                        subtitle={card.subtitle}
-                                                        textContent={textContent}
+                                                        title={messageType === 'base' ? 'Mensaje Base' : 'Mensaje c/ Upsell'}
+                                                        subtitle="Ataque Directo"
+                                                        textContent={displayContent}
                                                         whatsAppText={processedForWA}
-                                                        colorClass={card.colorClass}
-                                                        borderColor={card.borderColor}
-                                                        icon={card.icon}
+                                                        colorClass={messageType === 'base' ? 'text-[#0d59f2]' : 'text-emerald-500'}
+                                                        borderColor={messageType === 'base' ? 'border-l-[#0d59f2]' : 'border-l-emerald-500'}
+                                                        icon={messageType === 'base' ? <MessageSquareText className="w-5 h-5" /> : <Zap className="w-5 h-5" />}
                                                         lead={lead}
                                                     />
                                                 );
-                                            })}
+                                            })()}
                                         </section>
+
+                                        {/* Dynamic Objection Tree */}
+                                        {isV10_4 && (
+                                            <section>
+                                                <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4">Objection Defense</h2>
+                                                <div className="grid grid-cols-1 gap-4">
+                                                    {Object.entries(objectionTree).map(([key, value]) => {
+                                                        // Robust Injection for Objections
+                                                        let finalObjection = value;
+                                                        if (!finalObjection.includes('[PERSONALIZED_GREETING]')) {
+                                                            finalObjection = `[PERSONALIZED_GREETING] ${finalObjection}`;
+                                                        }
+
+                                                        const processedWaObjection = finalObjection
+                                                            .replace(/\[PERSONALIZED_GREETING\]/g, personalizedGreeting)
+                                                            .replace(/\[Empresa\]/g, lead.name)
+                                                            .replace(/\[TÚ\]/g, agencySettings.sales_rep_name);
+                                                        
+                                                        const displayObjection = finalObjection.replace(/\[PERSONALIZED_GREETING\]/g, personalizedGreeting);
+
+                                                        return (
+                                                            <ActionCard 
+                                                                key={key}
+                                                                title={`Defensa: ${key}`}
+                                                                subtitle="Contragolpe Psicológico"
+                                                                textContent={displayObjection}
+                                                                whatsAppText={processedWaObjection}
+                                                                colorClass="text-slate-200"
+                                                                borderColor="border-l-slate-600"
+                                                                icon={<ShieldAlert className="w-5 h-5 text-[#0d59f2]" />}
+                                                                lead={lead}
+                                                            />
+                                                        );
+                                                    })}
+                                                </div>
+                                            </section>
+                                        )}
+
+                                        {/* Legacy Actions (if not V10.4) */}
+                                        {!isV10_4 && (
+                                            <section className="space-y-4">
+                                                {/* (Keep existing card mapping for backward compatibility if needed, or omit if V10.4 is full migration) */}
+                                                {['reaccion_ignorado', 'reaccion_favorable', 'reaccion_objecion'].map((key) => {
+                                                    const textContent = parsedStrategy[key];
+                                                    if (!textContent) return null;
+                                                    return (
+                                                        <ActionCard
+                                                            key={key}
+                                                            title={key.replace(/_/g, ' ')}
+                                                            textContent={textContent}
+                                                            lead={lead}
+                                                            // ... other props
+                                                        />
+                                                    );
+                                                })}
+                                            </section>
+                                        )}
 
                                         {/* RLHF Console */}
                                         {strategyId && (

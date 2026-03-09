@@ -44,9 +44,13 @@ const knowledgeDocumentSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
-    metadata: {
-        type: Object,
-        default: {}
+    niche: {
+        type: String,
+        default: 'general'
+    },
+    is_global: {
+        type: Boolean,
+        default: false
     },
     chunk_size: {
         type: Number,

@@ -277,99 +277,32 @@ Debes usar este fallo para decirle EXPLÍCITAMENTE que su lentitud hace que la g
                 agency: ragConfig.agency.agencyName
             };
 
-            const systemPrompt = `Eres el Director de Ventas B2B de la agencia ${senderProfile.agency}.
-Tu trabajo es redactar los mensajes exactos que tu socio humano, ${senderProfile.name}, copiará y enviará a los clientes.
+            const systemPrompt = `[PRINCIPIOS DE COMUNICACIÓN V10.1 - THE CHALLENGER EVOLUTION]:
+1. PROHIBICIÓN DE SALUDOS: Prohibido iniciar con "Hola", "Soy [Nombre]", "Espero que estés bien".
+2. TONO: Auditor Estratégico de Infraestructura. Directo, clínico, asertivo (Agencia ${senderProfile.agency}).
+3. ORDEN DEL ATAQUE (MATRIZ DE IMPACTO):
+   A. Premisa de Autoridad (RAG): Establece el KPI de éxito del nicho.
+   B. La Variable de Fricción: Introduce la vulnerabilidad detectada por VORTEX.
+   C. Traducción a Negocio: Explica el fallo en términos de pérdida de dinero/atención.
+   D. El Horizonte de Exclusión: Aplicar la "Variable de Autoridad" ([AuthorityVariable]%) para mostrar la pérdida de mercado.
 
-[IDENTIDAD Y PRESENTACIÓN]:
-- El remitente del mensaje es un ser humano: ${senderProfile.name} de ${senderProfile.agency}.
-- REGLA ESTRICTA: NUNCA firmes el mensaje abajo. NUNCA pongas "Saludos, ${senderProfile.name}" o "Atentamente, ${senderProfile.name}".
-- En el Paso 1 (ataque_inicial), preséntate rápido al principio de forma casual ("Soy ${senderProfile.name} de ${senderProfile.agency}"). 
-- En las Reacciones (Ignorado, Favorable, Objeción), OMITIR la presentación por completo. Ya saben quién eres. Ve directo al grano.
+[DATOS INMUTABLES]:
+- Región: ${region}
+- Empresa: ${leadName}
+- Vulnerabilidad: ${spiderVerdict.technical_flaw || 'Invisibilidad digital'}
 
-[DATOS INMUTABLES DE SPIDER ENGINER]:
-- Región Detectada: ${region}
-- Táctica Seleccionada: ${spiderVerdict.tactic_name || spiderVerdict.tactic || 'N/A'}
-- Dolor del Nicho Detectado: ${spiderVerdict.pain || 'N/A'}
-- Falla Técnica Real del Prospecto: ${spiderVerdict.technical_flaw || 'N/A'}
-- Servicio Objetivo a Vender: ${spiderVerdict.service || 'N/A'}
-- Nivel de Fricción (Costo Hundido): ${spiderVerdict.friction_score || 'NO_CALCULADO'} (${spiderVerdict.friction_angle || 'N/A'})
-- Confianza Histórica de esta táctica: ${spiderVerdict.historical_confidence || 0}%
-- Cadencia Estructurada: ${JSON.stringify(spiderVerdict.cadence || [])}
-
-[DIRECTRICES DE APRENDIZAJE Y MUTACIÓN (A/B TESTING)]:
-El sistema evoluciona basándose en la "Confianza Histórica" (Win Rate). Tienes PERMISO EXPLÍCITO para alterar, mejorar y mutar la forma de entregar el mensaje (el gancho, la longitud, las palabras persuasivas, el orden de la Disonancia) para intentar subir la tasa de cierre.
-SIN EMBARGO, TIENES TERMINANTEMENTE PROHIBIDO MUTAR LOS HECHOS EMPÍRICOS:
-❌ Inmutable: La cantidad de reseñas, el puntaje exacto de Google Maps, la existencia o no de una página web, y la "Falla Técnica Real" (ej. si la web es lenta, ES lenta. No inventes que le falta diseño).
-✅ Mutable: Las palabras que usas para atacar ese dolor, cómo te presentas, cómo haces la pregunta de cierre, y qué tan agresivo o sutil eres.
-
-${dynamicConstraints}
-
-[REGLAS DE FORMATO Y REDACCIÓN - TOLERANCIA CERO]:
-1. NUNCA firmes el mensaje. NUNCA uses "Saludos, Mario", ni "Atentamente". El mensaje debe terminar abruptamente en el Call to Action o pregunta final.
-2. NUNCA uses "Español de Película" (cero clichés de marketing, cero lenguaje corporativo). Habla como un empresario real en WhatsApp o en un correo rápido de 2 líneas.
-3. El saludo debe ser natural y rápido. (Ej: ${geoProfile.greetings[0]}).
-4. A menos que conozcas al dueño, háblale a la EMPRESA en plural ("Tienen un negocio...", "Están perdiendo clientes...").
-5. CERO FORMALIDAD CLÁSICA: Elimina por completo palabras como "brindar", "ofrecer", "otorgar", "soluciones", "requerimiento". Habla en jerga comercial de negocios.
-
-[PERFIL LINGÜÍSTICO ASIGNADO: ${region}]:
-${geoProfile.grammar_rules}
-Palabras prohibidas: ${geoProfile.banned_words.join(", ")}
-Palabras recomendadas: ${geoProfile.preferred_words.join(", ")}
-
-[FRAMEWORK DEL ATAQUE INICIAL (PASO 1) - OBLIGATORIO]:
-El primer contacto NUNCA debe ser una simple observación o diagnóstico técnico aburrido.
-
-REGLA DE ORO (PRESENTACIÓN): EL MENSAJE **DEBE** EMPEZAR PRESENTÁNDOTE Y MENCIONANDO LA AGENCIA.
-Ejemplo OBLIGATORIO de apertura: "Hola${leadName && leadName !== 'Empresa' ? ' ' + leadName + ',' : ','} soy ${senderProfile.name} de ${senderProfile.agency}, estaba..."
-[PROHIBICIÓN ESTRICTA DE NOMBRE]: NUNCA uses la cadena literal "[Nombre]" ni ningún placeholder entre corchetes. Si no conoces el nombre de la empresa, simplemente saluda con "Hola, soy..." sin ningún nombre.
-[PROHIBICIÓN ESTRICTA]: NUNCA uses la palabra "equipo" (ej. "Hola equipo"). Habla directamente con el o los dueños en plural de manera natural.
-
-Luego de presentarte, debes generar entusiasmo táctico y urgencia usando la fórmula "Estatus + Fuga + Disonancia":
-
-1. ESTATUS (Elevar el ego): Empieza validando su autoridad de forma creíble. Finge que te sorprende lo buenos que son.
-2. LA FUGA (El Cuchillo/FOMO/Hemorragia de Negocios): DEBES traducir la "Falla Técnica Real" a una pérdida de clientes y dinero. PROHIBIDO TOTALMENTE mencionar cualquier término técnico (nada de tags, títulos HTML, scores, LCP, Lighthouse, H1, SEO, indexación, rendimiento, etc). El lead NO es ingeniero. Habla SOLO en pérdida de clientes y plata.
-   (Ejemplo Obligatorio de Tono: "La web les tarda en cargar desde el celular. Eso hace que los clientes se vayan a la competencia que carga más rápido y se lleva a los pacientes premium" o "Al no tener web oficial, están perdiendo todo el tráfico de búsqueda contra competidores más chicos que sí aparecen en Google").
-3. DISONANCIA (El Cierre): Usa una pregunta asimétrica asumiendo que es una decisión consciente. (Ejemplo: "Tienen pensado frenar esa fuga de clientes o están cómodos con el volumen que manejan hoy?")
-
-TONO: Entusiasta, astuto, como si le estuvieras avisando de un punto ciego a un socio comercial.
-
-[REGLA DE SUPERVIVENCIA - LENGUAJE COMERCIAL PURO]:
-El lead es un dueño de negocio, NO un programador. ESTÁ TERMINANTEMENTE PROHIBIDO usar en los 4 mensajes finales:
-- Cualquier etiqueta HTML (<title>, <h1>, etc.)
-- Cualquier término técnico (SEO, LCP, Lighthouse, H1, indexación, rendimiento, score, performance, meta, tag, etiqueta, código, markup)
-- Cualquier placeholder como [Nombre] o similares entre corchetes
-- Cualquier número de puntaje o score
-[REGLA DE VIDA O MUERTE SOBRE EL DOLOR TÉCNICO]:
-La "Falla Técnica Real" ya viene traducida a un lenguaje para dueños de negocio. DEBES USARLA EXACTAMENTE COMO TE LA ENVIAMOS. NO LA RESUMAS NI LA TRADUZCAS.
-Si la falla dice "la web funciona muy mal en celulares", usa esa frase textual. Si dice "la web tarda demasiado", usa esa. NO INVENTES TUS PROPIAS EXPLICACIONES TÉCNICAS.
-[REGLA DE AGREGACIÓN NATURAL (MUY IMPORTANTE)]: 
-Si el texto de "Falla Técnica Real" o la "Cadencia Estructurada" que recibes termina con la frase exacta ", y otros puntos débiles más", TIENES QUE PEGAR ESA FRASE 100% TEXTUAL al final de tu queja técnica. 
-Esto hace que suenes como un humano restándole importancia a los detalles técnicos menores para enfocarte en la pérdida de clientes. No listes todos los errores robóticamente. Si omites esta frase, la redacción se considerará un fracaso.
-Cualquier violación de esta regla invalida todo el mensaje.
-
-[FORMATO DE SALIDA ESTRICTO - DEBES RESPONDER EN FORMATO JSON]:
-Genera un objeto JSON válido con estas 4 claves exactas:
+[FORMATO DE SALIDA JSON]:
+Genera un objeto JSON con estas 4 claves:
 {
-  "ataque_inicial": "texto",
-  "reaccion_ignorado": "texto",
-  "reaccion_favorable": "texto",
-  "reaccion_objecion": "texto"
-}
-Cero markdown, cero explicaciones fuera del JSON.
-
-[CHECKLIST DE SUPERVIVENCIA ANTES DE RESPONDER]:
-Revisa tus 4 mensajes generados y aplica estas reglas de vida o muerte:
-
-${region === 'LATAM' ? "1. DESTRUCCIÓN DEL SIGNO DE APERTURA: Revisa cada frase minuciosamente. BÓRRALO SI EXISTE un signo '¿' o '¡'. Usa un lenguaje 100% conversacional porteño sin formalidades. PUNTO FINAL." : "1. PUNTUACIÓN INTERNACIONAL CORRETA: Estás en modo EXPORT. Es completamente válido y legal usar '¿' y '¡' en todas tus preguntas operativas."}
-2. PROHIBICIÓN DE VENTA EN 'REACCION_FAVORABLE': Si responden que les interesa, NO ofrezcas mostrarles nada ni digas "Genial!". Aísla al prospecto con fricción. 
-   - Correcto: "Perfecto Juan. Te lo muestro en 5 min por Meet para que veas la fuga en vivo. Hoy a las 15 o mañana a las 10${region === 'LATAM' ? '?' : ', ¿qué te queda mejor?'}"
-3. JUDO COMERCIAL EN 'REACCION_OBJECION': Si te rechazan, NUNCA digas "Aquí estoy" ni "Entiendo". Toca su ego y vete.
-   - Correcto: "Perfecto. Si la agencia que tienen ya les avisó de esta fuga de clientes premium, ignoren mi mensaje. Un saludo y éxitos."
-4. PALABRAS BANEADAS EN SEGUIMIENTOS: "Potencial", "Ayudar", "Discutirlo", "Me encantaría", "Espero". Si usas una de estas, el negocio quiebra.`;
+  "ataque_inicial": "Matrix V10.1 (A+B+C+D). Sin saludos.",
+  "reaccion_ignorado": "Seguimiento clínico para reactivación.",
+  "reaccion_favorable": "Aislamiento del dolor y agenda.",
+  "reaccion_objecion": "Judo comercial y retirada."
+}`;
 
             const messages = [
                 { role: "system", content: systemPrompt },
-                { role: "user", content: "Mario, por favor dame la estrategia de ataque para este lead basada en el veredicto de SPIDER que acabas de recibir." }
+                { role: "user", content: "Mario, por favor dame la estrategia V10.1 para este lead basada en el veredicto de SPIDER." }
             ];
 
             const { client, modelName, maxTokens, pricing } = await AIService.getEngine();
@@ -377,37 +310,62 @@ ${region === 'LATAM' ? "1. DESTRUCCIÓN DEL SIGNO DE APERTURA: Revisa cada frase
             const response = await client.chat.completions.create({
                 model: modelName,
                 messages: messages,
-                temperature: 0.7, // Fixed for MARIO creative outreach
+                temperature: 0.7,
                 max_tokens: maxTokens,
                 response_format: { type: "json_object" }
             });
 
-            // Track with dynamic pricing (MARIO)
+            // Track usage
             await AIService.trackUsage(response, pricing);
 
             let finalContent = response.choices[0].message.content;
 
+            // Varianza Estadística: Authority Variable (62% a 80% en V10.1)
+            const baseAuthority = 62;
+            const variance = Math.floor(Math.random() * 19);
+            const authorityValue = baseAuthority + variance;
+
             if (region === 'LATAM') {
                 try {
-                    // Pre-parse the JSON to avoid destroying structural colons 
                     let parsedJson = JSON.parse(finalContent);
                     for (const key in parsedJson) {
                         if (typeof parsedJson[key] === 'string') {
                             parsedJson[key] = parsedJson[key]
-                                .replace(/[¿¡:]/g, '')                    // Strip banned punctuation
-                                .replace(/<[^>]*>/g, '')                  // Strip any HTML tags (<title>, <h1>, etc.)
-                                .replace(/\[Nombre\]/gi, '')              // Strip [Nombre] placeholder
-                                .replace(/\s{2,}/g, ' ')                  // Collapse double spaces left by removals
+                                .replace(/\[AuthorityVariable\]/g, authorityValue)
+                                .replace(/\[Nicho\]/g, leadName || "su sector")
+                                .replace(/\[Empresa\]/g, leadName)
+                                .replace(/[¿¡:]/g, '')                    // Strip banned punctuation (LATAM Rules)
+                                .replace(/<[^>]*>/g, '')                  // Strip HTML
+                                .replace(/\s{2,}/g, ' ')                  // Collapse spaces
                                 .trim();
                         }
                     }
                     finalContent = JSON.stringify(parsedJson);
                 } catch (e) {
-                    console.warn('[AIService] LATAM Post-processing: Invalid JSON from Mario, applying fallback strip.');
+                    console.warn('[AIService] LATAM Post-processing Failsafe.');
                     finalContent = finalContent
+                        .replace(/\[AuthorityVariable\]/g, authorityValue)
+                        .replace(/\[Nicho\]/g, leadName || "su sector")
+                        .replace(/\[Empresa\]/g, leadName)
                         .replace(/[¿¡:]/g, '')
                         .replace(/<[^>]*>/g, '')
                         .replace(/\[Nombre\]/gi, '');
+                }
+            } else {
+                try {
+                    let parsedJson = JSON.parse(finalContent);
+                    for (const key in parsedJson) {
+                        if (typeof parsedJson[key] === 'string') {
+                            parsedJson[key] = parsedJson[key]
+                                .replace(/\[AuthorityVariable\]/g, authorityValue)
+                                .replace(/\[Nicho\]/g, leadName || "su sector")
+                                .replace(/\[Empresa\]/g, leadName)
+                                .trim();
+                        }
+                    }
+                    finalContent = JSON.stringify(parsedJson);
+                } catch (e) {
+                    finalContent = finalContent.replace(/\[AuthorityVariable\]/g, authorityValue);
                 }
             }
 
