@@ -207,15 +207,22 @@ class SpiderEngine {
         } else {
             // Priority 2: Desempeño Crítico
             if (performance_metrics?.lcp > 3000 || performance_metrics?.performanceScore < 50) {
-                technical_flaw = "Su plataforma tiene un punto de rebote forzado. La espera para cargar es mayor a la paciencia del cliente premium, lo que hace que usted pague por visitas que nunca llegan a ver su oferta.";
+                technical_flaw = "Pérdida de autoridad por velocidad: La espera para cargar es mayor a la paciencia del cliente premium, lo que hace que usted pague por visitas que nunca llegan a ver su oferta.";
             } 
             // Priority 3: Fricción de Contacto (UX/Vision)
             else if (vision_analysis && vision_analysis.ux_score < 6) {
-                technical_flaw = "Existe una fricción de acceso crítica en su interfaz. El cliente hoy busca gratificación inmediata; si el contacto es confuso o requiere demasiados pasos, la venta se desplaza hacia quien ofrece el camino de menor resistencia.";
+                technical_flaw = "Fricción de Conversión: Existe una barrera de acceso en su interfaz. El cliente busca gratificación inmediata; si el contacto es confuso, la venta se desplaza hacia quien ofrece el camino de menor resistencia.";
             }
-            // SEO/Others as fallback
+            // SEO/Others
             else if (seo_audit && (!seo_audit.title || (seo_audit.h1_tags && seo_audit.h1_tags.length === 0))) {
-                technical_flaw = "Su marca sufre de una invisibilidad técnica ante los motores de búsqueda; es como tener un local premium sin cartel en la calle más transitada.";
+                technical_flaw = "Invisibilidad técnica: Su marca no es indexada correctamente por Google; es como tener un local premium sin cartel en la calle más transitada.";
+            }
+            // Priority 4: Healthy Website but lack of IA/Automation (TITAN Trap)
+            else if (vision_analysis && vision_analysis.ux_score >= 8 && (performance_metrics?.performanceScore || 0) >= 80) {
+              technical_flaw = "Ineficiencia Operativa: Poseen una infraestructura sólida, pero carecen de una capa de respuesta inmediata IA. Esto genera una fuga de leads silenciosa en horarios no comerciales.";
+            }
+            else {
+              technical_flaw = "Techo de Crecimiento: Su ecosistema digital es funcional pero pasivo. No intercepta activamente la demanda con sistemas de persuasión automatizados.";
             }
         }
 

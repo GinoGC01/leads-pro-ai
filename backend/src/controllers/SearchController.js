@@ -11,6 +11,7 @@ import ApiUsage from '../models/ApiUsage.js';
 import ScoringService from '../services/ScoringService.js';
 import VectorStoreService, { COLLECTIONS } from '../services/VectorStoreService.js';
 import CampaignService from '../services/CampaignService.js';
+import MarioStrategy from '../models/MarioStrategy.js';
 
 /**
  * SearchController — The Bouncer (Search Domain).
@@ -132,12 +133,25 @@ class SearchController {
                 );
             }
 
-            // 🧠 SPIDER V2: Qdrant Vector Learning (ONLY authorized write path)
-            // When a lead is marked as "Cerrado Ganado", ingest its vector into Qdrant
-            // so SPIDER can predict tactics for similar future leads.
-            if (status === 'Cerrado Ganado') {
-                SearchController._ingestWonLeadToQdrant(id).catch(err =>
-                    console.error('[SPIDER V2] Qdrant ingestion error (non-blocking):', err.message)
+            // 🧠 MARIO AI: Automated Engagement-Based Scoring (KPI Decoupling)
+            // Success States: Positive Response or Appointment
+            const engagementSuccess = ['Respuesta Positiva', 'Cita Agendada', 'Propuesta Enviada'].includes(status);
+            // Failure States: Silence or Discard (without previous engagement)
+            const engagementFailure = ['Ignorado', 'Descartados'].includes(status);
+
+            if (engagementSuccess) {
+                SearchController._autoScoreAI(id, 5).catch(err => 
+                    console.error('[MARIO RLHF] Auto-score (WON) error:', err.message)
+                );
+                SearchController._ingestAIWinningPattern(id, 'WON').catch(err =>
+                    console.error('[SPIDER V2] Qdrant Winning Pattern error:', err.message)
+                );
+            } else if (engagementFailure) {
+                SearchController._autoScoreAI(id, 1).catch(err => 
+                    console.error('[MARIO RLHF] Auto-score (LOST) error:', err.message)
+                );
+                SearchController._ingestAIWinningPattern(id, 'LOST').catch(err =>
+                    console.error('[SPIDER V2] Qdrant Failure Pattern error:', err.message)
                 );
             }
 
@@ -148,34 +162,56 @@ class SearchController {
     }
 
     /**
-     * SPIDER V2: Deferred Qdrant Ingestion (markLeadAsWon).
-     * Reads the spider_context_vector from MongoDB and upserts to Qdrant.
-     * This is the ONLY function authorized to write to Qdrant.
+     * RLHF: Internal automation to score the last strategy based on lead engagement.
      * @private
      */
-    static async _ingestWonLeadToQdrant(leadId) {
+    static async _autoScoreAI(leadId, score) {
+        // Find latest strategy for this lead
+        const strategy = await MarioStrategy.findOne({ lead_id: leadId }).sort({ generated_at: -1 });
+        if (!strategy) return;
+
+        // Resurrection Logic: If it was already scored as failure but now we have success, overwrite.
+        if (strategy.human_score === score) return; 
+
+        strategy.human_score = score;
+        strategy.status = score >= 3 ? 'APPROVED' : 'REJECTED';
+        strategy.human_feedback = score === 5 ? 'Automated success via client engagement.' : 'Automated failure via client silence/discard.';
+        
+        await strategy.save();
+        console.log(`[MARIO RLHF] Auto-Score applied to lead ${leadId}: ${score} stars. Status: ${strategy.status}`);
+    }
+
+    /**
+     * SPIDER V2: Ingest the tactical "Winning" or "Losing" pattern to Qdrant.
+     * Use this to help Mario learn from what actually gets replies.
+     * @private
+     */
+    static async _ingestAIWinningPattern(leadId, outcome = 'WON') {
         const lead = await Lead.findById(leadId).select('+spider_context_vector');
         if (!lead || !lead.spider_context_vector || lead.spider_context_vector.length === 0) {
-            console.log(`[SPIDER V2] ⚠️ Lead ${leadId} has no spider_context_vector. Skipping Qdrant ingestion.`);
+            console.log(`[SPIDER V2] ⚠️ Lead ${leadId} has no spider_context_vector. Skipping Qdrant.`);
             return;
         }
 
         const { default: VectorStoreService } = await import('../services/VectorStoreService.js');
         
+        // Metadata focused on pattern learning (DNA del Lead + Tactic)
+        const payload = {
+            lead_id: lead._id.toString(),
+            outcome: outcome, // 'WON' (Reply/Meeting) or 'LOST' (Ignored)
+            tactic: lead.spider_memory?.applied_tactic || 'UNKNOWN',
+            niche: lead.category || 'General',
+            tech_stack: (lead.tech_stack || []).slice(0, 5),
+            friction_score: lead.spider_memory?.friction_score || 'UNKNOWN',
+            opportunity_score: lead.leadOpportunityScore || 0
+        };
+
         await VectorStoreService.upsertLeadVector(
             leadId,
             lead.spider_context_vector,
-            {
-                lead_id: lead._id.toString(),
-                status: 'WON',
-                tactic: lead.spider_memory?.applied_tactic || 'UNKNOWN',
-                niche: lead.category || 'General',
-                tech_stack: (lead.tech_stack || []).slice(0, 5),
-                friction_score: lead.spider_memory?.friction_score || 'UNKNOWN',
-                performance_score: lead.performance_metrics?.performanceScore || null
-            }
+            payload
         );
-        console.log(`[SPIDER V2] ✅ Lead "${lead.name}" ingested into Qdrant as WON vector.`);
+        console.log(`[SPIDER V2] ✅ Lead "${lead.name}" ingested into Qdrant as ${outcome} tactic pattern.`);
     }
 
     /** DELETE /api/leads — Bulk delete */

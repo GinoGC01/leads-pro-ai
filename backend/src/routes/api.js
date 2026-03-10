@@ -54,6 +54,7 @@ router.post("/ai/chat", AIController.chat);
 router.get("/ai/spider-analysis/:leadId", AIController.spiderAnalysis);
 router.post("/ai/mario/regenerate/:leadId", AIController.regenerateStrategy);
 router.patch("/ai/mario/feedback/:strategyId", AIController.scoreStrategy);
+router.get("/ai/pipeline-status/:leadId", AIController.pipelineStatus);
 
 // Chat Sessions Routes
 router.get("/chat/sessions", ChatController.getSessions);

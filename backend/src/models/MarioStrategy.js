@@ -10,6 +10,14 @@ const MarioStrategySchema = new mongoose.Schema({
         type: Object, // Stores the strict JSON object returned by the MARIO V2 War Room
         required: true
     },
+    pipeline_metadata: {
+        version: { type: String, default: null },           // "V11_MULTI_AGENT" | "V10.4_FALLBACK"
+        agents_used: { type: [String], default: [] },       // ["RESEARCHER", "STRATEGIST", "COPYWRITER"]
+        total_tokens: { type: Number, default: 0 },
+        total_cost_usd: { type: Number, default: 0 },
+        agent_timings: { type: Object, default: {} },       // { researcher_ms, strategist_ms, copywriter_ms }
+        fallback_reason: { type: String, default: null }    // Populated only if V10.4 fallback was used
+    },
     status: {
         type: String,
         enum: ['PENDING', 'APPROVED', 'REJECTED'],

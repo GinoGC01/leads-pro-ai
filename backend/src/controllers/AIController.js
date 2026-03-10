@@ -1,11 +1,13 @@
 import Lead from "../models/Lead.js";
 import ChatSession from "../models/ChatSession.js";
 import MarioStrategy from "../models/MarioStrategy.js";
+import Settings from "../models/Settings.js";
 import AIService from "../services/AIService.js";
 import MarioService from "../services/MarioService.js";
 import VectorStoreService, {
   COLLECTIONS,
 } from "../services/VectorStoreService.js";
+import AgentOrchestrator from "../services/AgentOrchestrator.js";
 import SpiderEngine from "../services/SpiderEngine.js";
 import ragConfig from "../config/rag.config.js";
 
@@ -295,9 +297,15 @@ class AIController {
       console.log(
         `[AIController] Spider Cache Miss/Force Refresh. LLM run para: ${leadId} en modo ${region}`,
       );
-
+      
       // 2. Capa Neuronal (War Room JSON + RLHF)
-      const objectionMode = req.body?.objection_mode || "STANDARD";
+      let objectionMode = (req.method === 'GET' ? req.query.objection_mode : req.body.objection_mode);
+      
+      if (!objectionMode) {
+        const settings = await Settings.findOne({ isSingleton: true });
+        objectionMode = settings?.mario_objection_mode || "STANDARD";
+      }
+
       const marioResult = await MarioService.generateStrategy(lead._id, [], {
         objection_mode: objectionMode,
       });
@@ -307,6 +315,7 @@ class AIController {
         mario_strategy: marioResult.strategy,
         strategy_id: marioResult.strategy_id,
         detected_region: region,
+        pipeline_metadata: marioResult.pipeline_metadata || null,
       });
     } catch (error) {
       console.error("[AIController - Spider] Error:", error);
@@ -377,10 +386,42 @@ class AIController {
         mario_strategy: marioResult.strategy,
         strategy_id: marioResult.strategy_id,
         rlhf_warnings_applied: marioResult.rlhf_warnings_applied,
+        pipeline_metadata: marioResult.pipeline_metadata || null,
       });
     } catch (error) {
       console.error("[AIController - RLHF Regenerate] Error:", error);
       res.status(500).json({ error: "Error regenerando estrategia" });
+    }
+  }
+
+  /**
+   * GET /api/ai/pipeline-status/:leadId
+   * Returns the real-time pipeline progress for a lead.
+   */
+  static async pipelineStatus(req, res) {
+    try {
+      const { leadId } = req.params;
+      const progress = AgentOrchestrator.getProgress(leadId);
+
+      if (!progress) {
+        return res.status(200).json({ active: false, agents: [] });
+      }
+
+      return res.status(200).json({
+        active: !progress.completed_at,
+        current_agent: progress.current_agent,
+        started_at: progress.started_at,
+        completed_at: progress.completed_at,
+        error: progress.error || null,
+        agents: progress.agents.map((a) => ({
+          name: a.name,
+          status: a.status,
+          duration_ms: a.started_at && a.completed_at ? a.completed_at - a.started_at : null,
+        })),
+      });
+    } catch (error) {
+      console.error("[AIController - PipelineStatus] Error:", error);
+      return res.status(500).json({ error: error.message });
     }
   }
 }

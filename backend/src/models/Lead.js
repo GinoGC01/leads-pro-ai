@@ -66,10 +66,12 @@ const LeadSchema = new mongoose.Schema({
     enum: [
       "Nuevo",
       "Contactado",
+      "Respuesta Positiva",
       "Cita Agendada",
       "Propuesta Enviada",
       "Cerrado Ganado",
       "Cerrado Perdido",
+      "Ignorado",
       "En Espera",
       "Sin WhatsApp",
       "Descartados",

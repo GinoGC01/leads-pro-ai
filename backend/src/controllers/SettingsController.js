@@ -20,6 +20,7 @@ class SettingsController {
           value_proposition: "",
           core_services: [],
           rag_predefined_tags: ['abogados', 'clinicas', 'e-commerce', 'inmobiliarias', 'seguros', 'general'],
+          mario_objection_mode: "STANDARD",
         });
       }
 
@@ -31,6 +32,7 @@ class SettingsController {
         value_proposition: settings.value_proposition,
         core_services: settings.core_services || [],
         rag_predefined_tags: settings.rag_predefined_tags || [],
+        mario_objection_mode: settings.mario_objection_mode || "STANDARD",
       });
     } catch (error) {
       console.error(
@@ -48,27 +50,14 @@ class SettingsController {
 
   static async updateAgencySettings(req, res) {
     try {
-      const {
-        sales_rep_name,
-        agency_name,
-        linguistic_behavior,
-        core_services,
-        value_proposition,
-        rag_predefined_tags,
-      } = req.body;
+      const updateData = { ...req.body };
+      delete updateData.isSingleton; // Safety: don't allow changing the singleton flag
+      updateData.updatedAt = Date.now();
 
       const settings = await Settings.findOneAndUpdate(
         { isSingleton: true },
-        {
-          sales_rep_name: sales_rep_name || "",
-          agency_name: agency_name || "",
-          linguistic_behavior: linguistic_behavior || "AUTO",
-          core_services: core_services || [],
-          value_proposition: value_proposition || "",
-          rag_predefined_tags: rag_predefined_tags || undefined,
-          updatedAt: Date.now(),
-        },
-        { new: true, upsert: true },
+        { $set: updateData },
+        { new: true, upsert: true, setDefaultsOnInsert: true },
       );
 
       // Removed physical file writing (Markdown is deleted)
@@ -81,6 +70,7 @@ class SettingsController {
         core_services: settings.core_services,
         value_proposition: settings.value_proposition,
         rag_predefined_tags: settings.rag_predefined_tags || [],
+        mario_objection_mode: settings.mario_objection_mode,
       });
     } catch (error) {
       console.error(

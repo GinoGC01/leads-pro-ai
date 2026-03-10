@@ -25,6 +25,11 @@ const SettingsSchema = new mongoose.Schema({
     type: [String],
     default: ['abogados', 'clinicas', 'e-commerce', 'inmobiliarias', 'seguros', 'general'],
   },
+  mario_objection_mode: {
+    type: String,
+    enum: ["STANDARD", "CUSTOM"],
+    default: "STANDARD",
+  },
   updatedAt: {
     type: Date,
     default: Date.now,

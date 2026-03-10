@@ -11,10 +11,11 @@ import { useEffect } from 'react';
  * Shows: bot header, regenerate button, strategic block, parsed ActionCards, RLHF console.
  * Styled with Stitch 'War Room' Aesthetic
  */
-const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading, onRegenerate, onFetchSpider }) => {
+const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading, pipelineMetadata, pipelineProgress, onRegenerate, onFetchSpider }) => {
     
     // V10.4 State
     const [messageType, setMessageType] = useState('base'); // 'base' or 'upsell'
+    const [objectionMode, setObjectionMode] = useState('STANDARD'); // 'STANDARD' or 'CUSTOM'
     const [activeObjection, setActiveObjection] = useState(null);
 
     // RLHF State
@@ -23,16 +24,17 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
     const [feedback, setFeedback] = useState('');
     const [isRegenerating, setIsRegenerating] = useState(false);
     const [agencySettings, setAgencySettings] = useState({ sales_rep_name: 'Mario', agency_name: 'Leads Pro AI' });
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
     useEffect(() => {
         const fetchSettings = async () => {
             try {
                 const response = await getAgencySettings();
                 if (response.data && response.data.success) {
-                    setAgencySettings({
-                        sales_rep_name: response.data.sales_rep_name || 'Mario',
-                        agency_name: response.data.agency_name || 'Leads Pro AI'
-                    });
+                    setAgencySettings(response.data);
+                    if (response.data.mario_objection_mode) {
+                        setObjectionMode(response.data.mario_objection_mode);
+                    }
                 }
             } catch (error) {
                 console.warn("[MarioPanel] Error fetching settings, using defaults:", error);
@@ -41,10 +43,32 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
         fetchSettings();
     }, []);
 
+    // Elapsed time counter during loading
+    useEffect(() => {
+        let timer;
+        if (isSpiderLoading || isAiLoading || isRegenerating) {
+            setElapsedSeconds(0);
+            timer = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
+        } else {
+            setElapsedSeconds(0);
+        }
+        return () => clearInterval(timer);
+    }, [isSpiderLoading, isAiLoading, isRegenerating]);
+
+    const handleObjectionModeChange = async (mode) => {
+        setObjectionMode(mode);
+        try {
+            // Partial update supported by backend
+            await updateAgencySettings({ mario_objection_mode: mode });
+            toast.success(`Cerebro Mario: ${mode === 'CUSTOM' ? 'Tecnico' : 'Estandar'}`, { id: 'mario-mode' });
+        } catch (error) {
+            console.error("[MarioPanel] Error persisting mode:", error);
+        }
+    };
+
     const personalizedGreeting = `Hola! soy ${agencySettings.sales_rep_name} de ${agencySettings.agency_name}.`;
 
     const handleRLHFSubmit = async () => {
-        // ... (keep existing handleRLHFSubmit logic)
         if (!strategyId) {
             toast.error("No hay ID de estrategia para enviar feedback.");
             return;
@@ -54,8 +78,8 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
             setIsRegenerating(true);
             await scoreStrategy(strategyId, rating, feedback);
             toast.loading("Reforzando aprendizaje y regenerando estrategia...", { id: 'rlhf' });
-            await onRegenerate(true);
-            toast.success("Estrategia regenerada vía RLHF", { id: 'rlhf' });
+            await onRegenerate(true, { objection_mode: objectionMode });
+            toast.success("Estrategia regenerada via RLHF", { id: 'rlhf' });
             setRating(0);
             setFeedback('');
         } catch (error) {
@@ -64,6 +88,13 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
         } finally {
             setIsRegenerating(false);
         }
+    };
+
+    // Pipeline agent labels/descriptions
+    const AGENT_META = {
+        RESEARCHER: { label: 'Researcher', desc: 'Analizando datos del prospecto' },
+        STRATEGIST: { label: 'Strategist', desc: 'Disenando plan de batalla' },
+        COPYWRITER: { label: 'Copywriter', desc: 'Escribiendo copy de cierre' },
     };
 
     return (
@@ -80,15 +111,29 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
                         </span>
                     </div>
                     <div>
-                        <h1 className="text-xs font-bold tracking-widest uppercase text-slate-400">MARIO V10.4</h1>
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-xs font-bold tracking-widest uppercase text-slate-400">MARIO {pipelineMetadata?.version === 'V11_MULTI_AGENT' ? 'V11' : 'V10.4'}</h1>
+                            {pipelineMetadata?.version === 'V11_MULTI_AGENT' && (
+                                <span className="text-[8px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">Multi-Agent</span>
+                            )}
+                            {pipelineMetadata?.version === 'V10.4_FALLBACK' && (
+                                <span className="text-[8px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 uppercase tracking-widest">Fallback</span>
+                            )}
+                        </div>
                         <p className="text-[14px] font-bold leading-none text-slate-100 mt-1">Sales Orchestration Engine</p>
+                        {pipelineMetadata && pipelineMetadata.total_tokens > 0 && (
+                            <p className="text-[9px] text-slate-500 mt-1 font-mono">
+                                {pipelineMetadata.total_tokens} tokens · ${pipelineMetadata.total_cost_usd?.toFixed(4)} USD
+                                {pipelineMetadata.agent_timings && ` · ${Object.values(pipelineMetadata.agent_timings).reduce((a, b) => a + b, 0)}ms`}
+                            </p>
+                        )}
                     </div>
                 </div>
                 {(!isSpiderLoading && !isAiLoading && !isRegenerating && aiResponse && ['Nuevo', 'Descartados', 'Sin WhatsApp'].includes(lead?.status)) && (
                     <button
-                        onClick={() => onRegenerate(false)}
+                        onClick={() => onRegenerate(false, { objection_mode: objectionMode })}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#27272a] bg-[#18181b] hover:bg-slate-800 transition-colors text-xs font-bold text-slate-300"
-                        title="Regeneración Simple"
+                        title="Regeneracion Simple"
                     >
                         <RefreshCw className="w-3.5 h-3.5" />
                         Refrescar
@@ -99,9 +144,75 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
 
             <main className="flex-1 overflow-y-auto px-5 py-6 space-y-8 minimal-scrollbar relative">
                 {isSpiderLoading || isAiLoading || isRegenerating ? (
-                    <div className="h-full w-full flex flex-col items-center justify-center text-[10px] text-slate-500 font-mono uppercase gap-4 absolute inset-0 z-50 bg-[#09090b]/80 backdrop-blur-sm">
-                        <Loader2 className="w-8 h-8 animate-spin text-[#0d59f2]" />
-                        <span>MARIO orquestando embudo V10.4...</span>
+                    <div className="h-full w-full flex flex-col items-center justify-center absolute inset-0 z-50 bg-[#09090b]/90 backdrop-blur-sm">
+                        {/* Pipeline Timeline Loader */}
+                        <div className="w-full max-w-[320px] space-y-0">
+                            <div className="text-center mb-8">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Pipeline Multi-Agent</p>
+                                <p className="text-[11px] text-slate-600 font-mono">{elapsedSeconds}s transcurridos</p>
+                            </div>
+
+                            {['RESEARCHER', 'STRATEGIST', 'COPYWRITER'].map((agentKey, idx) => {
+                                const progressAgent = pipelineProgress?.agents?.find(a => a.name === agentKey);
+                                const status = progressAgent?.status || 'pending';
+                                const duration = progressAgent?.duration_ms;
+                                const meta = AGENT_META[agentKey];
+                                const isLast = idx === 2;
+
+                                return (
+                                    <div key={agentKey} className="flex gap-4">
+                                        {/* Timeline Connector */}
+                                        <div className="flex flex-col items-center">
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border-2 transition-all duration-500 ${
+                                                status === 'done' 
+                                                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' 
+                                                    : status === 'running'
+                                                    ? 'bg-[#0d59f2]/20 border-[#0d59f2] text-[#0d59f2] animate-pulse'
+                                                    : 'bg-[#18181b] border-[#27272a] text-slate-600'
+                                            }`}>
+                                                {status === 'done' ? (
+                                                    <CheckCircle2 className="w-4 h-4" />
+                                                ) : status === 'running' ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    <span>{idx + 1}</span>
+                                                )}
+                                            </div>
+                                            {!isLast && (
+                                                <div className={`w-px h-10 my-1 transition-all duration-500 ${
+                                                    status === 'done' ? 'bg-emerald-500/40' : 'bg-[#27272a]'
+                                                }`}></div>
+                                            )}
+                                        </div>
+
+                                        {/* Agent Info */}
+                                        <div className="pb-3 pt-1">
+                                            <div className="flex items-center gap-2">
+                                                <p className={`text-[12px] font-bold uppercase tracking-wide transition-colors duration-500 ${
+                                                    status === 'done' 
+                                                        ? 'text-emerald-400' 
+                                                        : status === 'running'
+                                                        ? 'text-[#0d59f2]'
+                                                        : 'text-slate-600'
+                                                }`}>
+                                                    {meta.label}
+                                                </p>
+                                                {status === 'done' && duration && (
+                                                    <span className="text-[9px] text-slate-500 font-mono">
+                                                        {(duration / 1000).toFixed(1)}s
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className={`text-[11px] transition-colors duration-500 ${
+                                                status === 'running' ? 'text-slate-400' : 'text-slate-600'
+                                            }`}>
+                                                {status === 'done' ? 'Completado' : status === 'running' ? meta.desc : 'En espera'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 ) : (
                     aiResponse ? (
@@ -176,19 +287,35 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
                                             <div className="flex items-center justify-between mb-2">
                                                 <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em]">Primary Weapon</h2>
                                                 {isV10_4 && (
-                                                    <div className="flex bg-[#18181b] border border-[#27272a] rounded-lg p-1">
-                                                        <button 
-                                                            onClick={() => setMessageType('base')}
-                                                            className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${messageType === 'base' ? 'bg-[#0d59f2] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                                                        >
-                                                            Base
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => setMessageType('upsell')}
-                                                            className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${messageType === 'upsell' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                                                        >
-                                                            Upsell
-                                                        </button>
+                                                    <div className="flex gap-2">
+                                                        <div className="flex bg-[#18181b] border border-[#27272a] rounded-lg p-1" title="Modo de Objeciones">
+                                                            <button 
+                                                                onClick={() => handleObjectionModeChange('STANDARD')}
+                                                                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${objectionMode === 'STANDARD' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                                            >
+                                                                Std
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleObjectionModeChange('CUSTOM')}
+                                                                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${objectionMode === 'CUSTOM' ? 'bg-[#0d59f2] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                                            >
+                                                                Cust
+                                                            </button>
+                                                        </div>
+                                                        <div className="flex bg-[#18181b] border border-[#27272a] rounded-lg p-1">
+                                                            <button 
+                                                                onClick={() => setMessageType('base')}
+                                                                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${messageType === 'base' ? 'bg-[#0d59f2] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                                            >
+                                                                Base
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => setMessageType('upsell')}
+                                                                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${messageType === 'upsell' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                                            >
+                                                                Upsell
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
@@ -290,8 +417,8 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
                                         {strategyId && (
                                             <div className="mt-8 bg-[#18181b] border border-[#27272a] rounded-2xl p-5 shadow-2xl relative">
                                                 <div className="flex items-center justify-between mb-5 border-b border-[#27272a] pb-3">
-                                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                                        <Star className="w-4 h-4 text-yellow-500" /> Feedback RLHF
+                                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2" title="Califica la redacción. El sistema se auto-optimiza al agendar cita o si el lead ignora el mensaje.">
+                                                        <Star className="w-4 h-4 text-yellow-500" /> Calibración IA (Engagement)
                                                     </span>
                                                     <div className="flex gap-1.5">
                                                         {[1, 2, 3, 4, 5].map((star) => (
@@ -369,7 +496,7 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
                                 </div>
 
                                 <button
-                                    onClick={onFetchSpider}
+                                    onClick={() => onFetchSpider({ objection_mode: objectionMode })}
                                     className="w-full py-4 bg-[#0d59f2]/10 hover:bg-[#0d59f2]/20 text-[#0d59f2] border border-[#0d59f2]/30 hover:border-[#0d59f2]/50 transition-all rounded-xl font-bold text-[12px] uppercase tracking-widest flex items-center justify-center gap-2"
                                 >
                                     <Target className="w-4 h-4" />

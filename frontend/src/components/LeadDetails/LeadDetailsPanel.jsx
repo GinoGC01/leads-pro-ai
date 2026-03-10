@@ -34,7 +34,7 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
     const [resetModalOpen, setResetModalOpen] = useState(false);
 
     // Mario strategy hook needs activeTab to auto-fetch on 'estrategia' tab
-    const { spiderData, aiResponse, strategyId, isSpiderLoading, isAiLoading, fetchSpiderStrategy, handleRLHFRegeneration } = useMarioStrategy(lead._id, activeTab);
+    const { spiderData, aiResponse, strategyId, isSpiderLoading, isAiLoading, fetchSpiderStrategy, handleRLHFRegeneration, pipelineMetadata, pipelineProgress } = useMarioStrategy(lead._id, activeTab);
 
     // Resizable Mario Panel
     const [marioWidth, setMarioWidth] = useState(660); // 20% más ancho inicialmente
@@ -184,8 +184,10 @@ const LeadDetailsPanel = ({ lead: initialLead, onClose, onLeadUpdate }) => {
                         strategyId={strategyId}
                         isSpiderLoading={isSpiderLoading}
                         isAiLoading={isAiLoading}
-                        onRegenerate={(isRlhf, options) => isRlhf ? handleRLHFRegeneration(isRlhf, options) : fetchSpiderStrategy(true)}
-                        onFetchSpider={() => fetchSpiderStrategy(false)}
+                        pipelineMetadata={pipelineMetadata}
+                        pipelineProgress={pipelineProgress}
+                        onRegenerate={(isRlhf, options) => isRlhf ? handleRLHFRegeneration(true, options) : fetchSpiderStrategy(true, options?.objection_mode)}
+                        onFetchSpider={(options) => fetchSpiderStrategy(false, options?.objection_mode)}
                     />
                 </div>
             </div>
