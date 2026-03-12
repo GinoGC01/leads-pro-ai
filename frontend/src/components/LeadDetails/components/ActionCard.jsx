@@ -22,8 +22,19 @@ const ActionCard = ({ title, subtitle, textContent, whatsAppText, icon, colorCla
 
     const handleEmail = (e) => {
         e.stopPropagation();
-        if (!lead?.email) return AlertService.warning("No hay email registrado");
-        window.open(`mailto:${lead.email}?body=${encodeURIComponent(textContent)}`, '_blank');
+        
+        // 1. Respaldo: Copiamos al portapapeles por seguridad (URI Overflow prevention)
+        navigator.clipboard.writeText(textContent);
+        AlertService.success("Texto copiado. Abriendo correo...");
+
+        // 2. Forzar Gmail Web (API no oficial de Google Compose)
+        const subject = encodeURIComponent("Auditoría de Infraestructura Estratégica"); 
+        const body = encodeURIComponent(textContent);
+        
+        // Esto abre la ventana de redacción de Gmail directamente en el navegador
+        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${lead.email}&su=${subject}&body=${body}`;
+        
+        window.open(gmailUrl, '_blank');
     };
 
     return (
@@ -85,7 +96,7 @@ const ActionCard = ({ title, subtitle, textContent, whatsAppText, icon, colorCla
                             onClick={handleEmail} 
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0d59f2]/10 hover:bg-[#0d59f2]/20 text-[#0d59f2] border border-[#0d59f2]/20 text-[10px] font-bold uppercase tracking-widest rounded transition-all"
                         >
-                            <Mail className="w-3.5 h-3.5" /> Email
+                            <Mail className="w-3.5 h-3.5" /> {lead.email}
                         </button>
                     ) : (
                         <button 

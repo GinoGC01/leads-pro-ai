@@ -362,18 +362,16 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
                                                 <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4">Objection Defense</h2>
                                                 <div className="grid grid-cols-1 gap-4">
                                                     {Object.entries(objectionTree).map(([key, value]) => {
-                                                        // Robust Injection for Objections
-                                                        let finalObjection = value;
-                                                        if (!finalObjection.includes('[PERSONALIZED_GREETING]')) {
-                                                            finalObjection = `[PERSONALIZED_GREETING] ${finalObjection}`;
-                                                        }
+                                                        // Objections must NOT have greeting — they start directly with the response
+                                                        const finalObjection = value;
 
                                                         const processedWaObjection = finalObjection
-                                                            .replace(/\[PERSONALIZED_GREETING\]/g, personalizedGreeting)
+                                                            .replace(/\[PERSONALIZED_GREETING\]/g, '')
                                                             .replace(/\[Empresa\]/g, lead.name)
-                                                            .replace(/\[TÚ\]/g, agencySettings.sales_rep_name);
+                                                            .replace(/\[TÚ\]/g, agencySettings.sales_rep_name)
+                                                            .trim();
                                                         
-                                                        const displayObjection = finalObjection.replace(/\[PERSONALIZED_GREETING\]/g, personalizedGreeting);
+                                                        const displayObjection = finalObjection.replace(/\[PERSONALIZED_GREETING\]/g, '').trim();
 
                                                         return (
                                                             <ActionCard 

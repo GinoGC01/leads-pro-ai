@@ -123,6 +123,7 @@ class AgentOrchestrator {
       rlhfBlock,
       leadName: lead.name,
       objectionMode,
+      spiderTacticName: spiderVerdict?.tactic_name || "UNKNOWN",
     });
 
     const strategistBattlePlan = await AgentOrchestrator._callAgent(
@@ -151,6 +152,7 @@ class AgentOrchestrator {
       rlhfBlock,
       latamConstraint,
       objectionMode,
+      spiderTacticName: spiderVerdict?.tactic_name || "UNKNOWN",
     });
 
     const copywriterRaw = await AgentOrchestrator._callAgent(
