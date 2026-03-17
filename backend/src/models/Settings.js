@@ -25,6 +25,23 @@ const SettingsSchema = new mongoose.Schema({
     type: [String],
     default: ['abogados', 'clinicas', 'e-commerce', 'inmobiliarias', 'seguros', 'general'],
   },
+  mario_core_settings: {
+    default_tone: {
+      type: String,
+      enum: ["CHALLENGER", "CONSULTIVO", "VISIONARIO"],
+      default: "CHALLENGER",
+    },
+    statistical_override_enabled: {
+      type: Boolean,
+      default: true,
+    },
+    circuit_breaker_threshold: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 40,
+    },
+  },
   mario_objection_mode: {
     type: String,
     enum: ["STANDARD", "CUSTOM"],

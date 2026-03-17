@@ -57,12 +57,12 @@ class AgentOrchestrator {
     promptCategoryHint,
     ragContext,
     tacticalContext,
-    upsellBlock,
     rlhfBlock,
-    objectionMode,
-    latamConstraint,
+    agentPayloads, // V11 Injected Routing
+    nlgConfig,     // V11 Config
   }) {
     const leadId = lead._id.toString();
+    const effectiveTacticName = nlgConfig?.tacticUsed || spiderVerdict?.tactic_name || "UNKNOWN";
     const metadata = {
       version: "V11_MULTI_AGENT",
       agents_used: [],
@@ -93,6 +93,7 @@ class AgentOrchestrator {
       lead,
       spiderVerdict,
       promptCategoryHint,
+      agentPayload: agentPayloads?.RESEARCHER, // V11 Injected Payload
     });
 
     const researcherBriefing = await AgentOrchestrator._callAgent(
@@ -119,11 +120,10 @@ class AgentOrchestrator {
       researcherBriefing,
       ragContext,
       tacticalContext,
-      upsellBlock,
       rlhfBlock,
       leadName: lead.name,
-      objectionMode,
-      spiderTacticName: spiderVerdict?.tactic_name || "UNKNOWN",
+      spiderTacticName: effectiveTacticName,
+      agentPayload: agentPayloads?.STRATEGIST, // V11 Injected Payload
     });
 
     const strategistBattlePlan = await AgentOrchestrator._callAgent(
@@ -150,10 +150,14 @@ class AgentOrchestrator {
       strategistBattlePlan,
       leadName: lead.name,
       rlhfBlock,
-      latamConstraint,
-      objectionMode,
-      spiderTacticName: spiderVerdict?.tactic_name || "UNKNOWN",
+      spiderTacticName: effectiveTacticName,
+      agentPayload: agentPayloads?.COPYWRITER, // V11 Injected Payload
     });
+
+    console.log("================================================================================");
+    console.log("[DEBUG] FINAL COPYWRITER SYSTEM PROMPT:");
+    console.log(copywriterSystemPrompt);
+    console.log("================================================================================");
 
     const copywriterRaw = await AgentOrchestrator._callAgent(
       "COPYWRITER",

@@ -3,6 +3,7 @@ import Settings from "../models/Settings.js";
 import MarioStrategy from "../models/MarioStrategy.js";
 import AIService from "./AIService.js";
 import AgentOrchestrator from "./AgentOrchestrator.js";
+import { ensamblarEstrategia } from "../ai/enrochementWorkerAgents.js";
 import VectorStoreService, { COLLECTIONS } from "./VectorStoreService.js";
 import { LLM_PRICING } from "../config/llm_pricing.js";
 import { marioPrompt } from "../prompts/MarioPrompt.js";
@@ -145,20 +146,51 @@ class MarioService {
           `[MarioService] Ejecutando Pipeline Multi-Agent V11 para Lead: ${leadId} (Modo: ${objectionMode})`,
         );
 
+        // V11.1 ENROCHEMENT ENGINE: Assemble payloads and Circuit Breaker/Guillotina
+        const enrochementResult = await ensamblarEstrategia(
+            { target_offer: 'AUTHORITY', niche: lead.category }, // formData mock
+            lead, // Pasamos el lead completo para extraer fields como website, is_advertising, etc.
+            settings?.mario_core_settings, // marioCoreSettings
+            settings // globalSettings
+        );
+
+        if (enrochementResult.status === 'DISCARDED') {
+            console.warn(`[MarioService] 🪓 Lead ${leadId} fue descartado por la Guillotina Técnica (Lead Perfecto).`);
+            
+            // Actualizar lead en la BD local y cancelar ejecución
+            lead.status = 'Descartados';
+            await lead.save();
+
+            // Retornamos de inmediato hacia el API Controller y Frontend
+            return {
+                success: false,
+                status: 'DISCARDED',
+                message: enrochementResult.reason,
+                lead: lead
+            };
+        }
+
+        const { agentPayloads, circuitBreaker, nlgConfig } = enrochementResult;
+
+        console.log(`[MarioService] Orquestador V11 completado. Oferta final autorizada: ${circuitBreaker.authorizedOffer}`);
+
         const pipelineResult = await AgentOrchestrator.run({
           lead,
           spiderVerdict,
           promptCategoryHint,
           ragContext,
           tacticalContext,
-          upsellBlock,
           rlhfBlock,
-          objectionMode,
-          latamConstraint,
+          agentPayloads, // V11 injected payloads
+          nlgConfig // V11 Config (includes actual calculated Tactic)
         });
 
         parsedStrategy = pipelineResult.strategy;
         pipelineMetadata = pipelineResult.pipeline_metadata;
+        
+        // Add V11 engine stats to metadata
+        pipelineMetadata.circuitBreaker = circuitBreaker;
+        pipelineMetadata.nlgConfig = nlgConfig;
 
         console.log(
           `[MarioService] Pipeline V11 exitoso. Tokens: ${pipelineMetadata.total_tokens}, Costo: $${pipelineMetadata.total_cost_usd}`,

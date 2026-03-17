@@ -13,9 +13,7 @@ import { useEffect } from 'react';
  */
 const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading, pipelineMetadata, pipelineProgress, onRegenerate, onFetchSpider }) => {
     
-    // V10.4 State
-    const [messageType, setMessageType] = useState('base'); // 'base' or 'upsell'
-    const [objectionMode, setObjectionMode] = useState('STANDARD'); // 'STANDARD' or 'CUSTOM'
+    // V11.1 State
     const [activeObjection, setActiveObjection] = useState(null);
 
     // RLHF State
@@ -32,9 +30,6 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
                 const response = await getAgencySettings();
                 if (response.data && response.data.success) {
                     setAgencySettings(response.data);
-                    if (response.data.mario_objection_mode) {
-                        setObjectionMode(response.data.mario_objection_mode);
-                    }
                 }
             } catch (error) {
                 console.warn("[MarioPanel] Error fetching settings, using defaults:", error);
@@ -55,16 +50,7 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
         return () => clearInterval(timer);
     }, [isSpiderLoading, isAiLoading, isRegenerating]);
 
-    const handleObjectionModeChange = async (mode) => {
-        setObjectionMode(mode);
-        try {
-            // Partial update supported by backend
-            await updateAgencySettings({ mario_objection_mode: mode });
-            toast.success(`Cerebro Mario: ${mode === 'CUSTOM' ? 'Tecnico' : 'Estandar'}`, { id: 'mario-mode' });
-        } catch (error) {
-            console.error("[MarioPanel] Error persisting mode:", error);
-        }
-    };
+    // (Objection Mode Handler Removed - Handled at API level now)
 
     const personalizedGreeting = `Hola! soy ${agencySettings.sales_rep_name} de ${agencySettings.agency_name}.`;
 
@@ -77,8 +63,7 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
         try {
             setIsRegenerating(true);
             await scoreStrategy(strategyId, rating, feedback);
-            toast.loading("Reforzando aprendizaje y regenerando estrategia...", { id: 'rlhf' });
-            await onRegenerate(true, { objection_mode: objectionMode });
+            await onRegenerate(true, {});
             toast.success("Estrategia regenerada via RLHF", { id: 'rlhf' });
             setRating(0);
             setFeedback('');
@@ -131,12 +116,12 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
                 </div>
                 {(!isSpiderLoading && !isAiLoading && !isRegenerating && aiResponse && ['Nuevo', 'Descartados', 'Sin WhatsApp'].includes(lead?.status)) && (
                     <button
-                        onClick={() => onRegenerate(false, { objection_mode: objectionMode })}
+                        onClick={() => onRegenerate(false, {})}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#27272a] bg-[#18181b] hover:bg-slate-800 transition-colors text-xs font-bold text-slate-300"
                         title="Regeneracion Simple"
                     >
                         <RefreshCw className="w-3.5 h-3.5" />
-                        Refrescar
+                        Generar Estrategia V11
                     </button>
                 )}
                 {(isSpiderLoading || isAiLoading || isRegenerating) && <div className="w-2 h-2 rounded-full bg-[#0d59f2] animate-pulse"></div>}
@@ -282,48 +267,14 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
                                             </section>
                                         )}
 
-                                        {/* Dual-Copy Selector & Main Message */}
+                                        {/* Main Single-Strike Message */}
                                         <section className="space-y-4">
                                             <div className="flex items-center justify-between mb-2">
-                                                <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em]">Primary Weapon</h2>
-                                                {isV10_4 && (
-                                                    <div className="flex gap-2">
-                                                        <div className="flex bg-[#18181b] border border-[#27272a] rounded-lg p-1" title="Modo de Objeciones">
-                                                            <button 
-                                                                onClick={() => handleObjectionModeChange('STANDARD')}
-                                                                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${objectionMode === 'STANDARD' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                                                            >
-                                                                Std
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => handleObjectionModeChange('CUSTOM')}
-                                                                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${objectionMode === 'CUSTOM' ? 'bg-[#0d59f2] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                                                            >
-                                                                Cust
-                                                            </button>
-                                                        </div>
-                                                        <div className="flex bg-[#18181b] border border-[#27272a] rounded-lg p-1">
-                                                            <button 
-                                                                onClick={() => setMessageType('base')}
-                                                                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${messageType === 'base' ? 'bg-[#0d59f2] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                                                            >
-                                                                Base
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => setMessageType('upsell')}
-                                                                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${messageType === 'upsell' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                                                            >
-                                                                Upsell
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                )}
+                                                <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em]">Single Strike Weapon</h2>
                                             </div>
 
                                             {(() => {
-                                                const textContent = isV10_4 
-                                                    ? (messageType === 'base' ? parsedStrategy.mensaje_base : parsedStrategy.mensaje_con_upsell)
-                                                    : (parsedStrategy.sales_funnel_copy?.opening_message || parsedStrategy.ataque_inicial);
+                                                const textContent = parsedStrategy.mensaje_maestro || parsedStrategy.mensaje_base || parsedStrategy.sales_funnel_copy?.opening_message;
                                                 
                                                 if (!textContent) return null;
 
@@ -343,13 +294,13 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
 
                                                 return (
                                                     <ActionCard
-                                                        title={messageType === 'base' ? 'Mensaje Base' : 'Mensaje c/ Upsell'}
-                                                        subtitle="Ataque Directo"
+                                                        title="Ataque Maestro (V11.1)"
+                                                        subtitle="Infraestructura + Oferta"
                                                         textContent={displayContent}
                                                         whatsAppText={processedForWA}
-                                                        colorClass={messageType === 'base' ? 'text-[#0d59f2]' : 'text-emerald-500'}
-                                                        borderColor={messageType === 'base' ? 'border-l-[#0d59f2]' : 'border-l-emerald-500'}
-                                                        icon={messageType === 'base' ? <MessageSquareText className="w-5 h-5" /> : <Zap className="w-5 h-5" />}
+                                                        colorClass="text-[#0d59f2]"
+                                                        borderColor="border-l-[#0d59f2]"
+                                                        icon={<MessageSquareText className="w-5 h-5" />}
                                                         lead={lead}
                                                     />
                                                 );
@@ -494,11 +445,11 @@ const MarioPanel = ({ lead, aiResponse, strategyId, isSpiderLoading, isAiLoading
                                 </div>
 
                                 <button
-                                    onClick={() => onFetchSpider({ objection_mode: objectionMode })}
+                                    onClick={() => onFetchSpider({})}
                                     className="w-full py-4 bg-[#0d59f2]/10 hover:bg-[#0d59f2]/20 text-[#0d59f2] border border-[#0d59f2]/30 hover:border-[#0d59f2]/50 transition-all rounded-xl font-bold text-[12px] uppercase tracking-widest flex items-center justify-center gap-2"
                                 >
                                     <Target className="w-4 h-4" />
-                                    Analizar Web Inteligencia
+                                    Generar Estrategia V11
                                 </button>
                             </div>
                         </div>

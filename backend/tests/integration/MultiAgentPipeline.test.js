@@ -382,7 +382,7 @@ describe("MARIO V11 Multi-Agent Pipeline E2E", () => {
       (m) => m.role === "system",
     ).content;
     expect(researcherSystem).toContain("Plomería Test Pro");
-    expect(researcherSystem).toContain("analista de inteligencia comercial");
+    expect(researcherSystem).toContain("ANALISTA DE DATOS COMERCIALES");
     // Researcher should NOT have json_object mode
     expect(researcherCall.response_format).toBeUndefined();
 
@@ -393,7 +393,7 @@ describe("MARIO V11 Multi-Agent Pipeline E2E", () => {
     ).content;
     expect(strategistSystem).toContain("CATEGORÍA: AUTHORITY");
     expect(strategistSystem).toContain("DIAGNÓSTICO DE DOLOR");
-    expect(strategistSystem).toContain("Director de Ventas");
+    expect(strategistSystem).toContain("DIRECTOR DE ESTRATEGIA DE VENTAS");
     // Strategist should NOT have json_object mode
     expect(strategistCall.response_format).toBeUndefined();
 
@@ -404,7 +404,7 @@ describe("MARIO V11 Multi-Agent Pipeline E2E", () => {
     ).content;
     expect(copywriterSystem).toContain("TARGET: AUTHORITY");
     expect(copywriterSystem).toContain("TIMELINE DE ATAQUE");
-    expect(copywriterSystem).toContain("Closer de ventas");
+    expect(copywriterSystem).toContain("MAESTRO DE LA PERSUASIÓN");
     // ONLY Copywriter has json_object mode
     expect(copywriterCall.response_format).toEqual({ type: "json_object" });
 
@@ -661,4 +661,113 @@ describe("MARIO V11 Multi-Agent Pipeline E2E", () => {
 
     console.log("[TEST 8] ✅ Restricción LATAM presente en Copywriter prompt");
   }, 15000);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // TEST 9: V11 Circuit Breaker impide sobrevender (TITAN -> IMPULSE)
+  // ═══════════════════════════════════════════════════════════════════════
+  it("Test 9: Circuit Breaker impide que LLM decida paquetes (TITAN -> IMPULSE)", async () => {
+    // Bajar el score simulando mala tech (Performance = 10, no H1, no Title)
+    const badLead = await Lead.findById(dummyLeadId);
+    badLead.vision_analysis.ux_score = 2;
+    badLead.performance_metrics.performanceScore = 10;
+    badLead.performance_metrics.ttfb = 3000;
+    badLead.seo_audit.hasTitle = false;
+    badLead.seo_audit.hasMetaDescription = false;
+    badLead.seo_audit.h1Count = 0;
+    await badLead.save();
+
+    const settings = await Settings.findOne({ isSingleton: true });
+    if (!settings.mario_core_settings) settings.mario_core_settings = {};
+    settings.mario_core_settings.circuit_breaker_threshold = 80; // umbral muy alto
+    await settings.save();
+
+    const result = await MarioService.generateStrategy(badLead._id);
+
+    // El Circuit Breaker debió activarse
+    expect(result.pipeline_metadata.circuitBreaker).toBeDefined();
+    expect(result.pipeline_metadata.circuitBreaker.wasDowngraded).toBe(true);
+    expect(result.pipeline_metadata.circuitBreaker.authorizedOffer).toBe("IMPULSE");
+
+    // El Strategist debió recibir IMPULSE en la inyección de táctica
+    const strategistCallText = mockOpenAICreate.mock.calls[mockOpenAICreate.mock.calls.length - 2][0].messages.find(m => m.role === "system").content;
+    expect(strategistCallText).toContain("OFERTA OBJETIVO AUTORIZADA POR EL CIRCUIT BREAKER: IMPULSE");
+
+    console.log("[TEST 9] ✅ Circuit breaker bajó exitosamente la oferta a IMPULSE debido a infraestructura pobre");
+  }, 15000);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // TEST 10: V11 Payload Routing - LLM solo recibe el tono seleccionado
+  // ═══════════════════════════════════════════════════════════════════════
+  it("Test 10: LLM solo recibe reglas del tono seleccionado (ej. CHALLENGER)", async () => {
+    const settings = await Settings.findOne({ isSingleton: true });
+    if (!settings.mario_core_settings) settings.mario_core_settings = {};
+    settings.mario_core_settings.default_tone = "CHALLENGER";
+    settings.mario_core_settings.statistical_override_enabled = false;
+    await settings.save();
+
+    await MarioService.generateStrategy(dummyLeadId);
+
+    const copywriterCallText = mockOpenAICreate.mock.calls[mockOpenAICreate.mock.calls.length - 1][0].messages.find(m => m.role === "system").content;
+
+    // Debe contener la inyección de CHALLENGER (basado en tones/challenger.js)
+    expect(copywriterCallText).toContain("CHALLENGER");
+    // NO debe contener directivas de Consultivo ni Visionario
+    expect(copywriterCallText).not.toContain("CONSULTIVO");
+    expect(copywriterCallText).not.toContain("VISIONARIO");
+
+    console.log("[TEST 10] ✅ Routing Matricial aísla correctamente el tono CHALLENGER sin contaminar el prompt");
+  }, 15000);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // TEST 11: V11 Tono Estadístico MongoDB (Override)
+  // ═══════════════════════════════════════════════════════════════════════
+  it("Test 11: Override estadístico selecciona el mejor tono de MongoDB", async () => {
+    // Configurar override ON, default VISIONARIO
+    const settings = await Settings.findOne({ isSingleton: true });
+    if (!settings.mario_core_settings) settings.mario_core_settings = {};
+    settings.mario_core_settings.default_tone = "VISIONARIO";
+    settings.mario_core_settings.statistical_override_enabled = true;
+    await settings.save();
+
+    // Poblar leads y estrategias previas en el mismo nicho para forzar ganador CHALLENGER
+    const testLead2 = new Lead({ name: "Plumber 2", category: "plumber", status: "Contactado" });
+    const testLead3 = new Lead({ name: "Plumber 3", category: "plumber", status: "Contactado" });
+    const lead2 = await testLead2.save();
+    const lead3 = await testLead3.save();
+
+    await (new MarioStrategy({ 
+      lead_id: lead2._id, 
+      strategy_data: { mensaje_base: "test" }, 
+      pipeline_metadata: { nlgConfig: { appliedTone: "CHALLENGER" } } 
+    })).save();
+    await (new MarioStrategy({ 
+      lead_id: lead3._id, 
+      strategy_data: { mensaje_base: "test" }, 
+      pipeline_metadata: { nlgConfig: { appliedTone: "CHALLENGER" } } 
+    })).save();
+
+    callIndex = 0;
+    mockOpenAICreate.mockReset();
+    mockOpenAICreate
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: MOCK_RESEARCHER_RESPONSE } }],
+        usage: { prompt_tokens: 600, completion_tokens: 300 },
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: MOCK_STRATEGIST_RESPONSE } }],
+        usage: { prompt_tokens: 700, completion_tokens: 400 },
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: JSON.stringify(MOCK_COPYWRITER_JSON) } }],
+        usage: { prompt_tokens: 800, completion_tokens: 500 },
+      });
+
+    const result = await MarioService.generateStrategy(dummyLeadId);
+
+    // Aunque el default es VISIONARIO, usó CHALLENGER por la estadística
+    expect(result.pipeline_metadata.nlgConfig.appliedTone).toBe("CHALLENGER");
+    expect(result.pipeline_metadata.nlgConfig.isStatisticalOverride).toBe(true);
+    console.log("[TEST 11] ✅ Override Estadístico de MongoDB reemplazó exitosamente el tono base");
+  }, 15000);
+
 });

@@ -21,6 +21,11 @@ class SettingsController {
           core_services: [],
           rag_predefined_tags: ['abogados', 'clinicas', 'e-commerce', 'inmobiliarias', 'seguros', 'general'],
           mario_objection_mode: "STANDARD",
+          mario_core_settings: {
+            default_tone: "CHALLENGER",
+            statistical_override_enabled: true,
+            circuit_breaker_threshold: 40,
+          },
         });
       }
 
@@ -33,6 +38,11 @@ class SettingsController {
         core_services: settings.core_services || [],
         rag_predefined_tags: settings.rag_predefined_tags || [],
         mario_objection_mode: settings.mario_objection_mode || "STANDARD",
+        mario_core_settings: settings.mario_core_settings || {
+          default_tone: "CHALLENGER",
+          statistical_override_enabled: true,
+          circuit_breaker_threshold: 40,
+        },
       });
     } catch (error) {
       console.error(
@@ -71,6 +81,11 @@ class SettingsController {
         value_proposition: settings.value_proposition,
         rag_predefined_tags: settings.rag_predefined_tags || [],
         mario_objection_mode: settings.mario_objection_mode,
+        mario_core_settings: settings.mario_core_settings || {
+          default_tone: "CHALLENGER",
+          statistical_override_enabled: true,
+          circuit_breaker_threshold: 40,
+        },
       });
     } catch (error) {
       console.error(
