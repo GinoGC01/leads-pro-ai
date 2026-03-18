@@ -1,108 +1,78 @@
-# 🧠 Leads Pro AI: Ecosistema "Neuro-Simbólico" - MARIO V11.1
+# 🧠 Leads Pro AI - MARIO V11.1
 
-Leads Pro AI ha evolucionado a un **Motor de Ensamblaje Modular (MARIO V11.1)** con toma de decisiones deterministas. El sistema opera bajo la arquitectura **Router Matrix & Single Strike**, donde la inteligencia de negocio está codificada en Node.js y la IA se relega estrictamente a la **Generación de Lenguaje Natural (NLG)**.
+Leads Pro AI es un ecosistema diseñado para automatizar la generación de prospectos y la creación de estrategias comerciales personalizadas. A diferencia de los sistemas tradicionales basados exclusivamente en prompts, esta arquitectura **Neuro-Simbólica** utiliza lógica determinista en Node.js para el control de negocio y agentes de IA para la generación del mensaje final.
 
-La **Versión 11.1** perfecciona el **Routing Matricial**, introduce el **Filtro Guillotina** y unifica la salida de la IA en un solo **Mensaje Maestro**.
-
----
-
-## 📑 Tabla de Contenidos
-
-1. [Arquitectura Router Matrix & Single Strike (V11.1)](#-1-arquitectura-router-matrix--single-strike-v111)
-2. [Los Tres Motores (SPIDER, VORTEX, MARIO)](#-2-los-tres-motores-spider-vortex-mario)
-3. [Novedades en MARIO V11.1 (Guillotine & Single Strike)](#-3-novedades-en-mario-v111)
-4. [Mitigación de Alucinaciones](#-4-mitigaci%C3%B3n-de-alucinaciones)
-5. [Configuración Inicial y Despliegue](#-5-configuraci%C3%B3n-inicial-y-despliegue)
+La versión **V11.1** marca la transición a una comunicación de impacto único (**Single Strike**) y un control de errores más estricto.
 
 ---
 
-## 🏗️ 1. Arquitectura Router Matrix & Single Strike (V11.1)
+## 🏗️ 1. Arquitectura: Router Matrix & Single Strike
 
-El sistema ha abandonado el "Mega-Prompt" por un motor de orquestación determinista:
+Esta versión elimina la incertidumbre en la toma de decisiones de la IA mediante dos componentes clave:
 
-- **Frontend:** React + Vite, Tailwind CSS 4. Consola War Room con telemetría SSE y control de Pipeline.
-- **Backend:** Node.js (ESM). Orquestación modular vía `enrochementWorkerAgents.js`.
-- **Router Matrix:** El sistema mapea características del lead (Spider Verdict) a tácticas y ofertas *antes* de la intervención del LLM.
-- **Single Strike Output:** La IA genera un único `mensaje_maestro`, eliminando la fragmentación de mensajes base/upsell para mayor impacto comercial.
-- **Base de Datos:** MongoDB en Docker para persistencia y agregación estadística.
-- **Vector DB:** Qdrant para memoria RAG de tácticas históricas.
+### Router Matrix (Cerebro comercial)
+El sistema no permite que la IA elija qué ofrecer al cliente. En su lugar, un motor en Node.js analiza los datos obtenidos por el scraper y asigna una **Táctica** y una **Oferta** específicas según el sector y las fallas detectadas. Esto garantiza que la propuesta comercial sea coherente con el catálogo de servicios autorizado.
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                     WAR ROOM (V11.1 UI)                     │
-│  Orquestación Visual │ Router Matrix │ Single Strike Output  │
-└───────────────────────────┬─────────────────────────────────┘
-                            │
-┌───────────────────────────▼─────────────────────────────────┐
-│              MARIO V11.1 ASSEMBLY ENGINE (Node.js)          │
-│  Guillotine Filter │ Matrix Routing │ Unified Message Logic │
-└─────────────┬─────────────┬──────────────┬──────────────────┘
-              │             │              │
-      ┌───────▼──────┐┌─────▼──────┐┌──────▼──────┐
-      │  RESEARCHER  ││ STRATEGIST  ││ COPYWRITER  │
-      │  (Briefing)  ││ (BattlePlan)││ (Mensaje)   │
-      └──────────────┘└─────────────┘└──────────────┘
-```
+### Single Strike (Impacto Unificado)
+Anteriormente, el sistema generaba múltiples fragmentos de mensaje (base, upsell, etc.). La V11.1 unifica todo en un solo `mensaje_maestro`. Este enfoque de "un solo golpe" elimina la fragmentación y asegura que el lead reciba una propuesta de valor integral y directa en el primer contacto.
 
 ---
 
-## 🌪️ 2. Los Tres Motores (SPIDER, VORTEX, MARIO)
+## 🌪️ 2. Motores de Inspección
 
-### 🌪️ VORTEX Engine (Auditoría Técnica)
-- **Deep Vision Multimodal:** Evaluación de UX/UI mediante GPT-4o-Vision.
-- **Análisis de Performance:** Auditoría real de LCP/TTFB para alimentar el Circuit Breaker.
+### Motor VORTEX: Auditoría de Performance
+Este motor realiza una inspección profunda del ecosistema digital del lead:
+- **Performance Web**: Medición de métricas reales como LCP (Largest Contentful Paint) y TTFB (Time to First Byte).
+- **Inspección Visual**: Uso de modelos multimodales para evaluar la experiencia de usuario (UX) y el diseño de la interfaz (UI).
+- **Diagnóstico**: Generación de un reporte técnico que sirve como base para el ángulo de venta.
 
-### 🕷️ SPIDER Engine (Triaje Simbólico)
-- **Disqualification Shield:** Filtra prospectos inexpugnables.
-- **Heuristic Prediction:** Determina el ángulo de dolor (Local Hijack, Technical Flaw, etc.).
-
-### 🤖 MARIO V11.1 (Multi-Agent NLG)
-- **Researcher:** Analiza datos crudos y genera un briefing clínico.
-- **Strategist:** Define el ángulo de ataque basado en la oferta autorizada por el Router.
-- **Copywriter:** Genera el **Mensaje Maestro** final bajo el tono inyectado (Challenger, Consultivo, Visionario).
-
----
-
-## ⚔️ 3. Novedades en MARIO V11.1
-
-### 🗡️ Filtro Guillotina (Automated Discarding)
-Eliminación automática de leads sin fricción técnica aparente. Si el SPIDER no detecta vulnerabilidades explotables en el ecosistema digital del lead, el proceso se aborta para ahorrar recursos de IA.
-
-### 🔌 Router Matrix (Enrutamiento Determinista)
-Ya no se confía en la IA para "decidir" qué ofrecer. Node.js actúa como el cerebro comercial:
-- Mapea el sector y el estado del lead a una **Táctica Específica**.
-- Inyecta la **Oferta Autorizada** directamente en el payload del Strategist.
-
-### 🎯 Single Strike (Unified Master Message)
-Unificación de la comunicación en el campo `mensaje_maestro`. Esto asegura que el lead reciba una propuesta de valor coherente y directa en un solo bloque, optimizando la tasa de conversión en el primer contacto.
+### Motor SPIDER: Triaje y Heurísticas
+El SPIDER es el primer filtro del sistema. Su función es clasificar al lead según su potencial:
+- **Vulnerabilidades Técnicas**: Identificación de fallas críticas (ej. falta de SSL, mala optimización móvil).
+- **Clasificación de Negocio**: Categorización del lead (ej. `TIERRA_ALQUILADA` para negocios sin sitio propio).
+- **Heurísticas**: Aplicación de reglas lógicas para determinar si el lead es apto para el proceso de venta.
 
 ---
 
-## 🛡️ 4. Mitigación de Alucinaciones
-El sistema implementa medidas estrictas para leads de tipo **TIERRA_ALQUILADA** (sin sitio propio):
-- **Spider Verdict Enforcement:** El Copywriter tiene prohibido inventar nombres de plataformas (Instagram, AgendaPro, etc.).
-- **Generic Terminology:** Uso forzado de términos como "dependencia de terceros" o "falta de activos propios" basados estrictamente en el hallazgo del Scraper.
+## 🤖 3. Pipeline Multi-Agente (MARIO V11.1)
+
+El proceso de creación del mensaje se divide en tres etapas especializadas para maximizar la calidad del output:
+
+1.  **Researcher**: Actúa como un analista de datos. Recibe la información cruda de VORTEX y SPIDER para destilar un briefing clínico. Su objetivo es identificar los "puntos de dolor" exactos del lead.
+2.  **Strategist**: Toma el briefing del Researcher y la oferta asignada por el Router. Su tarea es diseñar el plan de ataque comercial, asegurando que la solución propuesta resuelva directamente los problemas detectados.
+3.  **Copywriter**: Es el responsable de la redacción final. Transforma la estrategia en el **Mensaje Maestro**, aplicando el tono de voz seleccionado (Challenger, Consultivo o Visionario) y respetando las restricciones geográficas y culturales.
 
 ---
 
-## 🚀 5. Configuración Inicial y Despliegue
+## ⚔️ 4. Salvaguardas y Filtros de Calidad
 
-### 🛠️ Configuración (.env)
-```env
-PORT=5000
-MONGODB_URI=mongodb://127.0.0.1:27017/leads_pro_ai
-OPENAI_API_KEY=sk-proj-xxx
-QDRANT_URL=http://localhost:6333
-```
+### Filtro Guillotina (Ahorro de Recursos)
+Para optimizar el uso de la infraestructura, el Filtro Guillotina detiene el pipeline si un lead no presenta fricción técnica suficiente. Si un prospecto ya tiene un ecosistema digital optimizado, el sistema lo descarta automáticamente, evitando el gasto innecesario de tokens y tiempo de procesamiento.
 
-### ⚡ Ejecución con Docker
-El ecosistema de persistencia ahora corre bajo contenedores:
+### Protección contra Alucinaciones
+El sistema implementa restricciones severas para negocios que no tienen sitio web propio (`TIERRA_ALQUILADA`). El Copywriter tiene prohibido mencionar plataformas que no hayan sido detectadas explícitamente (ej. no inventar que el cliente usa Instagram o Facebook). En su lugar, debe usar términos genéricos como "dependencia de terceros" para mantener la precisión del mensaje.
+
+---
+
+## 🚀 5. Operación y Despliegue
+
+### Configuración del Entorno (.env)
+El sistema requiere las siguientes variables para operar:
+- `MONGODB_URI`: Persistencia de leads y estrategias.
+- `QDRANT_URL`: Base de datos vectorial para el almacenamiento de tácticas mediante RAG.
+- `OPENAI_API_KEY`: Acceso a los modelos LLM y Vision.
+
+### Ejecución
+El proyecto utiliza Docker para gestionar los servicios de base de datos.
 ```bash
+# Iniciar servicios de persistencia (MongoDB/Qdrant)
 docker-compose up -d
+
+# Iniciar servidor de backend y cliente frontend
 npm run dev
 ```
 
-### 🔌 Verificación
+### Pruebas de Sistema
 ```bash
 cd backend
 npm test
